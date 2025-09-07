@@ -1,0 +1,398 @@
+
+import SwiftUI
+
+struct ContentView: View {
+    // MARK: - State Objects
+    @StateObject private var player = AudioPlayer()
+    @StateObject private var downloadManager = DownloadManager()
+    
+    // MARK: - State Variables
+    @State private var selectedTab: TabIndex = .library
+    @State private var apiClient: AudiobookshelfAPI?
+    @State private var showingWelcome = false
+    
+    // MARK: - Tab Enum
+    enum TabIndex: Hashable {
+        case library, player, downloads, settings
+    }
+
+    var body: some View {
+        TabView(selection: $selectedTab) {
+            
+            // MARK: - Library Tab
+            libraryTab()
+                .tabItem {
+                    Image(systemName: "books.vertical.fill")
+                    Text("Bibliothek")
+                }
+                .tag(TabIndex.library)
+            
+            // MARK: - Player Tab
+            playerTab()
+                .tabItem {
+                    Image(systemName: player.isPlaying ? "play.circle.fill" : "play.circle")
+                    Text("Player")
+                }
+                .tag(TabIndex.player)
+            
+            // MARK: - Downloads Tab
+            DownloadsView(
+                downloadManager: downloadManager,
+                player: player,
+                api: apiClient,
+                onBookSelected: { switchToPlayer() }
+            )
+            .tabItem {
+                Image(systemName: "arrow.down.circle.fill")
+                Text("Downloads")
+            }
+            .badge(downloadManager.downloadedBooks.count) // SwiftUI zeigt Badge nur, wenn > 0
+            .tag(TabIndex.downloads)
+            
+            // MARK: - Settings Tab
+            SettingsView()
+                .tabItem {
+                    Image(systemName: "gearshape.fill")
+                    Text("Einstellungen")
+                }
+                .tag(TabIndex.settings)
+        }
+        .tint(.accentColor)
+        .onAppear(perform: setupApp)
+        .onReceive(NotificationCenter.default.publisher(for: .init("ServerSettingsChanged"))) { _ in
+            loadAPIClient()
+        }
+        .sheet(isPresented: $showingWelcome) {
+            WelcomeView {
+                showingWelcome = false
+                selectedTab = .settings
+            }
+        }
+    }
+    // MARK: - Helper Views
+
+    @ViewBuilder
+    private func libraryTab() -> some View {
+        if let api = apiClient {
+            LibraryView(
+                player: player,
+                api: api,
+                downloadManager: downloadManager,
+                onBookSelected: { switchToPlayer() }
+            )
+        } else {
+            NoServerConfiguredView()
+        }
+    }
+
+    @ViewBuilder
+    private func playerTab() -> some View {
+        if let api = apiClient {
+            PlayerView(player: player, api: api)
+        } else {
+            NoServerConfiguredView()
+        }
+    }
+
+    // MARK: - Helper Functions
+
+    private func switchToPlayer() {
+        withAnimation(.easeInOut(duration: 0.3)) {
+            selectedTab = .player
+        }
+    }
+    
+    // MARK: - Setup Methods
+    
+    private func setupApp() {
+        loadAPIClient()
+        loadAppTheme()
+        checkFirstLaunch()
+    }
+    
+    private func loadAPIClient() {
+        guard let baseURL = UserDefaults.standard.string(forKey: "baseURL"),
+              let apiKey = UserDefaults.standard.string(forKey: "apiKey"),
+              !baseURL.isEmpty, !apiKey.isEmpty else {
+            apiClient = nil
+            return
+        }
+        apiClient = AudiobookshelfAPI(baseURL: baseURL, apiKey: apiKey)
+        player.configure(baseURL: baseURL, authToken: apiKey, downloadManager: downloadManager)
+    }
+    
+    private func loadAppTheme() {
+        if let themeRawValue = UserDefaults.standard.object(forKey: "app_theme") as? String,
+           let theme = AppTheme(rawValue: themeRawValue) {
+            applyTheme(theme)
+        }
+    }
+    
+    private func applyTheme(_ theme: AppTheme) {
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
+            for window in windowScene.windows {
+                switch theme {
+                case .light: window.overrideUserInterfaceStyle = .light
+                case .dark: window.overrideUserInterfaceStyle = .dark
+                case .automatic: window.overrideUserInterfaceStyle = .unspecified
+                }
+            }
+        }
+    }
+    
+    private func checkFirstLaunch() {
+        let hasLaunchedBefore = UserDefaults.standard.bool(forKey: "has_launched_before")
+        if !hasLaunchedBefore {
+            UserDefaults.standard.set(true, forKey: "has_launched_before")
+            showingWelcome = true
+        }
+    }
+}
+// MARK: - Supporting Views
+
+/// Enhanced tab item view with selection state and optional badge
+struct TabItemView: View {
+    let systemImage: String
+    let title: String
+    let isSelected: Bool
+    let badge: String?
+    
+    init(systemImage: String, title: String, isSelected: Bool, badge: String? = nil) {
+        self.systemImage = systemImage
+        self.title = title
+        self.isSelected = isSelected
+        self.badge = badge
+    }
+    
+    var body: some View {
+        VStack(spacing: 4) {
+            ZStack {
+                Image(systemName: systemImage)
+                    .font(.system(size: 20))
+                
+                // Badge overlay
+                if let badge = badge {
+                    Text(badge)
+                        .font(.caption2)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color.red)
+                        .clipShape(Capsule())
+                        .offset(x: 12, y: -8)
+                }
+            }
+            
+            Text(title)
+                .font(.caption2)
+        }
+    }
+}
+
+/// No server configured placeholder view
+struct NoServerConfiguredView: View {
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 24) {
+                // Icon
+                ZStack {
+                    Circle()
+                        .fill(Color.accentColor.opacity(0.1))
+                        .frame(width: 120, height: 120)
+                    
+                    Image(systemName: "server.rack")
+                        .font(.system(size: 48))
+                        .foregroundColor(.accentColor)
+                }
+                
+                // Content
+                VStack(spacing: 12) {
+                    Text("Willkommen bei StoryTeller")
+                        .font(.title2)
+                        .fontWeight(.semibold)
+                        .multilineTextAlignment(.center)
+                    
+                    Text("Verbinden Sie sich mit Ihrem Audiobookshelf-Server, um Ihre Hörbuch-Sammlung zu entdecken")
+                        .font(.body)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal)
+                }
+                
+                // Action Button
+                NavigationLink(destination: SettingsView()) {
+                    HStack {
+                        Image(systemName: "gear")
+                        Text("Server konfigurieren")
+                    }
+                    .font(.headline)
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 32)
+                    .padding(.vertical, 16)
+                    .background(Color.accentColor)
+                    .clipShape(Capsule())
+                    .shadow(color: Color.accentColor.opacity(0.3), radius: 8, x: 0, y: 4)
+                }
+                .buttonStyle(.plain)
+                
+                Spacer()
+            }
+            .padding(.horizontal, 40)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .navigationBarHidden(true)
+        }
+    }
+}
+
+/// Welcome screen for first-time users
+struct WelcomeView: View {
+    let onComplete: () -> Void
+    
+    @State private var currentPage = 0
+    private let totalPages = 3
+    
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 0) {
+                // Page Content
+                TabView(selection: $currentPage) {
+                    WelcomePageView(
+                        icon: "books.vertical.fill",
+                        title: "Ihre Hörbuch-Bibliothek",
+                        description: "Greifen Sie auf Ihre komplette Audiobookshelf-Sammlung zu - überall und jederzeit.",
+                        accentColor: .blue
+                    )
+                    .tag(0)
+                    
+                    WelcomePageView(
+                        icon: "arrow.down.circle.fill",
+                        title: "Offline hören",
+                        description: "Laden Sie Ihre Lieblingsbücher herunter und hören Sie sie auch ohne Internetverbindung.",
+                        accentColor: .green
+                    )
+                    .tag(1)
+                    
+                    WelcomePageView(
+                        icon: "waveform",
+                        title: "Nahtlose Wiedergabe",
+                        description: "Pausieren Sie auf einem Gerät und setzen Sie die Wiedergabe auf einem anderen fort.",
+                        accentColor: .purple
+                    )
+                    .tag(2)
+                }
+                .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
+                
+                // Page Indicator
+                HStack(spacing: 8) {
+                    ForEach(0..<totalPages, id: \.self) { index in
+                        Circle()
+                            .fill(index == currentPage ? Color.accentColor : Color.gray.opacity(0.3))
+                            .frame(width: 8, height: 8)
+                            .animation(.easeInOut(duration: 0.2), value: currentPage)
+                    }
+                }
+                .padding(.bottom, 32)
+                
+                // Action Buttons
+                VStack(spacing: 16) {
+                    if currentPage < totalPages - 1 {
+                        Button("Weiter") {
+                            withAnimation(.easeInOut(duration: 0.3)) {
+                                currentPage += 1
+                            }
+                        }
+                        .buttonStyle(PrimaryButtonStyle())
+                        
+                        Button("Überspringen") {
+                            onComplete()
+                        }
+                        .buttonStyle(SecondaryButtonStyle())
+                    } else {
+                        Button("Los geht's!") {
+                            onComplete()
+                        }
+                        .buttonStyle(PrimaryButtonStyle())
+                    }
+                }
+                .padding(.horizontal, 40)
+                .padding(.bottom, 50)
+            }
+            .navigationBarHidden(true)
+        }
+    }
+}
+
+/// Individual welcome page content
+struct WelcomePageView: View {
+    let icon: String
+    let title: String
+    let description: String
+    let accentColor: Color
+    
+    var body: some View {
+        VStack(spacing: 40) {
+            Spacer()
+            
+            // Icon
+            ZStack {
+                Circle()
+                    .fill(accentColor.opacity(0.1))
+                    .frame(width: 140, height: 140)
+                
+                Image(systemName: icon)
+                    .font(.system(size: 60))
+                    .foregroundColor(accentColor)
+            }
+            
+            // Content
+            VStack(spacing: 16) {
+                Text(title)
+                    .font(.title)
+                    .fontWeight(.bold)
+                    .multilineTextAlignment(.center)
+                
+                Text(description)
+                    .font(.body)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 32)
+            }
+            
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+// MARK: - Button Styles
+
+struct PrimaryButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.headline)
+            .foregroundColor(.white)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 16)
+            .background(Color.accentColor)
+            .clipShape(Capsule())
+            .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
+            .opacity(configuration.isPressed ? 0.8 : 1.0)
+            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
+    }
+}
+
+struct SecondaryButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.headline)
+            .foregroundColor(.accentColor)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 16)
+            .background(Color.accentColor.opacity(0.1))
+            .clipShape(Capsule())
+            .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
+            .opacity(configuration.isPressed ? 0.8 : 1.0)
+            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
+    }
+}

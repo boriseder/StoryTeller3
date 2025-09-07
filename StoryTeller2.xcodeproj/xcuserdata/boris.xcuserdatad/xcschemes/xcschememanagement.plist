@@ -4,10 +4,33 @@
 <dict>
 	<key>SchemeUserState</key>
 	<dict>
+		<key>StoryTeller2 Release.xcscheme_^#shared#^_</key>
+		<dict>
+			<key>orderHint</key>
+			<integer>1</integer>
+		</dict>
 		<key>StoryTeller2.xcscheme_^#shared#^_</key>
 		<dict>
 			<key>orderHint</key>
 			<integer>0</integer>
+		</dict>
+	</dict>
+	<key>SuppressBuildableAutocreation</key>
+	<dict>
+		<key>A1ADC2112E53B9D000E332FB</key>
+		<dict>
+			<key>primary</key>
+			<true/>
+		</dict>
+		<key>A1ADC2212E53B9D100E332FB</key>
+		<dict>
+			<key>primary</key>
+			<true/>
+		</dict>
+		<key>A1ADC22B2E53B9D100E332FB</key>
+		<dict>
+			<key>primary</key>
+			<true/>
 		</dict>
 	</dict>
 </dict>
