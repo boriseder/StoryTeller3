@@ -462,7 +462,7 @@ class AudioPlayer: NSObject, ObservableObject {
                 let timeRanges = playerItem.loadedTimeRanges
                 if !timeRanges.isEmpty {
                     let timeRange = timeRanges[0].timeRangeValue
-                    let loadedDuration = CMTimeGetSeconds(timeRange.duration)
+                  //  let loadedDuration = CMTimeGetSeconds(timeRange.duration)
                 }
             default:
                 break

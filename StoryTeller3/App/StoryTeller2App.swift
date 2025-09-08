@@ -23,6 +23,7 @@ struct StoryTeller2App: App {
                 .onAppear {
                     configureAppearance()
                     loadUserPreferences()
+                    setupCacheManager() // ← Neu hinzugefügt
                 }
         }
     }
@@ -63,6 +64,23 @@ struct StoryTeller2App: App {
         } else {
             // Default to automatic theme
             UserDefaults.standard.set(AppTheme.automatic.rawValue, forKey: "app_theme")
+        }
+    }
+    
+    /**
+     * Setup cache manager with saved settings
+     */
+    private func setupCacheManager() {
+        // Apply saved cache settings on app launch
+        Task { @MainActor in
+            CoverCacheManager.shared.updateCacheLimits()
+            
+            // Enable automatic cache optimization if set
+            if UserDefaults.standard.bool(forKey: "cache_optimization_enabled") {
+                await CoverCacheManager.shared.optimizeCache()
+            }
+            
+            print("[App] Cache manager initialized")
         }
     }
     
@@ -116,6 +134,7 @@ class AppStateManager: ObservableObject {
         
         if isFirstLaunch {
             UserDefaults.standard.set(true, forKey: hasLaunchedKey)
+            setupDefaultCacheSettings() // ← Neu hinzugefügt
         }
     }
     
@@ -127,6 +146,28 @@ class AppStateManager: ObservableObject {
            let theme = AppTheme(rawValue: themeRawValue) {
             currentTheme = theme
         }
+    }
+    
+    /**
+     * Setup default cache settings on first launch
+     */
+    private func setupDefaultCacheSettings() {
+        let defaults = UserDefaults.standard
+        
+        // Set default cache settings if not already set
+        if defaults.coverCacheLimit == 0 {
+            defaults.coverCacheLimit = 100
+        }
+        
+        if defaults.memoryCacheSize == 0 {
+            defaults.memoryCacheSize = 50
+        }
+        
+        // Enable optimization by default
+        defaults.cacheOptimizationEnabled = true
+        defaults.autoCacheCleanup = true
+        
+        print("[App] Default cache settings applied")
     }
     
     // MARK: - Public Methods

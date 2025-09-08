@@ -173,25 +173,27 @@ struct LibraryView: View {
     }
     
     private var contentView: some View {
-        ScrollView {
-            LazyVGrid(columns: columns, spacing: 8) {
-                ForEach(filteredAndSortedBooks) { book in
-                    BookCardView(
-                        book: book,
-                        player: player,
-                        api: api,
-                        downloadManager: downloadManager,
-                        onTap: {
-                            Task {
-                                await loadBookDetails(for: book)
+        ZStack {
+            DynamicMusicBackground()
+            ScrollView {
+                LazyVGrid(columns: columns, spacing: 32) {
+                    ForEach(filteredAndSortedBooks) { book in
+                        BookCardView(
+                            book: book,
+                            player: player,
+                            api: api,
+                            downloadManager: downloadManager,
+                            onTap: {
+                                Task {
+                                    await loadAndPlayBook(book)
+                                }
                             }
-                        }
-                    )
+                        )
+                    }
                 }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 16)
             }
-            .padding(.horizontal, 8)
-            .padding(.top, 8)
-            .padding(.bottom, 8)
         }
     }
 
@@ -215,20 +217,21 @@ struct LibraryView: View {
         }
     }
     
+    // MARK: - Data Loading Methods
+    
     @MainActor
     private func loadBooks() async {
         isLoading = true
         errorMessage = nil
         
         do {
+            let fetchedBooks: [Book]
+            
             if let libraryId = UserDefaults.standard.string(forKey: "selected_library_id") {
                 let libraries = try await api.fetchLibraries()
                 if let selectedLibrary = libraries.first(where: { $0.id == libraryId }) {
                     libraryName = selectedLibrary.name
-                    let fetchedBooks = try await api.fetchBooks(from: libraryId)
-                    withAnimation(.easeInOut) {
-                        books = fetchedBooks
-                    }
+                    fetchedBooks = try await api.fetchBooks(from: libraryId)
                     print("\(fetchedBooks.count) Bücher aus Bibliothek '\(selectedLibrary.name)' geladen")
                 } else {
                     throw AudiobookshelfError.libraryNotFound("Selected library not found")
@@ -237,17 +240,29 @@ struct LibraryView: View {
                 let libraries = try await api.fetchLibraries()
                 if let firstLibrary = libraries.first {
                     libraryName = firstLibrary.name
-                    let fetchedBooks = try await api.fetchBooks(from: firstLibrary.id)
-                    withAnimation(.easeInOut) {
-                        books = fetchedBooks
-                    }
+                    fetchedBooks = try await api.fetchBooks(from: firstLibrary.id)
                     UserDefaults.standard.set(firstLibrary.id, forKey: "selected_library_id")
                     print("\(fetchedBooks.count) Bücher aus Standard-Bibliothek '\(firstLibrary.name)' geladen")
                 } else {
                     libraryName = "Keine Bibliothek"
-                    books = []
+                    fetchedBooks = []
                 }
             }
+            
+            // Update books with animation
+            withAnimation(.easeInOut) {
+                books = fetchedBooks
+            }
+            
+            // Optional: Preload first 10 covers for better UX
+            if !fetchedBooks.isEmpty {
+                CoverCacheManager.shared.preloadCovers(
+                    for: Array(fetchedBooks.prefix(10)),
+                    api: api,
+                    downloadManager: downloadManager
+                )
+            }
+            
         } catch {
             errorMessage = error.localizedDescription
             showingErrorAlert = true
@@ -258,7 +273,7 @@ struct LibraryView: View {
     }
     
     @MainActor
-    private func loadBookDetails(for book: Book) async {
+    private func loadAndPlayBook(_ book: Book) async {
         print("Lade Buch: \(book.title)")
         
         do {
@@ -276,130 +291,3 @@ struct LibraryView: View {
         }
     }
 }
-
-// Ersatz für die bookCoverView in LibraryView.swift -> BookCardView
-// Diese View sollte die bestehende Cover-Logik in BookCardView ersetzen:
-
-struct BookCardCoverView: View {
-    let book: Book
-    let api: AudiobookshelfAPI
-    let downloadManager: DownloadManager
-    let height: CGFloat = 150
-    
-    @State private var coverImage: UIImage?
-    @State private var isLoading = true
-    
-    var body: some View {
-        Group {
-            if let coverImage = coverImage {
-                Image(uiImage: coverImage)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(height: height)
-                    .frame(maxWidth: .infinity)
-                    .clipped()
-                    .cornerRadius(8)
-            } else if isLoading {
-                loadingPlaceholder
-            } else {
-                placeholderCoverView
-            }
-        }
-        .onAppear {
-            loadCoverImage()
-        }
-    }
-    
-    private var loadingPlaceholder: some View {
-        ZStack {
-            Color.gray.opacity(0.3)
-            
-            ProgressView()
-                .scaleEffect(0.8)
-        }
-        .frame(height: height)
-        .cornerRadius(8)
-    }
-    
-    private var placeholderCoverView: some View {
-        ZStack {
-            LinearGradient(
-                colors: [
-                    Color.accentColor.opacity(0.3),
-                    Color.accentColor.opacity(0.6),
-                    Color.accentColor.opacity(0.8)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            
-            Image(systemName: "book.closed.fill")
-                .font(.system(size: 32))
-                .foregroundColor(.white)
-        }
-        .frame(height: height)
-        .cornerRadius(8)
-    }
-    
-    private func loadCoverImage() {
-        // 1. Zuerst lokales Cover prüfen (Offline-Modus)
-        if let localCoverURL = downloadManager.getLocalCoverURL(for: book.id),
-           let localImage = UIImage(contentsOfFile: localCoverURL.path) {
-            self.coverImage = localImage
-            self.isLoading = false
-            return
-        }
-        
-        // 2. Online-Cover laden wenn kein lokales vorhanden
-        guard let coverPath = book.coverPath else {
-            self.isLoading = false
-            return
-        }
-        
-        let coverURL = "\(api.baseURLString)\(coverPath)"
-        guard let url = URL(string: coverURL) else {
-            self.isLoading = false
-            return
-        }
-        
-        var request = URLRequest(url: url)
-        request.setValue("Bearer \(api.authToken)", forHTTPHeaderField: "Authorization")
-        
-        URLSession.shared.dataTask(with: request) { data, response, error in
-            DispatchQueue.main.async {
-                self.isLoading = false
-                
-                if let data = data, let image = UIImage(data: data) {
-                    self.coverImage = image
-                }
-            }
-        }.resume()
-    }
-}
-
-// Diese Änderung in LibraryView.swift in der BookCardView anwenden:
-// Ersetze die bestehende bookCoverView durch:
-/*
-private var bookCoverView: some View {
-    BookCardCoverView(
-        book: book,
-        api: api,
-        downloadManager: downloadManager
-    )
-    .overlay(
-        VStack {
-            HStack {
-                Spacer()
-                if downloadManager.isBookDownloaded(book.id) {
-                    Image(systemName: "arrow.down.circle.fill")
-                        .font(.caption)
-                        .foregroundColor(.white)
-                        .background(Circle().fill(Color.green))
-                        .padding(4)
-                }
-            }
-            Spacer()
-        }
-    )
-}
-*/

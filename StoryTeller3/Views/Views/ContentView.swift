@@ -59,6 +59,14 @@ struct ContentView: View {
         }
         .tint(.accentColor)
         .onAppear(perform: setupApp)
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)) { _ in
+            // Optimize cache when app goes to background
+            if UserDefaults.standard.bool(forKey: "auto_cache_cleanup") {
+                Task {
+                    await CoverCacheManager.shared.optimizeCache()
+                }
+            }
+        }
         .onReceive(NotificationCenter.default.publisher(for: .init("ServerSettingsChanged"))) { _ in
             loadAPIClient()
         }

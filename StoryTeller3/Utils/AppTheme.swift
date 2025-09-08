@@ -1,4 +1,4 @@
-import Foundation
+ import Foundation
 
 enum AppTheme: String, CaseIterable {
     case light = "light"

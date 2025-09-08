@@ -134,13 +134,13 @@ struct PlayerInterfaceView: View {
             .tint(.accentColor)
             
             HStack {
-                Text(formatTime(player.currentTime))
+                Text(TimeFormatter.formatTime(player.currentTime))
                     .font(.caption)
                     .foregroundColor(.secondary)
                 
                 Spacer()
                 
-                Text(formatTime(player.duration))
+                Text(TimeFormatter.formatDuration(player.duration))
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -179,15 +179,4 @@ struct PlayerInterfaceView: View {
         .foregroundColor(.accentColor)
     }
     
-    private func formatTime(_ seconds: Double) -> String {
-        let hours = Int(seconds) / 3600
-        let minutes = Int(seconds) % 3600 / 60
-        let secs = Int(seconds) % 60
-        
-        if hours > 0 {
-            return String(format: "%d:%02d:%02d", hours, minutes, secs)
-        } else {
-            return String(format: "%d:%02d", minutes, secs)
-        }
-    }
 }

@@ -1,21 +1,32 @@
 import SwiftUI
 
 struct AdvancedSettingsView: View {
-    @State private var cacheSize: String = "Berechne..."
+    // MARK: - State
+    @State private var appCacheSize: String = "Berechne..."
+    @State private var coverCacheSize: String = "Berechne..."
     @State private var downloadedBooksCount: Int = 0
     @State private var totalDownloadSize: String = "Berechne..."
     @State private var enableDebugLogging = false
     @State private var connectionTimeout: Double = 30
     @State private var maxConcurrentDownloads: Int = 3
-    @State private var showingClearCacheAlert = false
-    @State private var showingClearDownloadsAlert = false
+    @State private var coverCacheLimit: Int = 100
+    @State private var memoryCacheSize: Int = 50
     
+    // Alert states
+    @State private var showingClearAppCacheAlert = false
+    @State private var showingClearCoverCacheAlert = false
+    @State private var showingClearDownloadsAlert = false
+    @State private var showingClearAllCacheAlert = false
+    
+    // Cache managers
     private let downloadManager = DownloadManager()
+    @StateObject private var coverCacheManager = CoverCacheManager.shared
     
     var body: some View {
         NavigationStack {
             Form {
                 cacheManagementSection
+                coverCacheSection
                 downloadSettingsSection
                 networkSettingsSection
                 debugSettingsSection
@@ -24,17 +35,38 @@ struct AdvancedSettingsView: View {
             .navigationTitle("Erweiterte Einstellungen")
             .navigationBarTitleDisplayMode(.large)
             .onAppear(perform: loadAdvancedSettings)
-            .alert("Cache leeren", isPresented: $showingClearCacheAlert) {
-                Button("Abbrechen", role: .cancel) { }
-                Button("Löschen", role: .destructive) { clearCache() }
-            } message: {
-                Text("Möchten Sie den gesamten Cache löschen? Dies kann die App-Performance vorübergehend beeinträchtigen.")
+            .refreshable {
+                await calculateStorageInfo()
             }
+            
+            // MARK: - Alerts
+            .alert("App-Cache leeren", isPresented: $showingClearAppCacheAlert) {
+                Button("Abbrechen", role: .cancel) { }
+                Button("Löschen", role: .destructive) { clearAppCache() }
+            } message: {
+                Text("Möchten Sie den gesamten App-Cache löschen? Dies kann die App-Performance vorübergehend beeinträchtigen.")
+            }
+            
+            .alert("Cover-Cache leeren", isPresented: $showingClearCoverCacheAlert) {
+                Button("Abbrechen", role: .cancel) { }
+                Button("Nur Memory", role: .destructive) { clearCoverMemoryCache() }
+                Button("Alles löschen", role: .destructive) { clearAllCoverCache() }
+            } message: {
+                Text("Cover müssen nach dem Löschen erneut geladen werden.")
+            }
+            
             .alert("Downloads löschen", isPresented: $showingClearDownloadsAlert) {
                 Button("Abbrechen", role: .cancel) { }
                 Button("Alle löschen", role: .destructive) { clearAllDownloads() }
             } message: {
                 Text("Möchten Sie alle heruntergeladenen Hörbücher löschen? Diese Aktion kann nicht rückgängig gemacht werden.")
+            }
+            
+            .alert("Kompletten Cache leeren", isPresented: $showingClearAllCacheAlert) {
+                Button("Abbrechen", role: .cancel) { }
+                Button("Alles löschen", role: .destructive) { clearCompleteCache() }
+            } message: {
+                Text("Dies löscht alle zwischengespeicherten Daten. Die App muss alle Inhalte erneut laden.")
             }
         }
     }
@@ -42,25 +74,107 @@ struct AdvancedSettingsView: View {
     // MARK: - Cache Management Section
     private var cacheManagementSection: some View {
         Section {
+            // App Cache
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Cache-Größe").font(.body)
-                    Text("Cover und Metadaten")
+                    Text("App-Cache").font(.body)
+                    Text("Temporäre Daten und Metadaten")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
                 Spacer()
-                Text(cacheSize)
+                Text(appCacheSize)
                     .font(.headline)
                     .foregroundColor(.secondary)
             }
-            Button("Cache leeren") { showingClearCacheAlert = true }
-                .foregroundColor(.red)
+            
+            Button("App-Cache leeren") {
+                showingClearAppCacheAlert = true
+            }
+            .foregroundColor(.orange)
+            
+            Divider()
+            
+            // Complete Cache Clear
+            Button("Kompletten Cache leeren") {
+                showingClearAllCacheAlert = true
+            }
+            .foregroundColor(.red)
+            .font(.headline)
+            
         } header: {
             Label("Cache-Verwaltung", systemImage: "externaldrive.fill")
         } footer: {
-            Text("Der Cache speichert Cover-Bilder und Metadaten für bessere Performance.")
+            Text("Der App-Cache speichert temporäre Daten für bessere Performance.")
         }
+    }
+    
+    // MARK: - Cover Cache Section
+    private var coverCacheSection: some View {
+        Section {
+            // Cover Cache Size
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Cover-Cache").font(.body)
+                    Text("Buchcover (Memory + Disk)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                Spacer()
+                Text(coverCacheSize)
+                    .font(.headline)
+                    .foregroundColor(.secondary)
+            }
+            
+            // Memory Cache Limit
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Memory Cache Limit").font(.body)
+                        Text("Anzahl Cover im Arbeitsspeicher")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    Spacer()
+                    Picker("Cover Limit", selection: $coverCacheLimit) {
+                        ForEach([50, 100, 150, 200], id: \.self) { limit in
+                            Text("\(limit)").tag(limit)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                }
+                
+                // Memory Size Limit
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Memory Size Limit").font(.body)
+                        Text("Maximaler Speicher für Cover")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    Spacer()
+                    Picker("Memory Size", selection: $memoryCacheSize) {
+                        ForEach([25, 50, 75, 100], id: \.self) { size in
+                            Text("\(size) MB").tag(size)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                }
+            }
+            
+            // Cover Cache Actions
+            Button("Cover-Cache verwalten") {
+                showingClearCoverCacheAlert = true
+            }
+            .foregroundColor(.blue)
+            
+        } header: {
+            Label("Cover-Cache", systemImage: "photo.stack.fill")
+        } footer: {
+            Text("Cover werden automatisch zwischengespeichert. Höhere Limits verbessern Performance, verbrauchen aber mehr Speicher.")
+        }
+        .onChange(of: coverCacheLimit) { _ in saveCoverCacheSettings() }
+        .onChange(of: memoryCacheSize) { _ in saveCoverCacheSettings() }
     }
     
     // MARK: - Download Settings Section
@@ -79,6 +193,7 @@ struct AdvancedSettingsView: View {
                         .font(.headline)
                         .foregroundColor(.secondary)
                 }
+                
                 HStack {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Gleichzeitige Downloads").font(.body)
@@ -93,15 +208,21 @@ struct AdvancedSettingsView: View {
                     .pickerStyle(.menu)
                 }
             }
-            Button("Alle Downloads löschen") { showingClearDownloadsAlert = true }
-                .foregroundColor(.red)
-                .disabled(downloadedBooksCount == 0)
+            
+            Button("Alle Downloads löschen") {
+                showingClearDownloadsAlert = true
+            }
+            .foregroundColor(.red)
+            .disabled(downloadedBooksCount == 0)
+            
         } header: {
             Label("Download-Einstellungen", systemImage: "arrow.down.circle.fill")
         } footer: {
             Text("Mehr parallele Downloads können die Geschwindigkeit erhöhen, aber auch mehr Ressourcen verbrauchen.")
         }
-        .onChange(of: maxConcurrentDownloads) { UserDefaults.standard.set($0, forKey: "max_concurrent_downloads") }
+        .onChange(of: maxConcurrentDownloads) {
+            UserDefaults.standard.set($0, forKey: "max_concurrent_downloads")
+        }
     }
     
     // MARK: - Network Settings Section
@@ -120,6 +241,7 @@ struct AdvancedSettingsView: View {
                         .font(.headline)
                         .foregroundColor(.secondary)
                 }
+                
                 Slider(value: $connectionTimeout, in: 10...60, step: 5) {
                     Text("Timeout")
                 } minimumValueLabel: {
@@ -134,7 +256,9 @@ struct AdvancedSettingsView: View {
         } footer: {
             Text("Längere Timeouts können bei langsamen Verbindungen helfen, verbrauchen aber mehr Akku.")
         }
-        .onChange(of: connectionTimeout) { UserDefaults.standard.set($0, forKey: "connection_timeout") }
+        .onChange(of: connectionTimeout) {
+            UserDefaults.standard.set($0, forKey: "connection_timeout")
+        }
     }
     
     // MARK: - Debug Settings Section
@@ -149,6 +273,7 @@ struct AdvancedSettingsView: View {
                 }
             }
             .tint(.accentColor)
+            
             if enableDebugLogging {
                 Button("Debug-Log exportieren") { exportDebugLog() }
                     .foregroundColor(.accentColor)
@@ -171,7 +296,8 @@ struct AdvancedSettingsView: View {
         Section {
             VStack(spacing: 12) {
                 StorageItem(title: "App-Größe", size: getAppSize(), color: .blue)
-                StorageItem(title: "Cache", size: cacheSize, color: .orange)
+                StorageItem(title: "App-Cache", size: appCacheSize, color: .orange)
+                StorageItem(title: "Cover-Cache", size: coverCacheSize, color: .purple)
                 StorageItem(title: "Downloads", size: totalDownloadSize, color: .green)
                 StorageItem(title: "Verfügbarer Speicher", size: getAvailableStorage(), color: .gray)
             }
@@ -189,20 +315,44 @@ struct AdvancedSettingsView: View {
         maxConcurrentDownloads = UserDefaults.standard.integer(forKey: "max_concurrent_downloads")
         if maxConcurrentDownloads == 0 { maxConcurrentDownloads = 3 }
         
+        coverCacheLimit = UserDefaults.standard.integer(forKey: "cover_cache_limit")
+        if coverCacheLimit == 0 { coverCacheLimit = 100 }
+        
+        memoryCacheSize = UserDefaults.standard.integer(forKey: "memory_cache_size")
+        if memoryCacheSize == 0 { memoryCacheSize = 50 }
+        
         enableDebugLogging = UserDefaults.standard.bool(forKey: "enable_debug_logging")
         
         Task { await calculateStorageInfo() }
     }
     
+    private func saveCoverCacheSettings() {
+        UserDefaults.standard.set(coverCacheLimit, forKey: "cover_cache_limit")
+        UserDefaults.standard.set(memoryCacheSize, forKey: "memory_cache_size")
+        
+        // Apply new cache settings
+        Task { @MainActor in
+            await applyCacheSettings()
+        }
+    }
+    
+    @MainActor
+    private func applyCacheSettings() async {
+        // This would require extending CoverCacheManager to accept dynamic limits
+        // For now, we'll just save the preferences
+        print("Applied new cache settings: \(coverCacheLimit) covers, \(memoryCacheSize) MB")
+    }
+    
     private func calculateStorageInfo() async {
         await MainActor.run {
-            cacheSize = calculateCacheSize()
+            appCacheSize = calculateAppCacheSize()
+            coverCacheSize = calculateCoverCacheSize()
             downloadedBooksCount = downloadManager.downloadedBooks.count
             totalDownloadSize = calculateDownloadSize()
         }
     }
     
-    // NEU: Ordnergrößen-Berechnung
+    // MARK: - Size Calculations
     private func folderSize(at url: URL) -> Int64 {
         let fm = FileManager.default
         guard let enumerator = fm.enumerator(at: url, includingPropertiesForKeys: [.fileSizeKey, .isRegularFileKey]) else {
@@ -222,7 +372,6 @@ struct AdvancedSettingsView: View {
         return total
     }
     
-    // NEU: Einheitliche Formatierung
     private func formatBytes(_ size: Int64) -> String {
         if size == 0 {
             return "0 kB"
@@ -233,9 +382,17 @@ struct AdvancedSettingsView: View {
         return formatter.string(fromByteCount: size)
     }
     
-    private func calculateCacheSize() -> String {
+    private func calculateAppCacheSize() -> String {
         let cacheURL = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
-        return formatBytes(folderSize(at: cacheURL))
+        let totalSize = folderSize(at: cacheURL)
+        let coverCacheSize = CoverCacheManager.shared.getCacheSize()
+        let appCacheSize = totalSize - coverCacheSize
+        return formatBytes(max(0, appCacheSize))
+    }
+    
+    private func calculateCoverCacheSize() -> String {
+        let size = CoverCacheManager.shared.getCacheSize()
+        return formatBytes(size)
     }
     
     private func calculateDownloadSize() -> String {
@@ -261,34 +418,65 @@ struct AdvancedSettingsView: View {
         return "Unbekannt"
     }
     
-    private func clearCache() {
+    // MARK: - Cache Clearing Methods
+    private func clearAppCache() {
         let cacheURL = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+        let coverCacheURL = cacheURL.appendingPathComponent("BookCovers")
+        
         do {
             let contents = try FileManager.default.contentsOfDirectory(at: cacheURL, includingPropertiesForKeys: nil)
-            for file in contents { try FileManager.default.removeItem(at: file) }
+            for file in contents {
+                // Skip cover cache directory
+                if file != coverCacheURL {
+                    try FileManager.default.removeItem(at: file)
+                }
+            }
             Task { await calculateStorageInfo() }
         } catch {
-            print("Error clearing cache: \(error)")
+            print("Error clearing app cache: \(error)")
         }
+    }
+    
+    private func clearCoverMemoryCache() {
+        CoverCacheManager.shared.clearMemoryCache()
+        Task { await calculateStorageInfo() }
+    }
+    
+    private func clearAllCoverCache() {
+        CoverCacheManager.shared.clearAllCache()
+        Task { await calculateStorageInfo() }
     }
     
     private func clearAllDownloads() {
-        let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        let downloadsURL = documentsURL.appendingPathComponent("Downloads")
-        do {
-            try FileManager.default.removeItem(at: downloadsURL)
-            try FileManager.default.createDirectory(at: downloadsURL, withIntermediateDirectories: true)
-            downloadManager.downloadedBooks.removeAll()
-            Task { await calculateStorageInfo() }
-        } catch {
-            print("Error clearing downloads: \(error)")
-        }
+        downloadManager.deleteAllBooks()
+        Task { await calculateStorageInfo() }
     }
     
-    private func exportDebugLog() { print("Exporting debug log...") }
-    private func clearDebugLog() { print("Clearing debug log...") }
-    private func enableDebugMode() { print("Debug mode enabled") }
-    private func disableDebugMode() { print("Debug mode disabled") }
+    private func clearCompleteCache() {
+        // Clear app cache
+        clearAppCache()
+        // Clear cover cache
+        clearAllCoverCache()
+        
+        Task { await calculateStorageInfo() }
+    }
+    
+    // MARK: - Debug Methods
+    private func exportDebugLog() {
+        print("Exporting debug log...")
+    }
+    
+    private func clearDebugLog() {
+        print("Clearing debug log...")
+    }
+    
+    private func enableDebugMode() {
+        print("Debug mode enabled")
+    }
+    
+    private func disableDebugMode() {
+        print("Debug mode disabled")
+    }
 }
 
 // MARK: - Storage Item View

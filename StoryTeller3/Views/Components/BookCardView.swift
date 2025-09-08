@@ -34,8 +34,14 @@ struct BookCardView: View {
         Button(action: onTap) {
             VStack(alignment: .leading, spacing: 0) {
                 bookCoverSection
+                    .frame(height: 160) // ← Cover fest oben
+                
+                Spacer() // ← Nimmt allen verfügbaren Platz
+                
                 bookInfoSection
+                    .frame(height: 60) // ← Info fest unten
             }
+            .frame(height: 220)
             .background {
                 RoundedRectangle(cornerRadius: 16)
                     .fill(.regularMaterial)
@@ -77,13 +83,14 @@ struct BookCardView: View {
     private var bookCoverSection: some View {
         ZStack {
             // Cover Image - mit standardmäßigen Rounded Corners für Kompatibilität
-            BookCoverView(
+            BookCoverView.square(
                 book: book,
+                size: 160,
                 api: api,
                 downloadManager: downloadManager,
-                size: CGSize(width: 160, height: 160)
+                showProgress: true
             )
-            .frame(height: 160)
+
             .frame(maxWidth: .infinity)
             .clipShape(RoundedRectangle(cornerRadius: 16))
             .mask(
@@ -217,9 +224,9 @@ struct BookCardView: View {
                 .scaleEffect(x: 1, y: 0.5)
             
             HStack {
-                Text(formatTime(player.currentTime))
+                Text(TimeFormatter.formatTime(player.currentTime))
                 Spacer()
-                Text(formatTime(player.duration))
+                Text(TimeFormatter.formatDuration(player.duration))
             }
             .font(.caption2)
             .foregroundColor(.secondary)
@@ -273,18 +280,6 @@ struct BookCardView: View {
     
     // MARK: - Helper Methods
     
-    /// Format time in MM:SS or H:MM:SS format
-    private func formatTime(_ seconds: Double) -> String {
-        let hours = Int(seconds) / 3600
-        let minutes = Int(seconds) % 3600 / 60
-        let secs = Int(seconds) % 60
-        
-        if hours > 0 {
-            return String(format: "%d:%02d:%02d", hours, minutes, secs)
-        } else {
-            return String(format: "%d:%02d", minutes, secs)
-        }
-    }
 }
 
 // MARK: - Circular Progress View

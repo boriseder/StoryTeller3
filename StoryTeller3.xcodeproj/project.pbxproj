@@ -11,7 +11,7 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		A158613A2E54D8F3001835B7 /* Exceptions for "StoryTeller2" folder in "StoryTeller3" target */ = {
+		A1FC41F42E6EAD6500162E20 /* Exceptions for "StoryTeller3" folder in "StoryTeller3" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
@@ -21,22 +21,12 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		A1ADC2142E53B9D000E332FB /* StoryTeller2 */ = {
+		A1ADC2142E53B9D000E332FB /* StoryTeller3 */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				A158613A2E54D8F3001835B7 /* Exceptions for "StoryTeller2" folder in "StoryTeller3" target */,
+				A1FC41F42E6EAD6500162E20 /* Exceptions for "StoryTeller3" folder in "StoryTeller3" target */,
 			);
-			path = StoryTeller2;
-			sourceTree = "<group>";
-		};
-		A1ADC2252E53B9D100E332FB /* StoryTeller2Tests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = StoryTeller2Tests;
-			sourceTree = "<group>";
-		};
-		A1ADC22F2E53B9D100E332FB /* StoryTeller2UITests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = StoryTeller2UITests;
+			path = StoryTeller3;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -55,9 +45,7 @@
 		A1ADC2092E53B9D000E332FB = {
 			isa = PBXGroup;
 			children = (
-				A1ADC2142E53B9D000E332FB /* StoryTeller2 */,
-				A1ADC2252E53B9D100E332FB /* StoryTeller2Tests */,
-				A1ADC22F2E53B9D100E332FB /* StoryTeller2UITests */,
+				A1ADC2142E53B9D000E332FB /* StoryTeller3 */,
 				A1ADC2132E53B9D000E332FB /* Products */,
 			);
 			sourceTree = "<group>";
@@ -86,7 +74,7 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				A1ADC2142E53B9D000E332FB /* StoryTeller2 */,
+				A1ADC2142E53B9D000E332FB /* StoryTeller3 */,
 			);
 			name = StoryTeller3;
 			packageProductDependencies = (
@@ -274,7 +262,6 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
-				CODE_SIGN_ENTITLEMENTS = StoryTeller2/StoryTeller2.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -282,8 +269,8 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = StoryTeller2/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = StoryTeller2;
+				INFOPLIST_FILE = StoryTeller3/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = StoryTeller3;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.books";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
@@ -324,7 +311,6 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
-				CODE_SIGN_ENTITLEMENTS = StoryTeller2/StoryTeller2.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -332,8 +318,8 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = StoryTeller2/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = StoryTeller2;
+				INFOPLIST_FILE = StoryTeller3/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = StoryTeller3;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.books";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
