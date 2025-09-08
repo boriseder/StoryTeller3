@@ -16,9 +16,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "A1ADC2112E53B9D000E332FB"
-               BuildableName = "StoryTeller2.app"
-               BlueprintName = "StoryTeller2"
-               ReferencedContainer = "container:StoryTeller2.xcodeproj">
+               BuildableName = "StoryTeller3.app"
+               BlueprintName = "StoryTeller3"
+               ReferencedContainer = "container:StoryTeller3.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -29,9 +29,33 @@
       selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
       shouldUseLaunchSchemeArgsEnv = "YES"
       shouldAutocreateTestPlan = "YES">
+      <Testables>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "A1ADC2212E53B9D100E332FB"
+               BuildableName = "StoryTeller3Tests.xctest"
+               BlueprintName = "StoryTeller3Tests"
+               ReferencedContainer = "container:StoryTeller3.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "A1ADC22B2E53B9D100E332FB"
+               BuildableName = "StoryTeller3UITests.xctest"
+               BlueprintName = "StoryTeller3UITests"
+               ReferencedContainer = "container:StoryTeller3.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
+      </Testables>
    </TestAction>
    <LaunchAction
-      buildConfiguration = "Release"
+      buildConfiguration = "Debug"
       selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
       selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
       launchStyle = "0"
@@ -45,18 +69,11 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "A1ADC2112E53B9D000E332FB"
-            BuildableName = "StoryTeller2.app"
-            BlueprintName = "StoryTeller2"
-            ReferencedContainer = "container:StoryTeller2.xcodeproj">
+            BuildableName = "StoryTeller3.app"
+            BlueprintName = "StoryTeller3"
+            ReferencedContainer = "container:StoryTeller3.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
-      <AdditionalOptions>
-         <AdditionalOption
-            key = "APP_DISTRIBUTOR_ID_OVERRIDE"
-            value = "com.apple.AppStore"
-            isEnabled = "YES">
-         </AdditionalOption>
-      </AdditionalOptions>
    </LaunchAction>
    <ProfileAction
       buildConfiguration = "Release"
@@ -69,9 +86,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "A1ADC2112E53B9D000E332FB"
-            BuildableName = "StoryTeller2.app"
-            BlueprintName = "StoryTeller2"
-            ReferencedContainer = "container:StoryTeller2.xcodeproj">
+            BuildableName = "StoryTeller3.app"
+            BlueprintName = "StoryTeller3"
+            ReferencedContainer = "container:StoryTeller3.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>
