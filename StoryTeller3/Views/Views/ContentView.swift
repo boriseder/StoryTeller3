@@ -5,6 +5,7 @@ struct ContentView: View {
     // MARK: - State Objects
     @StateObject private var player = AudioPlayer()
     @StateObject private var downloadManager = DownloadManager()
+    @StateObject private var playerStateManager = PlayerStateManager()
     
     // MARK: - State Variables
     @State private var selectedTab: TabIndex = .library
@@ -20,47 +21,53 @@ struct ContentView: View {
     }
 
     var body: some View {
-        TabView(selection: $selectedTab) {
-            
-            // MARK: - Library Tab
-            libraryTab()
+        FullscreenPlayerContainer(
+            player: player,
+            playerStateManager: playerStateManager,
+            api: apiClient
+        ) {
+            TabView(selection: $selectedTab) {
+                
+                // MARK: - Library Tab
+                libraryTab()
+                    .tabItem {
+                        Image(systemName: "books.vertical.fill")
+                        Text("Bibliothek")
+                    }
+                    .tag(TabIndex.library)
+                
+                // MARK: - Player Tab
+                playerTab()
+                    .tabItem {
+                        Image(systemName: player.isPlaying ? "play.circle.fill" : "play.circle")
+                        Text("Player")
+                    }
+                    .tag(TabIndex.player)
+                
+                // MARK: - Downloads Tab
+                DownloadsView(
+                    downloadManager: downloadManager,
+                    player: player,
+                    api: apiClient,
+                    onBookSelected: { openFullscreenPlayer() }
+                )
                 .tabItem {
-                    Image(systemName: "books.vertical.fill")
-                    Text("Bibliothek")
+                    Image(systemName: "arrow.down.circle.fill")
+                    Text("Downloads")
                 }
-                .tag(TabIndex.library)
-            
-            // MARK: - Player Tab
-            playerTab()
-                .tabItem {
-                    Image(systemName: player.isPlaying ? "play.circle.fill" : "play.circle")
-                    Text("Player")
-                }
-                .tag(TabIndex.player)
-            
-            // MARK: - Downloads Tab
-            DownloadsView(
-                downloadManager: downloadManager,
-                player: player,
-                api: apiClient,
-                onBookSelected: { switchToPlayer() }
-            )
-            .tabItem {
-                Image(systemName: "arrow.down.circle.fill")
-                Text("Downloads")
+                .badge(downloadManager.downloadedBooks.count)
+                .tag(TabIndex.downloads)
+                
+                // MARK: - Settings Tab
+                SettingsView()
+                    .tabItem {
+                        Image(systemName: "gearshape.fill")
+                        Text("Einstellungen")
+                    }
+                    .tag(TabIndex.settings)
             }
-            .badge(downloadManager.downloadedBooks.count) // SwiftUI zeigt Badge nur, wenn > 0
-            .tag(TabIndex.downloads)
-            
-            // MARK: - Settings Tab
-            SettingsView()
-                .tabItem {
-                    Image(systemName: "gearshape.fill")
-                    Text("Einstellungen")
-                }
-                .tag(TabIndex.settings)
+            .tint(.accentColor)
         }
-        .tint(.accentColor)
         .onAppear(perform: setupApp)
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)) { _ in
             // Optimize cache when app goes to background
@@ -94,7 +101,7 @@ struct ContentView: View {
                 player: player,
                 api: api,
                 downloadManager: downloadManager,
-                onBookSelected: { switchToPlayer() }
+                onBookSelected: { openFullscreenPlayer() }
             )
         } else {
             NoServerConfiguredView()
@@ -104,7 +111,13 @@ struct ContentView: View {
     @ViewBuilder
     private func playerTab() -> some View {
         if let api = apiClient {
+            // Wenn der Player-Tab ausgewählt wird, Fullscreen Player öffnen
             PlayerView(player: player, api: api)
+                .onAppear {
+                    if player.book != nil {
+                        playerStateManager.showFullscreen()
+                    }
+                }
         } else {
             NoServerConfiguredView()
         }
@@ -112,6 +125,10 @@ struct ContentView: View {
 
     // MARK: - Helper Functions
 
+    private func openFullscreenPlayer() {
+        playerStateManager.showFullscreen()
+    }
+    
     private func switchToPlayer() {
         withAnimation(.easeInOut(duration: 0.3)) {
             selectedTab = .player
@@ -124,7 +141,7 @@ struct ContentView: View {
         loadAPIClient()
         loadAppTheme()
         checkFirstLaunch()
-        setupNotificationObservers() // ✅ Setup observers properly
+        setupNotificationObservers()
     }
     
     // ✅ MEMORY LEAK FIX - Proper NotificationCenter observer setup
