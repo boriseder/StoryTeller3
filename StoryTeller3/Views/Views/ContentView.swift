@@ -60,6 +60,9 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: .init("ServerSettingsChanged"))) { _ in
             loadAPIClient()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .init("ShowSettings"))) { _ in
+            showingSettings = true
+        }
         // ✅ MEMORY LEAK FIX - Proper cancellables handling
         .onDisappear {
             cancellables.removeAll()
@@ -95,21 +98,11 @@ struct ContentView: View {
                     player: player,
                     api: api,
                     downloadManager: downloadManager,
-                    onBookSelected: { openPlayer() }
+                    onBookSelected: { openFullscreenPlayer() }
                 )
-                .toolbar {
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        settingsButton
-                    }
-                }
             } else {
                 NoServerConfiguredView {
                     showingSettings = true
-                }
-                .toolbar {
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        settingsButton
-                    }
                 }
             }
         }
@@ -122,13 +115,8 @@ struct ContentView: View {
                 downloadManager: downloadManager,
                 player: player,
                 api: apiClient,
-                onBookSelected: { openPlayer() }
+                onBookSelected: { openFullscreenPlayer() }
             )
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    settingsButton
-                }
-            }
         }
     }
     
@@ -145,8 +133,8 @@ struct ContentView: View {
 
     // MARK: - Helper Functions
 
-    private func openPlayer() {
-        playerStateManager.showMini()
+    private func openFullscreenPlayer() {
+        playerStateManager.showFullscreen()
     }
     
     // MARK: - Setup Methods
@@ -273,6 +261,8 @@ struct NoServerConfiguredView: View {
     }
 }
 
+// Rest der Supporting Views bleiben unverändert...
+// (WelcomeView, WelcomePageView, PrimaryButtonStyle, SecondaryButtonStyle)
 // Rest der Supporting Views bleiben unverändert...
 // (WelcomeView, WelcomePageView, PrimaryButtonStyle, SecondaryButtonStyle)
 // MARK: - Supporting Views

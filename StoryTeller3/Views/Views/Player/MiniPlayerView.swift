@@ -12,23 +12,69 @@ struct MiniPlayerView: View {
     
     private let miniPlayerHeight: CGFloat = 64
     private let expandedPlayerHeight: CGFloat = 140
+    private let progressBarHeight: CGFloat = 3
     
     var body: some View {
         VStack(spacing: 0) {
             if let book = player.book {
-                miniPlayerContent(book: book)
-                    .frame(height: isExpanded ? expandedPlayerHeight : miniPlayerHeight)
-                    .background {
-                        RoundedRectangle(cornerRadius: isExpanded ? 20 : 0)
-                            .fill(.regularMaterial)
-                            .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: -2)
-                    }
-                    .clipped()
-                    .offset(y: dragOffset)
-                    .animation(.spring(response: 0.4, dampingFraction: 0.8), value: isExpanded)
-                    .animation(.spring(response: 0.3, dampingFraction: 0.9), value: dragOffset)
-                    .gesture(dragGesture)
+                VStack(spacing: 0) {
+                    // Progress Bar an der oberen Kante
+                    progressBar
+                        .frame(height: progressBarHeight)
+                        .clipped()
+                    
+                    // MiniPlayer Content
+                    miniPlayerContent(book: book)
+                        .frame(height: isExpanded ? expandedPlayerHeight - progressBarHeight : miniPlayerHeight - progressBarHeight)
+                }
+                .background {
+                    RoundedRectangle(cornerRadius: isExpanded ? 20 : 0)
+                        .fill(.regularMaterial)
+                        .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: -2)
+                }
+                .clipped()
+                .offset(y: dragOffset)
+                .animation(.spring(response: 0.4, dampingFraction: 0.8), value: isExpanded)
+                .animation(.spring(response: 0.3, dampingFraction: 0.9), value: dragOffset)
+                .gesture(dragGesture)
             }
+        }
+    }
+    
+    // MARK: - Progress Bar
+    private var progressBar: some View {
+        GeometryReader { geometry in
+            ZStack(alignment: .leading) {
+                // Background Track
+                Rectangle()
+                    .fill(Color.secondary.opacity(0.3))
+                    .frame(height: progressBarHeight)
+                
+                // Progress Fill
+                Rectangle()
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color.accentColor,
+                                Color.accentColor.opacity(0.8)
+                            ],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .frame(
+                        width: geometry.size.width * CGFloat(player.currentTime / max(player.duration, 1)),
+                        height: progressBarHeight
+                    )
+                    .animation(.linear(duration: 0.1), value: player.currentTime)
+            }
+        }
+        .frame(height: progressBarHeight)
+        .onTapGesture { location in
+            // Allow seeking by tapping on progress bar
+            let progress = location.x / UIScreen.main.bounds.width
+            let seekTime = progress * player.duration
+            player.seek(to: seekTime)
         }
     }
     
@@ -188,8 +234,8 @@ struct MiniPlayerView: View {
     
     private var expandedContent: some View {
         VStack(spacing: 12) {
-            // Progress bar
-            progressSection
+            // Detailed progress section (in expanded view)
+            expandedProgressSection
             
             // Additional controls
             HStack(spacing: 24) {
@@ -240,12 +286,12 @@ struct MiniPlayerView: View {
         .padding(.bottom, 8)
     }
     
-    private var progressSection: some View {
+    private var expandedProgressSection: some View {
         VStack(spacing: 4) {
-            // Progress bar
+            // Detailed progress bar (for expanded view)
             ProgressView(value: player.currentTime, total: max(player.duration, 1))
                 .progressViewStyle(LinearProgressViewStyle(tint: .accentColor))
-                .scaleEffect(x: 1, y: 0.8)
+                .scaleEffect(x: 1, y: 1.5) // Slightly thicker in expanded view
             
             // Time labels
             HStack {

@@ -173,8 +173,8 @@ struct AdvancedSettingsView: View {
         } footer: {
             Text("Cover werden automatisch zwischengespeichert. Höhere Limits verbessern Performance, verbrauchen aber mehr Speicher.")
         }
-        .onChange(of: coverCacheLimit) { _ in saveCoverCacheSettings() }
-        .onChange(of: memoryCacheSize) { _ in saveCoverCacheSettings() }
+        .onChange(of: coverCacheLimit) { saveCoverCacheSettings() }
+        .onChange(of: memoryCacheSize) { saveCoverCacheSettings() }
     }
     
     // MARK: - Download Settings Section
@@ -220,8 +220,8 @@ struct AdvancedSettingsView: View {
         } footer: {
             Text("Mehr parallele Downloads können die Geschwindigkeit erhöhen, aber auch mehr Ressourcen verbrauchen.")
         }
-        .onChange(of: maxConcurrentDownloads) {
-            UserDefaults.standard.set($0, forKey: "max_concurrent_downloads")
+        .onChange(of: maxConcurrentDownloads) { _, newValue in
+            UserDefaults.standard.set(newValue, forKey: "max_concurrent_downloads")
         }
     }
     
@@ -256,8 +256,8 @@ struct AdvancedSettingsView: View {
         } footer: {
             Text("Längere Timeouts können bei langsamen Verbindungen helfen, verbrauchen aber mehr Akku.")
         }
-        .onChange(of: connectionTimeout) {
-            UserDefaults.standard.set($0, forKey: "connection_timeout")
+        .onChange(of: connectionTimeout) { _, newValue in
+            UserDefaults.standard.set(newValue, forKey: "connection_timeout")
         }
     }
     
@@ -285,9 +285,9 @@ struct AdvancedSettingsView: View {
         } footer: {
             Text("Debug-Protokollierung kann bei der Fehlerbehebung helfen, verbraucht aber mehr Speicherplatz.")
         }
-        .onChange(of: enableDebugLogging) {
-            UserDefaults.standard.set($0, forKey: "enable_debug_logging")
-            $0 ? enableDebugMode() : disableDebugMode()
+        .onChange(of: enableDebugLogging) { _, newValue in
+            UserDefaults.standard.set(newValue, forKey: "enable_debug_logging")
+            newValue ? enableDebugMode() : disableDebugMode()
         }
     }
     

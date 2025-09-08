@@ -13,7 +13,7 @@ class PlayerStateManager: ObservableObject {
         showFullscreenPlayer = false
         showMiniPlayer = true
     }
-
+    
     func dismissFullscreen() {
         showFullscreenPlayer = false
         showMiniPlayer = true

@@ -31,15 +31,15 @@ struct SettingsView: View {
                     TextField("Port", text: $port)
                         .keyboardType(.numberPad)
                 }
-                .onChange(of: host) { _ in autoTestConnection() }
-                .onChange(of: port) { _ in autoTestConnection() }
-                .onChange(of: scheme) { _ in autoTestConnection() }
-                
+                .onChange(of: host) { autoTestConnection() }
+                .onChange(of: port) { autoTestConnection() }
+                .onChange(of: scheme) { autoTestConnection() }
+
                 Section(header: Text("API Key")) {
                     SecureField("API Key", text: $apiKey)
-                        .onChange(of: apiKey) { _ in
+                        .onChange(of: apiKey) { _, newValue in
                             // Reset login state when API key changes
-                            showLoginButton = !connectionStatus.isEmpty && !apiKey.isEmpty
+                            showLoginButton = !connectionStatus.isEmpty && !newValue.isEmpty
                             libraries = []
                             selectedLibraryId = nil
                         }
@@ -92,10 +92,10 @@ struct SettingsView: View {
                                 Text(library.name).tag(library.id as String?)
                             }
                         }
-                        .onChange(of: selectedLibraryId) { newId in
+                        .onChange(of: selectedLibraryId) { _, newId in
                             saveSelectedLibrary(newId)
                         }
-                        
+
                         // Logout Button
                         Button(action: logout) {
                             HStack {

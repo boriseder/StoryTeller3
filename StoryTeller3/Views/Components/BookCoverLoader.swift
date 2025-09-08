@@ -21,31 +21,38 @@ class CoverCacheManager: ObservableObject {
         
         createCacheDirectory()
         
-        // ✅ MEMORY LEAK FIX - Setup memory warning handling
+        // ✅ SWIFT 6 FIX - Setup memory warning handling
         setupMemoryWarningHandling()
     }
     
-    // ✅ NEW: Memory Warning Setup
+    // ✅ SWIFT 6 FIX - Memory Warning Setup ohne Sendable closure
     private func setupMemoryWarningHandling() {
         // Clear cache on memory warnings
         NotificationCenter.default.addObserver(
-            forName: UIApplication.didReceiveMemoryWarningNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            print("[CoverCache] Memory warning - clearing memory cache")
-            self?.cache.removeAllObjects()
-        }
+            self,
+            selector: #selector(handleMemoryWarning),
+            name: UIApplication.didReceiveMemoryWarningNotification,
+            object: nil
+        )
         
         // Clear memory cache when app goes to background
         NotificationCenter.default.addObserver(
-            forName: UIApplication.didEnterBackgroundNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            print("[CoverCache] App backgrounded - clearing memory cache")
-            self?.cache.removeAllObjects()
-        }
+            self,
+            selector: #selector(handleAppBackground),
+            name: UIApplication.didEnterBackgroundNotification,
+            object: nil
+        )
+    }
+    
+    // ✅ SWIFT 6 FIX - Objective-C selectors für NotificationCenter
+    @objc private func handleMemoryWarning() {
+        print("[CoverCache] Memory warning - clearing memory cache")
+        cache.removeAllObjects()
+    }
+    
+    @objc private func handleAppBackground() {
+        print("[CoverCache] App backgrounded - clearing memory cache")
+        cache.removeAllObjects()
     }
     
     // ✅ NEW: Cleanup Observer
@@ -208,8 +215,7 @@ class CoverCacheManager: ObservableObject {
     
     // MARK: - Preloading
     func preloadCovers(for books: [Book], api: AudiobookshelfAPI?, downloadManager: DownloadManager?) {
-        Task { [weak self] in
-            guard let self = self else { return }
+        Task { @MainActor in
             for book in books.prefix(10) { // Limit preloading
                 let loader = BookCoverLoader(book: book, api: api, downloadManager: downloadManager)
                 loader.preloadCover()
@@ -235,13 +241,14 @@ actor CoverDownloadManager {
         }
         
         // Create download task
-        let task = Task<UIImage?, Error> { [weak self] in
+        let task = Task<UIImage?, Error> {
             defer {
-                Task { [weak self] in
-                    await self?.removeTask(for: cacheKey)
+                Task {
+                    self.removeTask(for: cacheKey)
                 }
             }
-            return try await self?.performDownload(for: book, api: api)
+            // ✅ SWIFT 6 FIX - Check if self exists before calling method
+            return try await self.performDownload(for: book, api: api)
         }
         
         downloadTasks[cacheKey] = task
@@ -250,7 +257,7 @@ actor CoverDownloadManager {
             let result = try await task.value
             return result
         } catch {
-            await removeTask(for: cacheKey)
+            self.removeTask(for: cacheKey)
             throw error
         }
     }
@@ -513,9 +520,7 @@ class BookCoverLoader: ObservableObject {
     func cancelLoading() {
         loadTask?.cancel()
         loadTask = nil
-        Task { @MainActor in
-            isLoading = false
-        }
+        isLoading = false
     }
     
     // ✅ MEMORY LEAK FIX - Proper deinit without main actor

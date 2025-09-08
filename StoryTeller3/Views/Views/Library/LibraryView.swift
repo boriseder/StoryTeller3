@@ -51,37 +51,43 @@ struct LibraryView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            Group {
-                if isLoading {
-                    loadingView
-                } else if let error = errorMessage {
-                    errorView(error)
-                } else if books.isEmpty {
-                    emptyStateView
-                } else {
-                    contentView
-                }
+        Group {
+            if isLoading {
+                loadingView
+            } else if let error = errorMessage {
+                errorView(error)
+            } else if books.isEmpty {
+                emptyStateView
+            } else {
+                contentView
             }
-            .navigationTitle(libraryName)
-            .navigationBarTitleDisplayMode(.large)
-            .searchable(text: $searchText, prompt: "Bücher durchsuchen...")
-            .refreshable {
-                await loadBooks()
+        }
+        .navigationTitle(libraryName)
+        .navigationBarTitleDisplayMode(.large)
+        .searchable(text: $searchText, prompt: "Bücher durchsuchen...")
+        .refreshable {
+            await loadBooks()
+        }
+        // Verwende zentralisierte Toolbar mit Sort-Funktionalität
+        .appToolbar(
+            showSortButton: !books.isEmpty, // Nur zeigen wenn Bücher vorhanden
+            selectedSortOption: $selectedSortOption,
+            onSettingsTapped: {
+                // Settings werden von ContentView gehandelt
+                NotificationCenter.default.post(name: .init("ShowSettings"), object: nil)
+            },
+            onSortChanged: { newOption in
+                // Optional: zusätzliche Logik bei Sort-Änderung
+                print("Sort changed to: \(newOption.rawValue)")
             }
-            .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    sortMenu
-                }
+        )
+        .alert("Fehler", isPresented: $showingErrorAlert) {
+            Button("OK") { }
+            Button("Erneut versuchen") {
+                Task { await loadBooks() }
             }
-            .alert("Fehler", isPresented: $showingErrorAlert) {
-                Button("OK") { }
-                Button("Erneut versuchen") {
-                    Task { await loadBooks() }
-                }
-            } message: {
-                Text(errorMessage ?? "Unbekannter Fehler")
-            }
+        } message: {
+            Text(errorMessage ?? "Unbekannter Fehler")
         }
         .task {
             if books.isEmpty {
@@ -89,7 +95,7 @@ struct LibraryView: View {
             }
         }
     }
-    
+
     private var loadingView: some View {
         VStack(spacing: 20) {
             ProgressView()
