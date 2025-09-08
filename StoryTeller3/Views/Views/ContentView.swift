@@ -11,13 +11,14 @@ struct ContentView: View {
     @State private var selectedTab: TabIndex = .library
     @State private var apiClient: AudiobookshelfAPI?
     @State private var showingWelcome = false
+    @State private var showingSettings = false // Neu für Modal
     
     // ✅ MEMORY LEAK FIX - Cancellables for NotificationCenter observers
     @State private var cancellables = Set<AnyCancellable>()
     
-    // MARK: - Tab Enum
+    // MARK: - Tab Enum (nur noch 2 Tabs)
     enum TabIndex: Hashable {
-        case library, player, downloads, settings
+        case library, downloads
     }
 
     var body: some View {
@@ -29,42 +30,21 @@ struct ContentView: View {
             TabView(selection: $selectedTab) {
                 
                 // MARK: - Library Tab
-                libraryTab()
+                libraryTabWithToolbar()
                     .tabItem {
                         Image(systemName: "books.vertical.fill")
                         Text("Bibliothek")
                     }
                     .tag(TabIndex.library)
                 
-                // MARK: - Player Tab
-                playerTab()
-                    .tabItem {
-                        Image(systemName: player.isPlaying ? "play.circle.fill" : "play.circle")
-                        Text("Player")
-                    }
-                    .tag(TabIndex.player)
-                
                 // MARK: - Downloads Tab
-                DownloadsView(
-                    downloadManager: downloadManager,
-                    player: player,
-                    api: apiClient,
-                    onBookSelected: { openFullscreenPlayer() }
-                )
-                .tabItem {
-                    Image(systemName: "arrow.down.circle.fill")
-                    Text("Downloads")
-                }
-                .badge(downloadManager.downloadedBooks.count)
-                .tag(TabIndex.downloads)
-                
-                // MARK: - Settings Tab
-                SettingsView()
+                downloadsTabWithToolbar()
                     .tabItem {
-                        Image(systemName: "gearshape.fill")
-                        Text("Einstellungen")
+                        Image(systemName: "arrow.down.circle.fill")
+                        Text("Downloads")
                     }
-                    .tag(TabIndex.settings)
+                    .badge(downloadManager.downloadedBooks.count)
+                    .tag(TabIndex.downloads)
             }
             .tint(.accentColor)
         }
@@ -87,52 +67,86 @@ struct ContentView: View {
         .sheet(isPresented: $showingWelcome) {
             WelcomeView {
                 showingWelcome = false
-                selectedTab = .settings
+                showingSettings = true
+            }
+        }
+        .sheet(isPresented: $showingSettings) {
+            NavigationStack {
+                SettingsView()
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .navigationBarLeading) {
+                            Button("Fertig") {
+                                showingSettings = false
+                            }
+                        }
+                    }
             }
         }
     }
     
-    // MARK: - Helper Views
-
+    // MARK: - Helper Views mit Toolbar
+    
     @ViewBuilder
-    private func libraryTab() -> some View {
-        if let api = apiClient {
-            LibraryView(
-                player: player,
-                api: api,
-                downloadManager: downloadManager,
-                onBookSelected: { openFullscreenPlayer() }
-            )
-        } else {
-            NoServerConfiguredView()
-        }
-    }
-
-    @ViewBuilder
-    private func playerTab() -> some View {
-        if let api = apiClient {
-            // Wenn der Player-Tab ausgewählt wird, Fullscreen Player öffnen
-            PlayerView(player: player, api: api)
-                .onAppear {
-                    if player.book != nil {
-                        playerStateManager.showFullscreen()
+    private func libraryTabWithToolbar() -> some View {
+        NavigationStack {
+            if let api = apiClient {
+                LibraryView(
+                    player: player,
+                    api: api,
+                    downloadManager: downloadManager,
+                    onBookSelected: { openPlayer() }
+                )
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        settingsButton
                     }
                 }
-        } else {
-            NoServerConfiguredView()
+            } else {
+                NoServerConfiguredView {
+                    showingSettings = true
+                }
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        settingsButton
+                    }
+                }
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private func downloadsTabWithToolbar() -> some View {
+        NavigationStack {
+            DownloadsView(
+                downloadManager: downloadManager,
+                player: player,
+                api: apiClient,
+                onBookSelected: { openPlayer() }
+            )
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    settingsButton
+                }
+            }
+        }
+    }
+    
+    // MARK: - Settings Button (Zahnrad-Symbol)
+    private var settingsButton: some View {
+        Button(action: {
+            showingSettings = true
+        }) {
+            Image(systemName: "gearshape.fill")
+                .font(.system(size: 18))
+                .foregroundColor(.primary)
         }
     }
 
     // MARK: - Helper Functions
 
-    private func openFullscreenPlayer() {
-        playerStateManager.showFullscreen()
-    }
-    
-    private func switchToPlayer() {
-        withAnimation(.easeInOut(duration: 0.3)) {
-            selectedTab = .player
-        }
+    private func openPlayer() {
+        playerStateManager.showMini()
     }
     
     // MARK: - Setup Methods
@@ -204,6 +218,63 @@ struct ContentView: View {
     }
 }
 
+// MARK: - Updated NoServerConfiguredView mit Action Closure
+struct NoServerConfiguredView: View {
+    let onConfigureServer: () -> Void
+    
+    var body: some View {
+        VStack(spacing: 24) {
+            // Icon
+            ZStack {
+                Circle()
+                    .fill(Color.accentColor.opacity(0.1))
+                    .frame(width: 120, height: 120)
+                
+                Image(systemName: "server.rack")
+                    .font(.system(size: 48))
+                    .foregroundColor(.accentColor)
+            }
+            
+            // Content
+            VStack(spacing: 12) {
+                Text("Willkommen bei StoryTeller")
+                    .font(.title2)
+                    .fontWeight(.semibold)
+                    .multilineTextAlignment(.center)
+                
+                Text("Verbinden Sie sich mit Ihrem Audiobookshelf-Server, um Ihre Hörbuch-Sammlung zu entdecken")
+                    .font(.body)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+            }
+            
+            // Action Button
+            Button(action: onConfigureServer) {
+                HStack {
+                    Image(systemName: "gear")
+                    Text("Server konfigurieren")
+                }
+                .font(.headline)
+                .foregroundColor(.white)
+                .padding(.horizontal, 32)
+                .padding(.vertical, 16)
+                .background(Color.accentColor)
+                .clipShape(Capsule())
+                .shadow(color: Color.accentColor.opacity(0.3), radius: 8, x: 0, y: 4)
+            }
+            .buttonStyle(.plain)
+            
+            Spacer()
+        }
+        .padding(.horizontal, 40)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .navigationBarHidden(true)
+    }
+}
+
+// Rest der Supporting Views bleiben unverändert...
+// (WelcomeView, WelcomePageView, PrimaryButtonStyle, SecondaryButtonStyle)
 // MARK: - Supporting Views
 
 /// Enhanced tab item view with selection state and optional badge
@@ -242,61 +313,6 @@ struct TabItemView: View {
             
             Text(title)
                 .font(.caption2)
-        }
-    }
-}
-
-/// No server configured placeholder view
-struct NoServerConfiguredView: View {
-    var body: some View {
-        NavigationStack {
-            VStack(spacing: 24) {
-                // Icon
-                ZStack {
-                    Circle()
-                        .fill(Color.accentColor.opacity(0.1))
-                        .frame(width: 120, height: 120)
-                    
-                    Image(systemName: "server.rack")
-                        .font(.system(size: 48))
-                        .foregroundColor(.accentColor)
-                }
-                
-                // Content
-                VStack(spacing: 12) {
-                    Text("Willkommen bei StoryTeller")
-                        .font(.title2)
-                        .fontWeight(.semibold)
-                        .multilineTextAlignment(.center)
-                    
-                    Text("Verbinden Sie sich mit Ihrem Audiobookshelf-Server, um Ihre Hörbuch-Sammlung zu entdecken")
-                        .font(.body)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal)
-                }
-                
-                // Action Button
-                NavigationLink(destination: SettingsView()) {
-                    HStack {
-                        Image(systemName: "gear")
-                        Text("Server konfigurieren")
-                    }
-                    .font(.headline)
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 32)
-                    .padding(.vertical, 16)
-                    .background(Color.accentColor)
-                    .clipShape(Capsule())
-                    .shadow(color: Color.accentColor.opacity(0.3), radius: 8, x: 0, y: 4)
-                }
-                .buttonStyle(.plain)
-                
-                Spacer()
-            }
-            .padding(.horizontal, 40)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .navigationBarHidden(true)
         }
     }
 }

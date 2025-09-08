@@ -25,10 +25,10 @@ struct FullscreenPlayerContainer<Content: View>: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                // Main Content - TabView with permanent TabBar
+                // Main Content - TabView with TabBar (nur noch 2 Tabs)
                 content
                 
-                // MiniPlayer - appears above content but leaves TabBar visible
+                // Globaler MiniPlayer - erscheint über Content aber TabBar bleibt sichtbar
                 if playerStateManager.showMiniPlayer && player.book != nil && !playerStateManager.showFullscreenPlayer {
                     VStack {
                         Spacer()
@@ -47,13 +47,14 @@ struct FullscreenPlayerContainer<Content: View>: View {
                                 }
                             }
                         )
+                        .padding(.horizontal, 16)
                         .padding(.bottom, 49) // Space for TabBar + safe area
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
                     .zIndex(1)
                 }
                 
-                // Custom Fullscreen Player - Overlay that respects TabBar
+                // Fullscreen Player Modal - komplett über allem
                 if playerStateManager.showFullscreenPlayer {
                     // Background overlay
                     Color.black.opacity(0.3)
@@ -65,16 +66,18 @@ struct FullscreenPlayerContainer<Content: View>: View {
                             }
                         }
                     
-                    // Player content that leaves space for TabBar
+                    // Player Modal Content
                     VStack(spacing: 0) {
                         fullscreenPlayerContent
-                            .frame(height: geometry.size.height - 90) // Leave space for TabBar
+                            .frame(height: geometry.size.height - 80) // Leave small space at bottom
                             .clipShape(RoundedRectangle(cornerRadius: 20))
                             .shadow(color: .black.opacity(0.3), radius: 20, x: 0, y: -5)
+                            .padding(.horizontal, 16)
+                            .padding(.top, 50) // Status bar space
                         
-                        // Spacer for TabBar area
+                        // Bottom spacer
                         Spacer()
-                            .frame(height: 10)
+                            .frame(height: 30)
                     }
                     .offset(y: dragOffset)
                     .gesture(swipeDownGesture)
@@ -106,6 +109,25 @@ struct FullscreenPlayerContainer<Content: View>: View {
                                 dismissButton
                             }
                         }
+                } else {
+                    // Fallback wenn keine API verfügbar
+                    VStack(spacing: 20) {
+                        Image(systemName: "wifi.exclamationmark")
+                            .font(.system(size: 60))
+                            .foregroundColor(.secondary)
+                        
+                        Text("Keine Verbindung zum Server")
+                            .font(.title3)
+                            .foregroundColor(.secondary)
+                        
+                        Button("Schließen") {
+                            withAnimation(.easeInOut(duration: 0.4)) {
+                                playerStateManager.dismissFullscreen()
+                            }
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                    .padding()
                 }
             }
         }
