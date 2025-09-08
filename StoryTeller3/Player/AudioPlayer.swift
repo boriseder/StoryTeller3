@@ -1,6 +1,8 @@
 import Foundation
 import AVFoundation
 import Combine
+import AVKit  // ← Hinzufügen für AVRoutePickerView
+import UIKit  // ← Hinzufügen für UIColor
 
 // MARK: - Audio Player
 class AudioPlayer: NSObject, ObservableObject {
@@ -11,6 +13,9 @@ class AudioPlayer: NSObject, ObservableObject {
     @Published var currentTime: Double = 0
     @Published var isLoading = false
     @Published var errorMessage: String?
+    @Published var playbackRate: Float = 1.0
+    @Published var availableAudioRoutes: [AVAudioSessionPortDescription] = []
+    @Published var currentAudioRoute: String = "iPhone"
 
     private var player: AVPlayer?
     private var timeObserver: Any?
@@ -43,16 +48,33 @@ class AudioPlayer: NSObject, ObservableObject {
     private func configureAudioSession() {
         do {
             let audioSession = AVAudioSession.sharedInstance()
-            try audioSession.setCategory(.playback, mode: .default)
+            try audioSession.setCategory(.playback, mode: .default, options: [.allowAirPlay, .allowBluetooth])
             try audioSession.setActive(true)
-            #if DEBUG
-            print("[AudioPlayer] Audio session configured successfully")
-            #endif
+            
+            // Listen for route changes
+            NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(audioRouteChanged),
+                name: AVAudioSession.routeChangeNotification,
+                object: nil
+            )
+            
+            updateAudioRoutes()
         } catch {
-            #if DEBUG
-            print("[AudioPlayer] ERROR: Failed to configure audio session: \(error)")
-            #endif
             errorMessage = "Audio session configuration failed: \(error.localizedDescription)"
+        }
+    }
+    
+    @objc private func audioRouteChanged(notification: Notification) {
+        updateAudioRoutes()
+    }
+    
+    private func updateAudioRoutes() {
+        let session = AVAudioSession.sharedInstance()
+        availableAudioRoutes = session.currentRoute.outputs
+        
+        if let output = session.currentRoute.outputs.first {
+            currentAudioRoute = output.portName
         }
     }
 
@@ -156,7 +178,6 @@ class AudioPlayer: NSObject, ObservableObject {
             isLoading = false
         }
     }
-
     
     private func setupOfflinePlayer(playerItem: AVPlayerItem, duration: Double) {
         cleanupPlayer()
@@ -354,15 +375,18 @@ class AudioPlayer: NSObject, ObservableObject {
         switch currentItem.status {
         case .readyToPlay:
             player.play()
+            player.rate = playbackRate // Apply current playback rate
             isPlaying = true
         case .failed:
             let error = currentItem.error?.localizedDescription ?? "Unbekannter Fehler"
             errorMessage = "Playback failed: \(error)"
         case .unknown:
             player.play()
+            player.rate = playbackRate // ← Hier auch hinzufügen
             isPlaying = true
         @unknown default:
             player.play()
+            player.rate = playbackRate // Apply current playback rate
             isPlaying = true
         }
     }
@@ -421,6 +445,15 @@ class AudioPlayer: NSObject, ObservableObject {
         ) { [weak self] time in
             self?.currentTime = CMTimeGetSeconds(time)
         }
+    }
+    
+    // MARK: - Playback Speed
+    func setPlaybackRate(_ rate: Double) {
+        let floatRate = Float(rate)
+        playbackRate = floatRate
+        player?.rate = floatRate
+        
+        print("[AudioPlayer] Playback rate set to: \(rate)x")
     }
     
     @objc private func playerItemDidFinishPlaying(_ notification: Notification) {
