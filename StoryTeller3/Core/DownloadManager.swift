@@ -10,7 +10,6 @@ import AVFoundation
  * - Provides local file access for offline playback
  * - Manages storage cleanup and organization
  */
-@MainActor
 class DownloadManager: ObservableObject {
     
     // MARK: - Published Properties
@@ -21,7 +20,7 @@ class DownloadManager: ObservableObject {
     // MARK: - Private Properties
     private let fileManager = FileManager.default
     private var downloadTasks: [String: URLSessionDownloadTask] = [:]
-    
+
     // MARK: - Directory URLs
     
     /// Main documents directory
@@ -69,17 +68,23 @@ class DownloadManager: ObservableObject {
      * - Parameter api: API client for server communication
      */
     func downloadBook(_ book: Book, api: AudiobookshelfAPI) async {
-        // Prevent duplicate downloads
-        guard !isBookDownloaded(book.id), !isDownloadingBook(book.id) else {
+        // Prevent duplicate downloads - Check on main actor
+        let isAlreadyDownloaded = await MainActor.run {
+            isBookDownloaded(book.id) || isDownloadingBook(book.id)
+        }
+        
+        guard !isAlreadyDownloaded else {
             print("⚠️ Book \(book.title) is already downloaded or downloading")
             return
         }
         
         print("📥 Starting download for: \(book.title)")
         
-        // Initialize download state
-        isDownloading[book.id] = true
-        downloadProgress[book.id] = 0.0
+        // Initialize download state on main actor
+        await MainActor.run {
+            isDownloading[book.id] = true
+            downloadProgress[book.id] = 0.0
+        }
         
         let bookDir = bookDirectory(for: book.id)
         
@@ -344,10 +349,12 @@ class DownloadManager: ObservableObject {
         do {
             try fileManager.removeItem(at: bookDir)
             
-            // Update state
-            downloadedBooks.removeAll { $0.id == bookId }
-            downloadProgress.removeValue(forKey: bookId)
-            isDownloading.removeValue(forKey: bookId)
+            // Update state on main actor
+            Task { @MainActor in
+                downloadedBooks.removeAll { $0.id == bookId }
+                downloadProgress.removeValue(forKey: bookId)
+                isDownloading.removeValue(forKey: bookId)
+            }
             
             print("🗑️ Deleted downloaded book: \(bookId)")
             
@@ -364,10 +371,12 @@ class DownloadManager: ObservableObject {
             try fileManager.removeItem(at: downloadsURL)
             createDownloadsDirectory()
             
-            // Clear all state
-            downloadedBooks.removeAll()
-            downloadProgress.removeAll()
-            isDownloading.removeAll()
+            // Clear all state on main actor
+            Task { @MainActor in
+                downloadedBooks.removeAll()
+                downloadProgress.removeAll()
+                isDownloading.removeAll()
+            }
             
             print("🗑️ Deleted all downloaded books")
             
@@ -438,7 +447,10 @@ class DownloadManager: ObservableObject {
                 }
             }
             
-            downloadedBooks = loadedBooks
+            // Update published property on main actor
+            Task { @MainActor in
+                downloadedBooks = loadedBooks
+            }
             print("Loaded \(loadedBooks.count) downloaded books")
             
         } catch {
@@ -505,12 +517,28 @@ class DownloadManager: ObservableObject {
                 // Check integrity
                 if !validateBookIntegrity(bookId) {
                     try fileManager.removeItem(at: bookDir)
-                    downloadedBooks.removeAll { $0.id == bookId }
+                    
+                    // Update state on main actor
+                    Task { @MainActor in
+                        downloadedBooks.removeAll { $0.id == bookId }
+                    }
                     print("🧹 Cleaned up corrupted download: \(bookId)")
                 }
             }
         } catch {
             print("❌ Cleanup failed: \(error)")
         }
+    }
+    
+    // ✅ MEMORY LEAK FIX - Safe cleanup method
+    func cancelAllDownloads() {
+        downloadTasks.values.forEach { $0.cancel() }
+        downloadTasks.removeAll()
+    }
+
+    // ✅ MEMORY LEAK FIX - Synchronous deinit
+    deinit {
+        downloadTasks.values.forEach { $0.cancel() }
+        downloadTasks.removeAll()
     }
 }

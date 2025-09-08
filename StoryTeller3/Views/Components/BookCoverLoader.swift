@@ -20,6 +20,37 @@ class CoverCacheManager: ObservableObject {
         cacheDirectory = cachesURL.appendingPathComponent("BookCovers", isDirectory: true)
         
         createCacheDirectory()
+        
+        // ✅ MEMORY LEAK FIX - Setup memory warning handling
+        setupMemoryWarningHandling()
+    }
+    
+    // ✅ NEW: Memory Warning Setup
+    private func setupMemoryWarningHandling() {
+        // Clear cache on memory warnings
+        NotificationCenter.default.addObserver(
+            forName: UIApplication.didReceiveMemoryWarningNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            print("[CoverCache] Memory warning - clearing memory cache")
+            self?.cache.removeAllObjects()
+        }
+        
+        // Clear memory cache when app goes to background
+        NotificationCenter.default.addObserver(
+            forName: UIApplication.didEnterBackgroundNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            print("[CoverCache] App backgrounded - clearing memory cache")
+            self?.cache.removeAllObjects()
+        }
+    }
+    
+    // ✅ NEW: Cleanup Observer
+    deinit {
+        NotificationCenter.default.removeObserver(self)
     }
     
     private func createCacheDirectory() {
@@ -108,7 +139,7 @@ class CoverCacheManager: ObservableObject {
     }
     
     // MARK: - Cache Optimization
-    func optimizeCache() {
+    func optimizeCache() async {
         // Remove corrupted files
         let corruptedFiles = findCorruptedCacheFiles()
         for file in corruptedFiles {
@@ -177,7 +208,8 @@ class CoverCacheManager: ObservableObject {
     
     // MARK: - Preloading
     func preloadCovers(for books: [Book], api: AudiobookshelfAPI?, downloadManager: DownloadManager?) {
-        Task {
+        Task { [weak self] in
+            guard let self = self else { return }
             for book in books.prefix(10) { // Limit preloading
                 let loader = BookCoverLoader(book: book, api: api, downloadManager: downloadManager)
                 loader.preloadCover()
@@ -203,24 +235,32 @@ actor CoverDownloadManager {
         }
         
         // Create download task
-        let task = Task<UIImage?, Error> {
-            try await performDownload(for: book, api: api)
+        let task = Task<UIImage?, Error> { [weak self] in
+            defer {
+                Task { [weak self] in
+                    await self?.removeTask(for: cacheKey)
+                }
+            }
+            return try await self?.performDownload(for: book, api: api)
         }
         
         downloadTasks[cacheKey] = task
         
         do {
             let result = try await task.value
-            downloadTasks.removeValue(forKey: cacheKey)
             return result
         } catch {
-            downloadTasks.removeValue(forKey: cacheKey)
+            await removeTask(for: cacheKey)
             throw error
         }
     }
     
+    private func removeTask(for cacheKey: String) {
+        downloadTasks.removeValue(forKey: cacheKey)
+    }
+    
     private func performDownload(for book: Book, api: AudiobookshelfAPI) async throws -> UIImage? {
-        // Use the standard Audiobookshelf cover endpoint (like in the old implementation)
+        // Use the standard Audiobookshelf cover endpoint
         let coverURLString = "\(api.baseURLString)/api/items/\(book.id)/cover"
         guard let url = URL(string: coverURLString) else {
             throw CoverLoadingError.invalidURL
@@ -254,6 +294,12 @@ actor CoverDownloadManager {
         let cacheKey = "online_\(bookId)"
         downloadTasks[cacheKey]?.cancel()
         downloadTasks.removeValue(forKey: cacheKey)
+    }
+    
+    // ✅ NEW: Cancel all downloads on cleanup
+    func cancelAllDownloads() {
+        downloadTasks.values.forEach { $0.cancel() }
+        downloadTasks.removeAll()
     }
 }
 
@@ -295,7 +341,7 @@ class BookCoverLoader: ObservableObject {
     }
     
     func load() {
-        // Cancel any existing load task
+        // ✅ MEMORY LEAK FIX - Cancel any existing load task
         loadTask?.cancel()
         
         // Reset state
@@ -303,8 +349,9 @@ class BookCoverLoader: ObservableObject {
         isLoading = true
         downloadProgress = 0.0
         
-        loadTask = Task {
-            await loadCoverImage()
+        // ✅ MEMORY LEAK FIX - Use weak self pattern
+        loadTask = Task { [weak self] in
+            await self?.loadCoverImage()
         }
     }
     
@@ -418,7 +465,7 @@ class BookCoverLoader: ObservableObject {
     }
     
     private func extractCoverFromAudioFile(_ url: URL) async -> UIImage? {
-        let asset = AVURLAsset(url: url) // Fixed: Use AVURLAsset instead of deprecated AVAsset(url:)
+        let asset = AVURLAsset(url: url)
         
         do {
             let metadata = try await asset.load(.commonMetadata)
@@ -456,15 +503,24 @@ class BookCoverLoader: ObservableObject {
     
     // MARK: - Public Methods
     func preloadCover() {
-        // Don't use Task here to avoid capture issues
+        // ✅ MEMORY LEAK FIX - Use weak self pattern
         if image == nil && !isLoading {
             load()
         }
     }
     
+    // ✅ MEMORY LEAK FIX - Safe cleanup method
+    func cancelLoading() {
+        loadTask?.cancel()
+        loadTask = nil
+        Task { @MainActor in
+            isLoading = false
+        }
+    }
+    
+    // ✅ MEMORY LEAK FIX - Proper deinit without main actor
     deinit {
         loadTask?.cancel()
-        // Remove async operation from deinit to avoid capture issues
     }
 }
 
@@ -516,8 +572,12 @@ struct BookCoverView: View {
         .onAppear {
             loader.load()
         }
-        .onChange(of: book.id) { _, _ in // Fixed: Use new onChange syntax
+        .onChange(of: book.id) { _, _ in
             loader.load()
+        }
+        // ✅ MEMORY LEAK FIX - Cancel loading when view disappears
+        .onDisappear {
+            loader.cancelLoading()
         }
         .animation(.easeInOut(duration: 0.3), value: loader.image != nil)
     }

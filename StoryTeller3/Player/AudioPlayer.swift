@@ -505,5 +505,7 @@ class AudioPlayer: NSObject, ObservableObject {
 
     deinit {
         cleanupPlayer()
+        // Alle Observer explizit entfernen
+        NotificationCenter.default.removeObserver(self)
     }
 }

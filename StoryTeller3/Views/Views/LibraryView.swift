@@ -184,7 +184,7 @@ struct LibraryView: View {
                             api: api,
                             downloadManager: downloadManager,
                             onTap: {
-                                Task {
+                                Task { 
                                     await loadAndPlayBook(book)
                                 }
                             }

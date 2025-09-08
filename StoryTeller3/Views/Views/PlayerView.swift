@@ -444,7 +444,7 @@ struct SleepTimerView: View {
     @State private var selectedMinutes: Int = 30
     @State private var isTimerActive = false
     @State private var remainingTime: TimeInterval = 0
-    @State private var timer: Timer?
+    @State private var timer: Timer? // ✅ Timer gehört in SleepTimerView!
     
     private let timerOptions = [5, 10, 15, 30, 45, 60, 90, 120]
     
@@ -470,8 +470,14 @@ struct SleepTimerView: View {
                 }
             }
         }
+        // ✅ MEMORY LEAK FIX - Timer cleanup
         .onDisappear {
             timer?.invalidate()
+            timer = nil
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)) { _ in
+            timer?.invalidate()
+            timer = nil
         }
     }
     

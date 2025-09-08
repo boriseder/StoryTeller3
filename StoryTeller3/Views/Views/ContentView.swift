@@ -1,5 +1,5 @@
-
 import SwiftUI
+import Combine
 
 struct ContentView: View {
     // MARK: - State Objects
@@ -10,6 +10,9 @@ struct ContentView: View {
     @State private var selectedTab: TabIndex = .library
     @State private var apiClient: AudiobookshelfAPI?
     @State private var showingWelcome = false
+    
+    // ✅ MEMORY LEAK FIX - Cancellables for NotificationCenter observers
+    @State private var cancellables = Set<AnyCancellable>()
     
     // MARK: - Tab Enum
     enum TabIndex: Hashable {
@@ -70,6 +73,10 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: .init("ServerSettingsChanged"))) { _ in
             loadAPIClient()
         }
+        // ✅ MEMORY LEAK FIX - Proper cancellables handling
+        .onDisappear {
+            cancellables.removeAll()
+        }
         .sheet(isPresented: $showingWelcome) {
             WelcomeView {
                 showingWelcome = false
@@ -77,6 +84,7 @@ struct ContentView: View {
             }
         }
     }
+    
     // MARK: - Helper Views
 
     @ViewBuilder
@@ -116,6 +124,28 @@ struct ContentView: View {
         loadAPIClient()
         loadAppTheme()
         checkFirstLaunch()
+        setupNotificationObservers() // ✅ Setup observers properly
+    }
+    
+    // ✅ MEMORY LEAK FIX - Proper NotificationCenter observer setup
+    private func setupNotificationObservers() {
+        // Background cache optimization
+        NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)
+            .sink { _ in
+                if UserDefaults.standard.bool(forKey: "auto_cache_cleanup") {
+                    Task {
+                        await CoverCacheManager.shared.optimizeCache()
+                    }
+                }
+            }
+            .store(in: &cancellables)
+        
+        // Server settings changed
+        NotificationCenter.default.publisher(for: .init("ServerSettingsChanged"))
+            .sink { _ in
+                loadAPIClient()
+            }
+            .store(in: &cancellables)
     }
     
     private func loadAPIClient() {
@@ -156,6 +186,7 @@ struct ContentView: View {
         }
     }
 }
+
 // MARK: - Supporting Views
 
 /// Enhanced tab item view with selection state and optional badge
