@@ -5,20 +5,13 @@
 //  Created by Boris Eder on 09.09.25.
 //
 
-
-//
-//  LibraryViewModel.swift
-//  StoryTeller3
-//
-//  Created by Boris Eder on 09.09.25.
-//
-
 import SwiftUI
 
 class LibraryViewModel: BaseViewModel {
     @Published var books: [Book] = []
     @Published var searchText = ""
     @Published var selectedSortOption: LibrarySortOption = .title
+    @Published var showDownloadedOnly = false // ← Neu hinzugefügt
     @Published var libraryName: String = "Meine Bibliothek"
     
     let api: AudiobookshelfAPI
@@ -32,7 +25,12 @@ class LibraryViewModel: BaseViewModel {
             (book.author?.localizedCaseInsensitiveContains(searchText) ?? false)
         }
 
-        return filtered.sorted { book1, book2 in
+        // ← Filter für heruntergeladene Bücher hinzufügen
+        let downloadFiltered = showDownloadedOnly ? filtered.filter { book in
+            downloadManager.isBookDownloaded(book.id)
+        } : filtered
+
+        return downloadFiltered.sorted { book1, book2 in
             switch selectedSortOption {
             case .title:
                 return book1.title.localizedCompare(book2.title) == .orderedAscending
@@ -44,12 +42,20 @@ class LibraryViewModel: BaseViewModel {
         }
     }
     
+    // ← Neue computed property für UI-Feedback
+    var downloadedBooksCount: Int {
+        books.filter { downloadManager.isBookDownloaded($0.id) }.count
+    }
+    
     init(api: AudiobookshelfAPI, player: AudioPlayer, downloadManager: DownloadManager, onBookSelected: @escaping () -> Void) {
         self.api = api
         self.player = player
         self.downloadManager = downloadManager
         self.onBookSelected = onBookSelected
         super.init()
+        
+        // ← Load saved filter state
+        loadFilterSettings()
     }
     
     func loadBooksIfNeeded() async {
@@ -110,7 +116,7 @@ class LibraryViewModel: BaseViewModel {
         isLoading = false
     }
     
-    @MainActor 
+    @MainActor
     func loadAndPlayBook(_ book: Book) async {
         print("Lade Buch: \(book.title)")
         
@@ -128,12 +134,29 @@ class LibraryViewModel: BaseViewModel {
             print("Fehler beim Laden der Buchdetails: \(error)")
         }
     }
+    
+    // MARK: - ← Neue Filter-Methoden
+    
+    func toggleDownloadFilter() {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            showDownloadedOnly.toggle()
+        }
+        saveFilterSettings()
+    }
+    
+    private func loadFilterSettings() {
+        showDownloadedOnly = UserDefaults.standard.bool(forKey: "library_show_downloaded_only")
+    }
+    
+    private func saveFilterSettings() {
+        UserDefaults.standard.set(showDownloadedOnly, forKey: "library_show_downloaded_only")
+    }
+    
+    func resetFilters() {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            showDownloadedOnly = false
+            searchText = ""
+        }
+        saveFilterSettings()
+    }
 }
-
-//
-//  DownloadsViewModel.swift
-//  StoryTeller3
-//
-//  Created by Boris Eder on 09.09.25.
-//
-

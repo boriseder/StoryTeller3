@@ -4,7 +4,7 @@ import Foundation
 extension AudiobookshelfAPI {
     
     // Fetch all series from library
-    func fetchSeries(from libraryId: String, limit: Int = 50) async throws -> [Series] {
+    func fetchSeries(from libraryId: String, limit: Int = 0) async throws -> [Series] {
         guard let url = URL(string: "\(baseURLString)/api/libraries/\(libraryId)/series?limit=\(limit)") else {
             throw AudiobookshelfError.invalidURL("\(baseURLString)/api/libraries/\(libraryId)/series")
         }

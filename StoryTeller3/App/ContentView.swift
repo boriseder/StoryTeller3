@@ -131,19 +131,9 @@ struct ContentView: View {
                     downloadManager: downloadManager,
                     onBookSelected: { openFullscreenPlayer() }
                 )
-                .toolbar {
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        settingsButton
-                    }
-                }
             } else {
                 NoServerConfiguredView {
                     showingSettings = true
-                }
-                .toolbar {
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        settingsButton
-                    }
                 }
             }
         }

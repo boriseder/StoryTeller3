@@ -66,7 +66,7 @@ class AudiobookshelfAPI {
     }
     
     // MARK: - Books
-    func fetchBooks(from libraryId: String, limit: Int = 50) async throws -> [Book] {
+    func fetchBooks(from libraryId: String, limit: Int = 0) async throws -> [Book] {
         guard let url = URL(string: "\(baseURLString)/api/libraries/\(libraryId)/items?limit=\(limit)") else {
             throw AudiobookshelfError.invalidURL("\(baseURLString)/api/libraries/\(libraryId)/items")
         }
@@ -95,7 +95,7 @@ class AudiobookshelfAPI {
     }
     
     // MARK: - Conversion Helper
-    private func convertLibraryItemToBook(_ item: LibraryItem) -> Book? {
+    public func convertLibraryItemToBook(_ item: LibraryItem) -> Book? {
         // Create chapters from media tracks or use provided chapters
         let chapters: [Chapter] = {
             if let mediaChapters = item.media.chapters, !mediaChapters.isEmpty {

@@ -64,7 +64,7 @@ struct SeriesRowView: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: -50) { // Negative spacing für Überlappung
                 ForEach(series.books.indices, id: \.self) { index in
-                    if let book = convertLibraryItemToBook(series.books[index]) {
+                    if let book = api.convertLibraryItemToBook(series.books[index]) {
                         BookCardView.series(
                             book: book,
                             player: player,
@@ -86,54 +86,7 @@ struct SeriesRowView: View {
     }
 
     // MARK: - Helper Methods
-    
-    /// Konvertiert LibraryItem zu Book (Reuse der bestehenden Logik)
-    private func convertLibraryItemToBook(_ item: LibraryItem) -> Book? {
-        // Create chapters from media tracks or use provided chapters
-        let chapters: [Chapter] = {
-            if let mediaChapters = item.media.chapters, !mediaChapters.isEmpty {
-                return mediaChapters.map { chapter in
-                    Chapter(
-                        id: chapter.id,
-                        title: chapter.title,
-                        start: chapter.start,
-                        end: chapter.end,
-                        libraryItemId: item.id,
-                        episodeId: chapter.episodeId
-                    )
-                }
-            } else if let tracks = item.media.tracks, !tracks.isEmpty {
-                // Create chapters from tracks if no chapters exist
-                return tracks.enumerated().map { index, track in
-                    Chapter(
-                        id: "\(index)",
-                        title: track.title ?? "Kapitel \(index + 1)",
-                        start: track.startOffset,
-                        end: track.startOffset + track.duration,
-                        libraryItemId: item.id
-                    )
-                }
-            } else {
-                // Fallback: create a single chapter for the whole book
-                return [Chapter(
-                    id: "0",
-                    title: item.media.metadata.title,
-                    start: 0,
-                    end: item.media.duration ?? 3600,
-                    libraryItemId: item.id
-                )]
-            }
-        }()
         
-        return Book(
-            id: item.id,
-            title: item.media.metadata.title,
-            author: item.media.metadata.author,
-            chapters: chapters,
-            coverPath: item.coverPath
-        )
-    }
-    
     /// Lädt und spielt ein Buch ab (Reuse der LibraryView Logik)
     @MainActor
     private func loadAndPlayBook(_ book: Book) async {
