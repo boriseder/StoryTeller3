@@ -1,0 +1,38 @@
+import Foundation
+
+// MARK: - Sort Option Protocol
+protocol SortOptionProtocol: CaseIterable, RawRepresentable where RawValue == String {
+    var systemImage: String { get }
+}
+
+// MARK: - Library Sort Options
+enum LibrarySortOption: String, CaseIterable, SortOptionProtocol {
+    case title = "Titel"
+    case author = "Autor"
+    case recent = "Zuletzt hinzugefügt"
+    
+    var systemImage: String {
+        switch self {
+        case .title: return "textformat.abc"
+        case .author: return "person.fill"
+        case .recent: return "clock.fill"
+        }
+    }
+}
+
+// MARK: - Series Sort Options
+enum SeriesSortOption: String, CaseIterable, SortOptionProtocol {
+    case name = "Name"
+    case recent = "Zuletzt hinzugefügt"
+    case bookCount = "Anzahl Bücher"
+    case duration = "Gesamtdauer"
+    
+    var systemImage: String {
+        switch self {
+        case .name: return "textformat.abc"
+        case .recent: return "clock.fill"
+        case .bookCount: return "books.vertical"
+        case .duration: return "timer"
+        }
+    }
+}

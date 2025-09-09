@@ -1,6 +1,5 @@
 import Foundation
 
-// MARK: - Core Domain Models
 struct Chapter: Codable, Identifiable {
     let id: String
     let title: String
@@ -34,20 +33,5 @@ struct Chapter: Codable, Identifiable {
         self.end = try? container.decode(Double.self, forKey: .end)
         self.libraryItemId = try? container.decode(String.self, forKey: .libraryItemId)
         self.episodeId = try? container.decode(String.self, forKey: .episodeId)
-    }
-}
-
-struct Book: Identifiable, Codable, Equatable {
-    let id: String
-    let title: String
-    let author: String?
-    let chapters: [Chapter]
-    let coverPath: String?
-    
-    static func == (lhs: Book, rhs: Book) -> Bool { lhs.id == rhs.id }
-    
-    func coverURL(baseURL: String) -> URL? {
-        guard let coverPath = coverPath else { return nil }
-        return URL(string: "\(baseURL)\(coverPath)")
     }
 }

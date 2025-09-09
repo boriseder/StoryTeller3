@@ -11,26 +11,12 @@ struct LibraryView: View {
     @State private var errorMessage: String?
     @State private var showingErrorAlert = false
     @State private var searchText = ""
-    @State private var selectedSortOption: SortOption = .title
+    @State private var selectedSortOption: LibrarySortOption = .title
     @State private var libraryName: String = "Meine Bibliothek"
     
     private let columns = [
         GridItem(.adaptive(minimum: 132, maximum: 160), spacing: 16)
     ]
-    
-    enum SortOption: String, CaseIterable {
-        case title = "Titel"
-        case author = "Autor"
-        case recent = "Zuletzt hinzugefügt"
-        
-        var systemImage: String {
-            switch self {
-            case .title: return "textformat.abc"
-            case .author: return "person.fill"
-            case .recent: return "clock.fill"
-            }
-        }
-    }
     
     private var filteredAndSortedBooks: [Book] {
         let filtered = searchText.isEmpty ? books : books.filter { book in
@@ -68,19 +54,16 @@ struct LibraryView: View {
         .refreshable {
             await loadBooks()
         }
-        // Verwende zentralisierte Toolbar mit Sort-Funktionalität
-        .appToolbar(
-            showSortButton: !books.isEmpty, // Nur zeigen wenn Bücher vorhanden
-            selectedSortOption: $selectedSortOption,
-            onSettingsTapped: {
-                // Settings werden von ContentView gehandelt
-                NotificationCenter.default.post(name: .init("ShowSettings"), object: nil)
-            },
-            onSortChanged: { newOption in
-                // Optional: zusätzliche Logik bei Sort-Änderung
-                print("Sort changed to: \(newOption.rawValue)")
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                HStack(spacing: 12) {
+                    if !books.isEmpty {
+                        sortMenu
+                    }
+                    settingsButton
+                }
             }
-        )
+        }
         .alert("Fehler", isPresented: $showingErrorAlert) {
             Button("OK") { }
             Button("Erneut versuchen") {
@@ -95,7 +78,9 @@ struct LibraryView: View {
             }
         }
     }
-
+    
+    // MARK: - Subviews
+    
     private var loadingView: some View {
         VStack(spacing: 20) {
             ProgressView()
@@ -184,13 +169,13 @@ struct LibraryView: View {
             ScrollView {
                 LazyVGrid(columns: columns, spacing: 32) {
                     ForEach(filteredAndSortedBooks) { book in
-                        BookCardView(
+                        BookCardView.library(
                             book: book,
                             player: player,
                             api: api,
                             downloadManager: downloadManager,
                             onTap: {
-                                Task { 
+                                Task {
                                     await loadAndPlayBook(book)
                                 }
                             }
@@ -203,9 +188,11 @@ struct LibraryView: View {
         }
     }
 
+    // MARK: - Toolbar Components
+    
     private var sortMenu: some View {
         Menu {
-            ForEach(SortOption.allCases, id: \.self) { option in
+            ForEach(LibrarySortOption.allCases, id: \.self) { option in
                 Button(action: {
                     withAnimation(.easeInOut(duration: 0.2)) {
                         selectedSortOption = option
@@ -219,7 +206,18 @@ struct LibraryView: View {
             }
         } label: {
             Image(systemName: "arrow.up.arrow.down")
-                .imageScale(.large)
+                .font(.system(size: 16))
+                .foregroundColor(.primary)
+        }
+    }
+    
+    private var settingsButton: some View {
+        Button(action: {
+            NotificationCenter.default.post(name: .init("ShowSettings"), object: nil)
+        }) {
+            Image(systemName: "gearshape.fill")
+                .font(.system(size: 16))
+                .foregroundColor(.primary)
         }
     }
     

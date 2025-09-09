@@ -1,5 +1,68 @@
 import SwiftUI
 
+// MARK: - BookCard Style
+enum BookCardStyle {
+    case library
+    case series
+    case compact
+    
+    var coverSize: CGFloat {
+        switch self {
+        case .library: return 140
+        case .series: return 120
+        case .compact: return 80
+        }
+    }
+    
+    var cardPadding: CGFloat {
+        switch self {
+        case .library: return 10
+        case .series: return 10
+        case .compact: return 8
+        }
+    }
+    
+    var textPadding: CGFloat {
+        switch self {
+        case .library: return 8
+        case .series: return 6
+        case .compact: return 4
+        }
+    }
+    
+    var dimensions: (width: CGFloat, height: CGFloat, infoHeight: CGFloat) {
+        let cardWidth = coverSize + (cardPadding * 2)
+        let cardHeight = cardWidth * 1.45 // 40% höher als breit
+        let infoHeight: CGFloat = cardHeight - coverSize - (cardPadding * 3)
+        
+        return (width: cardWidth, height: cardHeight, infoHeight: infoHeight)
+    }
+    
+    var cornerRadius: CGFloat {
+        switch self {
+        case .library: return 16
+        case .series: return 12
+        case .compact: return 10
+        }
+    }
+    
+    var titleFont: Font {
+        switch self {
+        case .library: return .system(size: 14, weight: .semibold, design: .rounded)
+        case .series: return .system(size: 12, weight: .semibold, design: .rounded)
+        case .compact: return .system(size: 10, weight: .semibold, design: .rounded)
+        }
+    }
+    
+    var authorFont: Font {
+        switch self {
+        case .library: return .system(size: 12, weight: .medium)
+        case .series: return .system(size: 10, weight: .medium)
+        case .compact: return .system(size: 9, weight: .medium)
+        }
+    }
+}
+
 struct BookCardView: View {
     // MARK: - Properties
     let book: Book
@@ -7,6 +70,7 @@ struct BookCardView: View {
     let api: AudiobookshelfAPI
     @ObservedObject var downloadManager: DownloadManager
     let onTap: () -> Void
+    let style: BookCardStyle
     
     // MARK: - State
     @State private var isPressed = false
@@ -29,21 +93,48 @@ struct BookCardView: View {
         downloadManager.isDownloadingBook(book.id)
     }
     
+    private var dimensions: (width: CGFloat, height: CGFloat, infoHeight: CGFloat) {
+        style.dimensions
+    }
+    
+    // MARK: - Initializers
+    init(
+        book: Book,
+        player: AudioPlayer,
+        api: AudiobookshelfAPI,
+        downloadManager: DownloadManager,
+        style: BookCardStyle = .library,
+        onTap: @escaping () -> Void
+    ) {
+        self.book = book
+        self.player = player
+        self.api = api
+        self.downloadManager = downloadManager
+        self.style = style
+        self.onTap = onTap
+    }
+    
     // MARK: - Body
     var body: some View {
         Button(action: onTap) {
             VStack(alignment: .leading, spacing: 0) {
-                bookCoverSection
-                    .frame(height: 160) // ← Cover fest oben
+                HStack {
+                    Spacer()
+                    bookCoverSection
+                    Spacer()
+                }
+                .padding(.top, style.cardPadding)
                 
-                Spacer() // ← Nimmt allen verfügbaren Platz
+                Spacer()
                 
                 bookInfoSection
-                    .frame(height: 60) // ← Info fest unten
+                    .frame(height: dimensions.infoHeight)
+                    .padding(.bottom, style.cardPadding)
+                    .padding(.horizontal, style.cardPadding)
             }
-            .frame(height: 220)
+            .frame(width: dimensions.width, height: dimensions.height)
             .background {
-                RoundedRectangle(cornerRadius: 16)
+                RoundedRectangle(cornerRadius: style.cornerRadius)
                     .fill(.regularMaterial)
                     .shadow(
                         color: .black.opacity(0.1),
@@ -53,7 +144,7 @@ struct BookCardView: View {
                     )
             }
             .overlay {
-                RoundedRectangle(cornerRadius: 16)
+                RoundedRectangle(cornerRadius: style.cornerRadius)
                     .stroke(
                         isCurrentBook ? Color.accentColor : Color.clear,
                         lineWidth: 2
@@ -82,45 +173,35 @@ struct BookCardView: View {
     // MARK: - Book Cover Section
     private var bookCoverSection: some View {
         ZStack {
-            // Cover Image - mit standardmäßigen Rounded Corners für Kompatibilität
             BookCoverView.square(
                 book: book,
-                size: 160,
+                size: style.coverSize,
                 api: api,
                 downloadManager: downloadManager,
                 showProgress: true
             )
-
-            .frame(maxWidth: .infinity)
-            .clipShape(RoundedRectangle(cornerRadius: 16))
-            .mask(
-                // Custom Mask für ungleichmäßige Ecken
-                VStack(spacing: 0) {
-                    RoundedRectangle(cornerRadius: 16)
-                        .frame(height: 160)
-                    Rectangle()
-                        .frame(height: 0)
-                }
-            )
+            .clipShape(RoundedRectangle(cornerRadius: style.cornerRadius))
             
             // Overlays
             VStack {
                 HStack {
                     Spacer()
-                    downloadStatusOverlay
+                    if style == .library {
+                        downloadStatusOverlay
+                    }
                 }
-                .padding(.top, 8)
-                .padding(.trailing, 8)
+                .padding(.top, style == .library ? 8 : 4)
+                .padding(.trailing, style == .library ? 8 : 4)
                 
                 Spacer()
                 
-                // Current book status indicator
-                if isCurrentBook {
+                if isCurrentBook && style == .library {
                     currentBookStatusOverlay
                         .padding(.bottom, 8)
                 }
             }
         }
+        .frame(width: style.coverSize, height: style.coverSize)
     }
     
     // MARK: - Download Status Overlay
@@ -194,25 +275,28 @@ struct BookCardView: View {
     
     // MARK: - Book Info Section
     private var bookInfoSection: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 0) {
             Text(book.title)
-                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                .font(style.titleFont)
                 .foregroundColor(.primary)
-                .lineLimit(2)
+                .lineLimit(style == .compact ? 1 : 2)
                 .multilineTextAlignment(.leading)
             
-            Text(book.author ?? "Unbekannter Autor")
-                .font(.system(size: 12, weight: .medium))
-                .foregroundColor(.secondary)
-                .lineLimit(1)
+            Spacer()
             
-            // Progress indicator if available
-            if isCurrentBook && player.duration > 0 {
-                bookProgressIndicator
+            VStack(alignment: .leading, spacing: style == .compact ? 2 : 4) {
+                Text(book.author ?? "Unbekannter Autor")
+                    .font(style.authorFont)
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+                
+                // Progress indicator nur für library style
+                if isCurrentBook && player.duration > 0 && style == .library {
+                    bookProgressIndicator
+                }
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 12)
+        .padding(.horizontal, style.textPadding)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
     
@@ -240,46 +324,96 @@ struct BookCardView: View {
                 Label("Abspielen", systemImage: "play.fill")
             }
             
-            if !isDownloaded {
+            if !isDownloaded && style == .library {
                 Button(action: startDownload) {
                     Label("Herunterladen", systemImage: "arrow.down.circle")
                 }
-            } else {
+            } else if isDownloaded && style == .library {
                 Button(role: .destructive, action: deleteDownload) {
                     Label("Download löschen", systemImage: "trash")
                 }
             }
             
-            Divider()
-            
-            Button(action: shareBook) {
-                Label("Teilen", systemImage: "square.and.arrow.up")
+            if style == .library {
+                Divider()
+                
+                Button(action: shareBook) {
+                    Label("Teilen", systemImage: "square.and.arrow.up")
+                }
             }
         }
     }
     
     // MARK: - Actions
     
-    /// Start downloading the book
     private func startDownload() {
         Task {
             await downloadManager.downloadBook(book, api: api)
         }
     }
     
-    /// Delete downloaded book
     private func deleteDownload() {
         downloadManager.deleteBook(book.id)
     }
     
-    /// Share book (placeholder for future implementation)
     private func shareBook() {
-        // Implementation for sharing book information
         print("[BookCard] Sharing book: \(book.title)")
     }
+}
+
+// MARK: - Convenience Extensions
+extension BookCardView {
+    // Convenience initializers für verschiedene Styles
+    static func library(
+        book: Book,
+        player: AudioPlayer,
+        api: AudiobookshelfAPI,
+        downloadManager: DownloadManager,
+        onTap: @escaping () -> Void
+    ) -> BookCardView {
+        BookCardView(
+            book: book,
+            player: player,
+            api: api,
+            downloadManager: downloadManager,
+            style: .library,
+            onTap: onTap
+        )
+    }
     
-    // MARK: - Helper Methods
+    static func series(
+        book: Book,
+        player: AudioPlayer,
+        api: AudiobookshelfAPI,
+        downloadManager: DownloadManager,
+        onTap: @escaping () -> Void
+    ) -> BookCardView {
+        BookCardView(
+            book: book,
+            player: player,
+            api: api,
+            downloadManager: downloadManager,
+            style: .series,
+            onTap: onTap
+        )
+    }
     
+    static func compact(
+        book: Book,
+        player: AudioPlayer,
+        api: AudiobookshelfAPI,
+        downloadManager: DownloadManager,
+        onTap: @escaping () -> Void
+    ) -> BookCardView {
+        BookCardView(
+            book: book,
+            player: player,
+            api: api,
+            downloadManager: downloadManager,
+            style: .compact,
+            onTap: onTap
+        )
+    }
 }
 
 // MARK: - Circular Progress View

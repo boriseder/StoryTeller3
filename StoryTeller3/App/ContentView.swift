@@ -1,6 +1,9 @@
 import SwiftUI
 import Combine
 
+import SwiftUI
+import Combine
+
 struct ContentView: View {
     // MARK: - State Objects
     @StateObject private var player = AudioPlayer()
@@ -18,7 +21,7 @@ struct ContentView: View {
     
     // MARK: - Tab Enum (nur noch 2 Tabs)
     enum TabIndex: Hashable {
-        case library, downloads
+        case library, series, downloads
     }
 
     var body: some View {
@@ -36,6 +39,15 @@ struct ContentView: View {
                         Text("Bibliothek")
                     }
                     .tag(TabIndex.library)
+                
+                // MARK: - Library Tab
+                seriesTabWithToolbar()
+                    .tabItem {
+                        Image(systemName: "books.vertical")
+                        Text("Serien")
+                    }
+                    .tag(TabIndex.series)
+
                 
                 // MARK: - Downloads Tab
                 downloadsTabWithToolbar()
@@ -91,6 +103,25 @@ struct ContentView: View {
     // MARK: - Helper Views mit Toolbar
     
     @ViewBuilder
+    private func seriesTabWithToolbar() -> some View {
+        NavigationStack {
+            if let api = apiClient {
+                SeriesView(
+                    player: player,
+                    api: api,
+                    downloadManager: downloadManager,
+                    onBookSelected: { openFullscreenPlayer() }
+                )
+            } else {
+                NoServerConfiguredView {
+                    showingSettings = true
+                }
+                .appToolbar(onSettingsTapped: { showingSettings = true })
+            }
+        }
+    }
+    
+    @ViewBuilder
     private func libraryTabWithToolbar() -> some View {
         NavigationStack {
             if let api = apiClient {
@@ -100,9 +131,19 @@ struct ContentView: View {
                     downloadManager: downloadManager,
                     onBookSelected: { openFullscreenPlayer() }
                 )
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        settingsButton
+                    }
+                }
             } else {
                 NoServerConfiguredView {
                     showingSettings = true
+                }
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        settingsButton
+                    }
                 }
             }
         }
@@ -117,6 +158,11 @@ struct ContentView: View {
                 api: apiClient,
                 onBookSelected: { openFullscreenPlayer() }
             )
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    settingsButton
+                }
+            }
         }
     }
     
@@ -261,6 +307,8 @@ struct NoServerConfiguredView: View {
     }
 }
 
+// Rest der Supporting Views bleiben unverändert...
+// (WelcomeView, WelcomePageView, PrimaryButtonStyle, SecondaryButtonStyle)
 // Rest der Supporting Views bleiben unverändert...
 // (WelcomeView, WelcomePageView, PrimaryButtonStyle, SecondaryButtonStyle)
 // Rest der Supporting Views bleiben unverändert...
