@@ -1,81 +1,59 @@
 import SwiftUI
 
 struct LibraryView: View {
-    @ObservedObject var player: AudioPlayer
-    let api: AudiobookshelfAPI
-    @ObservedObject var downloadManager: DownloadManager
-    let onBookSelected: () -> Void
+    @StateObject private var viewModel: LibraryViewModel
     
-    @State private var books: [Book] = []
-    @State private var isLoading = false
-    @State private var errorMessage: String?
-    @State private var showingErrorAlert = false
-    @State private var searchText = ""
-    @State private var selectedSortOption: LibrarySortOption = .title
-    @State private var libraryName: String = "Meine Bibliothek"
+    init(player: AudioPlayer, api: AudiobookshelfAPI, downloadManager: DownloadManager, onBookSelected: @escaping () -> Void) {
+        self._viewModel = StateObject(wrappedValue: LibraryViewModel(
+            api: api,
+            player: player,
+            downloadManager: downloadManager,
+            onBookSelected: onBookSelected
+        ))
+    }
     
     private let columns = [
         GridItem(.adaptive(minimum: 132, maximum: 160), spacing: 16)
     ]
-    
-    private var filteredAndSortedBooks: [Book] {
-        let filtered = searchText.isEmpty ? books : books.filter { book in
-            book.title.localizedCaseInsensitiveContains(searchText) ||
-            (book.author?.localizedCaseInsensitiveContains(searchText) ?? false)
-        }
-
-        return filtered.sorted { book1, book2 in
-            switch selectedSortOption {
-            case .title:
-                return book1.title.localizedCompare(book2.title) == .orderedAscending
-            case .author:
-                return (book1.author ?? "Unbekannt").localizedCompare(book2.author ?? "Unbekannt") == .orderedAscending
-            case .recent:
-                return book1.id > book2.id
-            }
-        }
-    }
 
     var body: some View {
         Group {
-            if isLoading {
+            if viewModel.isLoading {
                 loadingView
-            } else if let error = errorMessage {
+            } else if let error = viewModel.errorMessage {
                 errorView(error)
-            } else if books.isEmpty {
+            } else if viewModel.books.isEmpty {
                 emptyStateView
             } else {
                 contentView
             }
         }
-        .navigationTitle(libraryName)
+        .navigationTitle(viewModel.libraryName)
         .navigationBarTitleDisplayMode(.large)
-        .searchable(text: $searchText, prompt: "Bücher durchsuchen...")
+        .searchable(text: $viewModel.searchText, prompt: "Bücher durchsuchen...")
         .refreshable {
-            await loadBooks()
+            await viewModel.loadBooks()
         }
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 HStack(spacing: 12) {
-                    if !books.isEmpty {
+                    if !viewModel.books.isEmpty {
                         sortMenu
                     }
                     settingsButton
                 }
             }
         }
-        .alert("Fehler", isPresented: $showingErrorAlert) {
+        .alert("Fehler", isPresented: $viewModel.showingErrorAlert) {
             Button("OK") { }
             Button("Erneut versuchen") {
-                Task { await loadBooks() }
+                Task { await viewModel.loadBooks() }
             }
         } message: {
-            Text(errorMessage ?? "Unbekannter Fehler")
+            Text(viewModel.errorMessage ?? "Unbekannter Fehler")
         }
         .task {
-            if books.isEmpty {
-                await loadBooks()
-            }
+            await viewModel.loadBooksIfNeeded()
         }
     }
     
@@ -113,7 +91,7 @@ struct LibraryView: View {
             }
             
             Button(action: {
-                Task { await loadBooks() }
+                Task { await viewModel.loadBooks() }
             }) {
                 Label("Erneut versuchen", systemImage: "arrow.clockwise")
                     .font(.headline)
@@ -147,7 +125,7 @@ struct LibraryView: View {
             }
             
             Button(action: {
-                Task { await loadBooks() }
+                Task { await viewModel.loadBooks() }
             }) {
                 Label("Aktualisieren", systemImage: "arrow.clockwise")
                     .font(.headline)
@@ -168,15 +146,15 @@ struct LibraryView: View {
             DynamicMusicBackground()
             ScrollView {
                 LazyVGrid(columns: columns, spacing: 32) {
-                    ForEach(filteredAndSortedBooks) { book in
+                    ForEach(viewModel.filteredAndSortedBooks) { book in
                         BookCardView.library(
                             book: book,
-                            player: player,
-                            api: api,
-                            downloadManager: downloadManager,
+                            player: viewModel.player,
+                            api: viewModel.api,
+                            downloadManager: viewModel.downloadManager,
                             onTap: {
                                 Task {
-                                    await loadAndPlayBook(book)
+                                    await viewModel.loadAndPlayBook(book)
                                 }
                             }
                         )
@@ -195,11 +173,11 @@ struct LibraryView: View {
             ForEach(LibrarySortOption.allCases, id: \.self) { option in
                 Button(action: {
                     withAnimation(.easeInOut(duration: 0.2)) {
-                        selectedSortOption = option
+                        viewModel.selectedSortOption = option
                     }
                 }) {
                     Label(option.rawValue, systemImage: option.systemImage)
-                    if selectedSortOption == option {
+                    if viewModel.selectedSortOption == option {
                         Image(systemName: "checkmark")
                     }
                 }
@@ -218,80 +196,6 @@ struct LibraryView: View {
             Image(systemName: "gearshape.fill")
                 .font(.system(size: 16))
                 .foregroundColor(.primary)
-        }
-    }
-    
-    // MARK: - Data Loading Methods
-    
-    @MainActor
-    private func loadBooks() async {
-        isLoading = true
-        errorMessage = nil
-        
-        do {
-            let fetchedBooks: [Book]
-            
-            if let libraryId = UserDefaults.standard.string(forKey: "selected_library_id") {
-                let libraries = try await api.fetchLibraries()
-                if let selectedLibrary = libraries.first(where: { $0.id == libraryId }) {
-                    libraryName = selectedLibrary.name
-                    fetchedBooks = try await api.fetchBooks(from: libraryId)
-                    print("\(fetchedBooks.count) Bücher aus Bibliothek '\(selectedLibrary.name)' geladen")
-                } else {
-                    throw AudiobookshelfError.libraryNotFound("Selected library not found")
-                }
-            } else {
-                let libraries = try await api.fetchLibraries()
-                if let firstLibrary = libraries.first {
-                    libraryName = firstLibrary.name
-                    fetchedBooks = try await api.fetchBooks(from: firstLibrary.id)
-                    UserDefaults.standard.set(firstLibrary.id, forKey: "selected_library_id")
-                    print("\(fetchedBooks.count) Bücher aus Standard-Bibliothek '\(firstLibrary.name)' geladen")
-                } else {
-                    libraryName = "Keine Bibliothek"
-                    fetchedBooks = []
-                }
-            }
-            
-            // Update books with animation
-            withAnimation(.easeInOut) {
-                books = fetchedBooks
-            }
-            
-            // Optional: Preload first 10 covers for better UX
-            if !fetchedBooks.isEmpty {
-                CoverCacheManager.shared.preloadCovers(
-                    for: Array(fetchedBooks.prefix(10)),
-                    api: api,
-                    downloadManager: downloadManager
-                )
-            }
-            
-        } catch {
-            errorMessage = error.localizedDescription
-            showingErrorAlert = true
-            print("Fehler beim Laden der Bücher: \(error)")
-        }
-        
-        isLoading = false
-    }
-    
-    @MainActor
-    private func loadAndPlayBook(_ book: Book) async {
-        print("Lade Buch: \(book.title)")
-        
-        do {
-            let fetchedBook = try await api.fetchBookDetails(bookId: book.id)
-            player.configure(baseURL: api.baseURLString, authToken: api.authToken, downloadManager: downloadManager)
-            player.load(book: fetchedBook)
-            onBookSelected()
-            print("Buch '\(fetchedBook.title)' geladen")
-            print("Buch von '\(fetchedBook.author ?? "Unbekannt")'")
-
-        } catch {
-            errorMessage = "Konnte '\(book.title)' nicht laden: \(error.localizedDescription)"
-            showingErrorAlert = true
-            print("Fehler beim Laden der Buchdetails: \(error)")
         }
     }
 }

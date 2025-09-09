@@ -67,7 +67,7 @@ struct BookCardView: View {
     // MARK: - Properties
     let book: Book
     @ObservedObject var player: AudioPlayer
-    let api: AudiobookshelfAPI
+    let api: AudiobookshelfAPI?
     @ObservedObject var downloadManager: DownloadManager
     let onTap: () -> Void
     let style: BookCardStyle
@@ -101,7 +101,7 @@ struct BookCardView: View {
     init(
         book: Book,
         player: AudioPlayer,
-        api: AudiobookshelfAPI,
+        api: AudiobookshelfAPI?, // <- Optional machen
         downloadManager: DownloadManager,
         style: BookCardStyle = .library,
         onTap: @escaping () -> Void
@@ -205,6 +205,7 @@ struct BookCardView: View {
     }
     
     // MARK: - Download Status Overlay
+    // Und den Download-Button nur anzeigen wenn API verfügbar ist:
     private var downloadStatusOverlay: some View {
         Group {
             if isDownloading {
@@ -234,7 +235,7 @@ struct BookCardView: View {
                 }
                 .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
                 
-            } else {
+            } else if api != nil { // Nur anzeigen wenn API verfügbar
                 Button(action: startDownload) {
                     ZStack {
                         Circle()
@@ -251,7 +252,7 @@ struct BookCardView: View {
             }
         }
     }
-    
+
     // MARK: - Current Book Status Overlay
     private var currentBookStatusOverlay: some View {
         HStack(spacing: 6) {
@@ -324,7 +325,7 @@ struct BookCardView: View {
                 Label("Abspielen", systemImage: "play.fill")
             }
             
-            if !isDownloaded && style == .library {
+            if !isDownloaded && style == .library && api != nil {
                 Button(action: startDownload) {
                     Label("Herunterladen", systemImage: "arrow.down.circle")
                 }
@@ -333,25 +334,22 @@ struct BookCardView: View {
                     Label("Download löschen", systemImage: "trash")
                 }
             }
-            
-            if style == .library {
-                Divider()
-                
-                Button(action: shareBook) {
-                    Label("Teilen", systemImage: "square.and.arrow.up")
-                }
-            }
         }
     }
-    
+
     // MARK: - Actions
     
     private func startDownload() {
+        guard let api = api else {
+            print("[BookCard] Cannot download: API not available")
+            return
+        }
+        
         Task {
             await downloadManager.downloadBook(book, api: api)
         }
     }
-    
+
     private func deleteDownload() {
         downloadManager.deleteBook(book.id)
     }
@@ -367,7 +365,7 @@ extension BookCardView {
     static func library(
         book: Book,
         player: AudioPlayer,
-        api: AudiobookshelfAPI,
+        api: AudiobookshelfAPI?, // <- Optional
         downloadManager: DownloadManager,
         onTap: @escaping () -> Void
     ) -> BookCardView {
@@ -384,7 +382,7 @@ extension BookCardView {
     static func series(
         book: Book,
         player: AudioPlayer,
-        api: AudiobookshelfAPI,
+        api: AudiobookshelfAPI?, // <- Optional
         downloadManager: DownloadManager,
         onTap: @escaping () -> Void
     ) -> BookCardView {
@@ -401,7 +399,7 @@ extension BookCardView {
     static func compact(
         book: Book,
         player: AudioPlayer,
-        api: AudiobookshelfAPI,
+        api: AudiobookshelfAPI?, // <- Optional
         downloadManager: DownloadManager,
         onTap: @escaping () -> Void
     ) -> BookCardView {

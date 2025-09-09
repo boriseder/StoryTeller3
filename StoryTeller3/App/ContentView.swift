@@ -43,7 +43,7 @@ struct ContentView: View {
                 // MARK: - Library Tab
                 seriesTabWithToolbar()
                     .tabItem {
-                        Image(systemName: "books.vertical")
+                        Image(systemName: "rectangle.stack.fill")
                         Text("Serien")
                     }
                     .tag(TabIndex.series)

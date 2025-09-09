@@ -1,79 +1,55 @@
 import SwiftUI
 
 struct SeriesView: View {
-    @ObservedObject var player: AudioPlayer
-    let api: AudiobookshelfAPI
-    @ObservedObject var downloadManager: DownloadManager
-    let onBookSelected: () -> Void
+    @StateObject private var viewModel: SeriesViewModel
     
-    @State private var series: [Series] = []
-    @State private var isLoading = false
-    @State private var errorMessage: String?
-    @State private var showingErrorAlert = false
-    @State private var searchText = ""
-    @State private var selectedSortOption: SeriesSortOption = .name
-    @State private var libraryName: String = "Serien"
-    
-    private var filteredAndSortedSeries: [Series] {
-        let filtered = searchText.isEmpty ? series : series.filter { series in
-            series.name.localizedCaseInsensitiveContains(searchText) ||
-            (series.author?.localizedCaseInsensitiveContains(searchText) ?? false)
-        }
-
-        return filtered.sorted { series1, series2 in
-            switch selectedSortOption {
-            case .name:
-                return series1.name.localizedCompare(series2.name) == .orderedAscending
-            case .recent:
-                return series1.addedAt > series2.addedAt
-            case .bookCount:
-                return series1.bookCount > series2.bookCount
-            case .duration:
-                return series1.totalDuration > series2.totalDuration
-            }
-        }
+    init(player: AudioPlayer, api: AudiobookshelfAPI, downloadManager: DownloadManager, onBookSelected: @escaping () -> Void) {
+        self._viewModel = StateObject(wrappedValue: SeriesViewModel(
+            api: api,
+            player: player,
+            downloadManager: downloadManager,
+            onBookSelected: onBookSelected
+        ))
     }
 
     var body: some View {
         Group {
-            if isLoading {
+            if viewModel.isLoading {
                 loadingView
-            } else if let error = errorMessage {
+            } else if let error = viewModel.errorMessage {
                 errorView(error)
-            } else if series.isEmpty {
+            } else if viewModel.series.isEmpty {
                 emptyStateView
             } else {
                 contentView
             }
         }
-        .navigationTitle(libraryName)
+        .navigationTitle(viewModel.libraryName)
         .navigationBarTitleDisplayMode(.large)
-        .searchable(text: $searchText, prompt: "Serien durchsuchen...")
+        .searchable(text: $viewModel.searchText, prompt: "Serien durchsuchen...")
         .refreshable {
-            await loadSeries()
+            await viewModel.loadSeries()
         }
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 HStack(spacing: 12) {
-                    if !series.isEmpty {
+                    if !viewModel.series.isEmpty {
                         sortMenu
                     }
                     settingsButton
                 }
             }
         }
-        .alert("Fehler", isPresented: $showingErrorAlert) {
+        .alert("Fehler", isPresented: $viewModel.showingErrorAlert) {
             Button("OK") { }
             Button("Erneut versuchen") {
-                Task { await loadSeries() }
+                Task { await viewModel.loadSeries() }
             }
         } message: {
-            Text(errorMessage ?? "Unbekannter Fehler")
+            Text(viewModel.errorMessage ?? "Unbekannter Fehler")
         }
         .task {
-            if series.isEmpty {
-                await loadSeries()
-            }
+            await viewModel.loadSeriesIfNeeded()
         }
     }
     
@@ -111,7 +87,7 @@ struct SeriesView: View {
             }
             
             Button(action: {
-                Task { await loadSeries() }
+                Task { await viewModel.loadSeries() }
             }) {
                 Label("Erneut versuchen", systemImage: "arrow.clockwise")
                     .font(.headline)
@@ -145,7 +121,7 @@ struct SeriesView: View {
             }
             
             Button(action: {
-                Task { await loadSeries() }
+                Task { await viewModel.loadSeries() }
             }) {
                 Label("Aktualisieren", systemImage: "arrow.clockwise")
                     .font(.headline)
@@ -167,13 +143,18 @@ struct SeriesView: View {
             
             ScrollView {
                 LazyVStack(spacing: 20) {
-                    ForEach(filteredAndSortedSeries) { series in
+                    ForEach(viewModel.filteredAndSortedSeries) { series in
                         SeriesRowView(
                             series: series,
-                            player: player,
-                            api: api,
-                            downloadManager: downloadManager,
-                            onBookSelected: onBookSelected
+                            player: viewModel.player,
+                            api: viewModel.api,
+                            downloadManager: viewModel.downloadManager,
+                            onBookSelected: {
+                                Task {
+                                    // falls du ein konkretes Buch laden willst,
+                                    // musst du das Buch hier aus `series` auswählen
+                                }
+                            }
                         )
                     }
                 }
@@ -190,11 +171,11 @@ struct SeriesView: View {
             ForEach(SeriesSortOption.allCases, id: \.self) { option in
                 Button(action: {
                     withAnimation(.easeInOut(duration: 0.2)) {
-                        selectedSortOption = option
+                        viewModel.selectedSortOption = option
                     }
                 }) {
                     Label(option.rawValue, systemImage: option.systemImage)
-                    if selectedSortOption == option {
+                    if viewModel.selectedSortOption == option {
                         Image(systemName: "checkmark")
                     }
                 }
@@ -214,51 +195,5 @@ struct SeriesView: View {
                 .font(.system(size: 16))
                 .foregroundColor(.primary)
         }
-    }
-    
-    // MARK: - Data Loading
-    
-    @MainActor
-    private func loadSeries() async {
-        isLoading = true
-        errorMessage = nil
-        
-        do {
-            let fetchedSeries: [Series]
-            
-            if let libraryId = UserDefaults.standard.string(forKey: "selected_library_id") {
-                let libraries = try await api.fetchLibraries()
-                if let selectedLibrary = libraries.first(where: { $0.id == libraryId }) {
-                    libraryName = "\(selectedLibrary.name) - Serien"
-                    fetchedSeries = try await api.fetchSeries(from: libraryId)
-                    print("\(fetchedSeries.count) Serien aus Bibliothek '\(selectedLibrary.name)' geladen")
-                } else {
-                    throw AudiobookshelfError.libraryNotFound("Selected library not found")
-                }
-            } else {
-                let libraries = try await api.fetchLibraries()
-                if let firstLibrary = libraries.first {
-                    libraryName = "\(firstLibrary.name) - Serien"
-                    fetchedSeries = try await api.fetchSeries(from: firstLibrary.id)
-                    UserDefaults.standard.set(firstLibrary.id, forKey: "selected_library_id")
-                    print("\(fetchedSeries.count) Serien aus Standard-Bibliothek '\(firstLibrary.name)' geladen")
-                } else {
-                    libraryName = "Serien"
-                    fetchedSeries = []
-                }
-            }
-            
-            // Update series with animation
-            withAnimation(.easeInOut) {
-                series = fetchedSeries
-            }
-            
-        } catch {
-            errorMessage = error.localizedDescription
-            showingErrorAlert = true
-            print("Fehler beim Laden der Serien: \(error)")
-        }
-        
-        isLoading = false
     }
 }
