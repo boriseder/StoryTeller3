@@ -277,13 +277,13 @@ struct PlayerView: View {
         // Simulator: Mock-Button mit Debug-Menü
         Menu {
             Button("iPhone Speaker") {
-                print("Selected: iPhone Speaker")
+                AppLogger.debug.debug("Selected: iPhone Speaker")
             }
             Button("Bluetooth Headphones (Simulator)") {
-                print("Selected: Bluetooth Headphones")
+                AppLogger.debug.debug("Selected: Bluetooth Headphones")
             }
             Button("AirPlay Device (Simulator)") {
-                print("Selected: AirPlay Device")
+                AppLogger.debug.debug("Selected: AirPlay Device")
             }
         } label: {
             VStack(spacing: 4) {

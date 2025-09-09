@@ -80,7 +80,7 @@ struct StoryTeller2App: App {
                 await CoverCacheManager.shared.optimizeCache()
             }
             
-            print("[App] Cache manager initialized")
+            AppLogger.debug.debug("[App] Cache manager initialized")
         }
     }
     

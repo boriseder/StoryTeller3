@@ -12,8 +12,19 @@ struct SeriesRowView: View {
             // Series Header
             seriesHeader
             
-            // Books Horizontal Scroll
-            booksScrollView
+            // Books Horizontal Scroll - ← REUSE!
+            HorizontalBookScrollView(
+                books: series.books.compactMap { api.convertLibraryItemToBook($0) },
+                player: player,
+                api: api,
+                downloadManager: downloadManager,
+                cardStyle: .series,
+                onBookSelected: { book in
+                    Task {
+                        await loadAndPlayBook(book)
+                    }
+                }
+            )
         }
         .padding(.vertical, 12)
         .padding(.horizontal, 16)
@@ -24,7 +35,7 @@ struct SeriesRowView: View {
         }
     }
     
-    // MARK: - Series Header
+    // MARK: - Series Header (unchanged)
     
     private var seriesHeader: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -58,49 +69,20 @@ struct SeriesRowView: View {
         }
     }
     
-    // MARK: - Books Horizontal Scroll
-    
-    private var booksScrollView: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: -50) { // Negative spacing für Überlappung
-                ForEach(series.books.indices, id: \.self) { index in
-                    if let book = api.convertLibraryItemToBook(series.books[index]) {
-                        BookCardView.series(
-                            book: book,
-                            player: player,
-                            api: api,
-                            downloadManager: downloadManager,
-                            onTap: {
-                                Task {
-                                    await loadAndPlayBook(book)
-                                }
-                            }
-                        )
-                        //.zIndex(Double(series.books.count - index)) // Erste Card oben
-                        .offset(x: CGFloat(index) * -15) // Zusätzliches Offset
-                    }
-                }
-            }
-            .padding(.horizontal, 20) // Mehr Padding für Überlappung
-        }
-    }
-
     // MARK: - Helper Methods
         
-    /// Lädt und spielt ein Buch ab (Reuse der LibraryView Logik)
     @MainActor
     private func loadAndPlayBook(_ book: Book) async {
-        print("Lade Buch aus Serie: \(book.title)")
+        AppLogger.debug.debug("Lade Buch aus Serie: \(book.title)")
         
         do {
             let fetchedBook = try await api.fetchBookDetails(bookId: book.id)
             player.configure(baseURL: api.baseURLString, authToken: api.authToken, downloadManager: downloadManager)
             player.load(book: fetchedBook)
             onBookSelected()
-            print("Buch '\(fetchedBook.title)' aus Serie geladen")
+            AppLogger.debug.debug("Buch '\(fetchedBook.title)' aus Serie geladen")
         } catch {
-            print("Fehler beim Laden der Buchdetails aus Serie: \(error)")
-            // Hier könntest du optional Error-Handling hinzufügen
+            AppLogger.debug.debug("Fehler beim Laden der Buchdetails aus Serie: \(error)")
         }
     }
 }

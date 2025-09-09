@@ -2,6 +2,7 @@ import SwiftUI
 
 struct LibraryView: View {
     @StateObject private var viewModel: LibraryViewModel
+    @State private var selectedSeries: Book? // ← NEU: Für Series Modal
     
     init(player: AudioPlayer, api: AudiobookshelfAPI, downloadManager: DownloadManager, onBookSelected: @escaping () -> Void) {
         self._viewModel = StateObject(wrappedValue: LibraryViewModel(
@@ -25,9 +26,9 @@ struct LibraryView: View {
             } else if viewModel.books.isEmpty {
                 emptyStateView
             } else if viewModel.filteredAndSortedBooks.isEmpty && viewModel.showDownloadedOnly {
-                noDownloadsView // ← Neue View für leeren Download-Filter
+                noDownloadsView
             } else if viewModel.filteredAndSortedBooks.isEmpty {
-                noSearchResultsView // ← Neue View für leere Suche
+                noSearchResultsView
             } else {
                 contentView
             }
@@ -42,7 +43,7 @@ struct LibraryView: View {
             ToolbarItem(placement: .navigationBarTrailing) {
                 HStack(spacing: 12) {
                     if !viewModel.books.isEmpty {
-                        filterAndSortMenu // ← Erweiterte Toolbar
+                        filterAndSortMenu
                     }
                     settingsButton
                 }
@@ -58,6 +59,31 @@ struct LibraryView: View {
         }
         .task {
             await viewModel.loadBooksIfNeeded()
+        }
+        // ← NEU: Series Modal (temporär auskommentiert bis SeriesDetailModalView erstellt ist)
+        .sheet(item: $selectedSeries) { series in
+            // Temporärer Fallback bis SeriesDetailModalView verfügbar ist
+            NavigationStack {
+                VStack {
+                    Text("Serie: \(series.displayTitle)")
+                        .font(.title2)
+                        .padding()
+                    
+                    Text("Hier wird später die SeriesDetailModalView angezeigt")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                        .padding()
+                    
+                    Spacer()
+                }
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarLeading) {
+                        Button("Fertig") {
+                            selectedSeries = nil
+                        }
+                    }
+                }
+            }
         }
     }
     
@@ -145,7 +171,6 @@ struct LibraryView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
     
-    // ← Neue Views für verschiedene leere Zustände
     private var noDownloadsView: some View {
         VStack(spacing: 32) {
             Image(systemName: "arrow.down.circle")
@@ -234,12 +259,18 @@ struct LibraryView: View {
             DynamicMusicBackground()
             
             VStack(spacing: 0) {
-                // ← Filter-Status-Banner (wenn Download-Filter aktiv)
+                // Filter-Status-Banner (wenn Download-Filter aktiv)
                 if viewModel.showDownloadedOnly {
                     filterStatusBanner
                 }
                 
+                // ← NEU: Series-Status-Banner (wenn Series-Modus aktiv)
+                if viewModel.showSeriesGrouped {
+                    seriesStatusBanner
+                }
+                
                 ScrollView {
+                    // ← VEREINFACHT: Normale Grid-Darstellung (gleich für Bücher und Serien)
                     LazyVGrid(columns: columns, spacing: 32) {
                         ForEach(viewModel.filteredAndSortedBooks) { book in
                             BookCardView.library(
@@ -248,9 +279,7 @@ struct LibraryView: View {
                                 api: viewModel.api,
                                 downloadManager: viewModel.downloadManager,
                                 onTap: {
-                                    Task {
-                                        await viewModel.loadAndPlayBook(book)
-                                    }
+                                    handleBookTap(book)
                                 }
                             )
                         }
@@ -262,7 +291,22 @@ struct LibraryView: View {
         }
     }
     
-    // ← Neues Filter-Status-Banner
+    // MARK: - ← NEU: Book Tap Handling
+    
+    private func handleBookTap(_ book: Book) {
+        if book.isCollapsedSeries {
+            // Serie → Modal öffnen
+            selectedSeries = book
+        } else {
+            // Einzelbuch → Playback wie bisher
+            Task {
+                await viewModel.loadAndPlayBook(book)
+            }
+        }
+    }
+    
+    // MARK: - Status Banners
+    
     private var filterStatusBanner: some View {
         HStack(spacing: 12) {
             Image(systemName: "arrow.down.circle.fill")
@@ -293,8 +337,53 @@ struct LibraryView: View {
             alignment: .bottom
         )
     }
+    
+    // ← NEU: Series Status Banner
+    private var seriesStatusBanner: some View {
+        let seriesCount = viewModel.filteredAndSortedBooks.filter { $0.isCollapsedSeries }.count
+        let booksCount = viewModel.filteredAndSortedBooks.filter { !$0.isCollapsedSeries }.count
+        
+        return HStack(spacing: 12) {
+            Image(systemName: "rectangle.stack.fill")
+                .font(.system(size: 16))
+                .foregroundColor(.blue)
+            
+            if seriesCount > 0 && booksCount > 0 {
+                Text("Zeige \(seriesCount) Serien • \(booksCount) Bücher")
+                    .font(.subheadline)
+                    .foregroundColor(.primary)
+            } else if seriesCount > 0 {
+                Text("Zeige \(seriesCount) Serien")
+                    .font(.subheadline)
+                    .foregroundColor(.primary)
+            } else {
+                Text("Zeige \(booksCount) Bücher")
+                    .font(.subheadline)
+                    .foregroundColor(.primary)
+            }
+            
+            Spacer()
+            
+            Button(action: {
+                viewModel.toggleSeriesMode()
+            }) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 14))
+                    .foregroundColor(.secondary)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .background(.regularMaterial)
+        .overlay(
+            Rectangle()
+                .frame(height: 1)
+                .foregroundColor(Color(.separator)),
+            alignment: .bottom
+        )
+    }
 
-    // MARK: - ← Erweiterte Toolbar Components
+    // MARK: - Toolbar Components
     
     private var filterAndSortMenu: some View {
         Menu {
@@ -334,8 +423,44 @@ struct LibraryView: View {
                 }
             }
             
+            Divider()
+            
+            // Darstellung Section
+            Section("Darstellung") {
+                Button(action: {
+                    viewModel.toggleSeriesMode()
+                }) {
+                    Label("Serien gebündelt", systemImage: "rectangle.stack")
+                    if viewModel.showSeriesGrouped {
+                        Image(systemName: "checkmark")
+                    }
+                }
+            }
+            
+            // Statistik Section
+            Section("Bibliothek") {
+                if viewModel.showSeriesGrouped {
+                    let seriesCount = viewModel.filteredAndSortedBooks.filter { $0.isCollapsedSeries }.count
+                    let booksCount = viewModel.filteredAndSortedBooks.filter { !$0.isCollapsedSeries }.count
+                    
+                    HStack {
+                        Text("Gesamt: \(seriesCount) Serien • \(booksCount) Bücher")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Spacer()
+                    }
+                } else {
+                    HStack {
+                        Text("Gesamt: \(viewModel.totalBooksCount) Bücher")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Spacer()
+                    }
+                }
+            }
+            
             // Reset Section (nur wenn Filter aktiv)
-            if viewModel.showDownloadedOnly || !viewModel.searchText.isEmpty {
+            if viewModel.showDownloadedOnly || viewModel.showSeriesGrouped || !viewModel.searchText.isEmpty {
                 Divider()
                 
                 Section {
@@ -353,8 +478,8 @@ struct LibraryView: View {
                     .font(.system(size: 16))
                     .foregroundColor(.primary)
                 
-                // ← Badge wenn Filter aktiv
-                if viewModel.showDownloadedOnly {
+                // Badge wenn Filter aktiv
+                if viewModel.showDownloadedOnly || viewModel.showSeriesGrouped {
                     Circle()
                         .fill(.orange)
                         .frame(width: 8, height: 8)

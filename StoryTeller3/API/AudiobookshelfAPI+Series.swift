@@ -4,7 +4,7 @@ import Foundation
 extension AudiobookshelfAPI {
     
     // Fetch all series from library
-    func fetchSeries(from libraryId: String, limit: Int = 0) async throws -> [Series] {
+    func fetchSeries(from libraryId: String, limit: Int = 1000) async throws -> [Series] {
         guard let url = URL(string: "\(baseURLString)/api/libraries/\(libraryId)/series?limit=\(limit)") else {
             throw AudiobookshelfError.invalidURL("\(baseURLString)/api/libraries/\(libraryId)/series")
         }
@@ -53,7 +53,7 @@ extension AudiobookshelfAPI {
         }
     }
     
-    // MARK: - Private Helper (kopiert aus NetworkService)
+    // MARK: - Private Helper (eigene Implementierung ohne NetworkService Zugriff)
     private func validateResponse(_ response: URLResponse?, data: Data) throws {
         guard let httpResponse = response as? HTTPURLResponse else {
             throw AudiobookshelfError.noData

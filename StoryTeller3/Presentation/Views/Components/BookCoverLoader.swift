@@ -46,12 +46,12 @@ class CoverCacheManager: ObservableObject {
     
     // ✅ SWIFT 6 FIX - Objective-C selectors für NotificationCenter
     @objc private func handleMemoryWarning() {
-        print("[CoverCache] Memory warning - clearing memory cache")
+        AppLogger.debug.debug("[CoverCache] Memory warning - clearing memory cache")
         cache.removeAllObjects()
     }
     
     @objc private func handleAppBackground() {
-        print("[CoverCache] App backgrounded - clearing memory cache")
+        AppLogger.debug.debug("[CoverCache] App backgrounded - clearing memory cache")
         cache.removeAllObjects()
     }
     
@@ -142,7 +142,6 @@ class CoverCacheManager: ObservableObject {
         cache.countLimit = countLimit > 0 ? countLimit : 100
         cache.totalCostLimit = (sizeLimit > 0 ? sizeLimit : 50) * 1024 * 1024 // MB to bytes
         
-        print("[CoverCache] Updated limits: \(cache.countLimit) covers, \(cache.totalCostLimit / 1024 / 1024) MB")
     }
     
     // MARK: - Cache Optimization
@@ -158,7 +157,7 @@ class CoverCacheManager: ObservableObject {
             clearOldestDiskCacheItems(keepCount: 100)
         }
         
-        print("[CoverCache] Cache optimization completed")
+        AppLogger.debug.debug("[CoverCache] Cache optimization completed")
     }
     
     private func findCorruptedCacheFiles() -> [URL] {
@@ -195,7 +194,7 @@ class CoverCacheManager: ObservableObject {
                     files.append((fileURL, modificationDate))
                 }
             } catch {
-                print("[CoverCache] Error reading file attributes: \(error)")
+                AppLogger.debug.debug("[CoverCache] Error reading file attributes: \(error)")
             }
         }
         
@@ -209,7 +208,7 @@ class CoverCacheManager: ObservableObject {
         }
         
         if !filesToRemove.isEmpty {
-            print("[CoverCache] Removed \(filesToRemove.count) old cache files")
+            AppLogger.debug.debug("[CoverCache] Removed \(filesToRemove.count) old cache files")
         }
     }
     
@@ -363,14 +362,14 @@ class BookCoverLoader: ObservableObject {
     }
     
     private func loadCoverImage() async {
-        print("[BookCoverLoader] Starting cover load for: \(book.title)")
+        // AppLogger.debug.debug("[BookCoverLoader] Starting cover load for: \(book.title)")
         
         // Priority 1: Memory cache
         let memoryCacheKey = generateCacheKey()
-        print("[BookCoverLoader] Cache key: \(memoryCacheKey)")
+        // AppLogger.debug.debug("[BookCoverLoader] Cache key: \(memoryCacheKey)")
         
         if let cachedImage = cacheManager.getCachedImage(for: memoryCacheKey) {
-            print("[BookCoverLoader] Found in memory cache")
+            // AppLogger.debug.debug("[BookCoverLoader] Found in memory cache")
             self.image = cachedImage
             self.isLoading = false
             return
@@ -378,7 +377,7 @@ class BookCoverLoader: ObservableObject {
         
         // Priority 2: Disk cache
         if let diskCachedImage = cacheManager.getDiskCachedImage(for: memoryCacheKey) {
-            print("[BookCoverLoader] Found in disk cache")
+            // AppLogger.debug.debug("[BookCoverLoader] Found in disk cache")
             self.image = diskCachedImage
             self.isLoading = false
             return
@@ -386,7 +385,7 @@ class BookCoverLoader: ObservableObject {
         
         // Priority 3: Local downloaded cover
         if let localImage = await loadLocalCover() {
-            print("[BookCoverLoader] Found local cover")
+            // AppLogger.debug.debug("[BookCoverLoader] Found local cover")
             self.image = localImage
             self.isLoading = false
             cacheManager.setDiskCachedImage(localImage, for: memoryCacheKey)
@@ -395,7 +394,7 @@ class BookCoverLoader: ObservableObject {
         
         // Priority 4: Embedded cover from audio files
         if let embeddedImage = await loadEmbeddedCover() {
-            print("[BookCoverLoader] Found embedded cover")
+            // AppLogger.debug.debug("[BookCoverLoader] Found embedded cover")
             self.image = embeddedImage
             self.isLoading = false
             cacheManager.setDiskCachedImage(embeddedImage, for: memoryCacheKey)
@@ -404,14 +403,14 @@ class BookCoverLoader: ObservableObject {
         
         // Priority 5: Online cover with download and caching
         if let onlineImage = await loadOnlineCover() {
-            print("[BookCoverLoader] Downloaded online cover")
+            // AppLogger.debug.debug("[BookCoverLoader] Downloaded online cover")
             self.image = onlineImage
             self.isLoading = false
             return
         }
         
         // No cover found
-        print("[BookCoverLoader] No cover found for: \(book.title)")
+        // AppLogger.debug.debug("[BookCoverLoader] No cover found for: \(book.title)")
         self.hasError = true
         self.isLoading = false
     }
@@ -465,7 +464,7 @@ class BookCoverLoader: ObservableObject {
                 }
             }
         } catch {
-            print("[BookCoverLoader] Error reading directory: \(error)")
+            // AppLogger.debug.debug("[BookCoverLoader] Error reading directory: \(error)")
         }
         
         return nil
@@ -503,7 +502,7 @@ class BookCoverLoader: ObservableObject {
             self.downloadProgress = 1.0
             return image
         } catch {
-            print("[BookCoverLoader] Online cover download failed: \(error)")
+            // AppLogger.debug.debug("[BookCoverLoader] Online cover download failed: \(error)")
             return nil
         }
     }

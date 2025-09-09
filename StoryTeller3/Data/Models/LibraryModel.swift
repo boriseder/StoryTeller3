@@ -28,8 +28,12 @@ struct LibraryItem: Decodable, Identifiable {
     let isMissing: Bool?
     let isInvalid: Bool?
     let coverPath: String?
+    
+    // ← Series Object (nur bei collapseSeries=1)
+    let collapsedSeries: CollapsedSeries?
+    
+    // ← Series Detection: Wenn collapsedSeries existiert, ist es eine Serie
+    var isCollapsedSeries: Bool {
+        return collapsedSeries != nil
+    }
 }
-
-
-
-

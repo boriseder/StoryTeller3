@@ -65,12 +65,31 @@ class AudiobookshelfAPI {
         return response.libraries.filter { $0.isAudiobook }
     }
     
-    // MARK: - Books
-    func fetchBooks(from libraryId: String, limit: Int = 0) async throws -> [Book] {
-        guard let url = URL(string: "\(baseURLString)/api/libraries/\(libraryId)/items?limit=\(limit)") else {
-            throw AudiobookshelfError.invalidURL("\(baseURLString)/api/libraries/\(libraryId)/items")
+    // MARK: - Books (Debug Version)
+    func fetchBooks(from libraryId: String, limit: Int = 0, collapseSeries: Bool = false) async throws -> [Book] {
+        
+        // URL mit Query-Parametern erstellen
+        var components = URLComponents(string: "\(baseURLString)/api/libraries/\(libraryId)/items")!
+        var queryItems: [URLQueryItem] = []
+        
+        if limit > 0 {
+            queryItems.append(URLQueryItem(name: "limit", value: "\(limit)"))
         }
         
+        // collapseSeries Parameter hinzufügen
+        queryItems.append(URLQueryItem(name: "collapseseries", value: collapseSeries ? "1" : "0"))
+        
+        components.queryItems = queryItems
+        
+        components.queryItems = queryItems
+
+        guard let url = components.url else {
+            throw AudiobookshelfError.invalidURL("\(baseURLString)/api/libraries/\(libraryId)/items")
+        }
+
+        AppLogger.debug.debug("URL \(url)")
+        AppLogger.debug.debug("collapsesseries  \(collapseSeries)")
+
         let request = networkService.createAuthenticatedRequest(url: url, authToken: authToken)
         let response: LibraryItemsResponse = try await networkService.performRequest(request, responseType: LibraryItemsResponse.self)
         
@@ -93,7 +112,6 @@ class AudiobookshelfAPI {
         
         return book
     }
-    
     // MARK: - Conversion Helper
     public func convertLibraryItemToBook(_ item: LibraryItem) -> Book? {
         // Create chapters from media tracks or use provided chapters
@@ -137,9 +155,8 @@ class AudiobookshelfAPI {
             title: item.media.metadata.title,
             author: item.media.metadata.author,
             chapters: chapters,
-            coverPath: item.coverPath
+            coverPath: item.coverPath,
+            collapsedSeries: item.collapsedSeries
         )
     }
 }
-
-

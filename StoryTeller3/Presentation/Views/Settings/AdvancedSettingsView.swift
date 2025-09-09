@@ -340,7 +340,7 @@ struct AdvancedSettingsView: View {
     private func applyCacheSettings() async {
         // This would require extending CoverCacheManager to accept dynamic limits
         // For now, we'll just save the preferences
-        print("Applied new cache settings: \(coverCacheLimit) covers, \(memoryCacheSize) MB")
+        AppLogger.debug.debug("Applied new cache settings: \(coverCacheLimit) covers, \(memoryCacheSize) MB")
     }
     
     private func calculateStorageInfo() async {
@@ -366,7 +366,7 @@ struct AdvancedSettingsView: View {
                     total += Int64(fileSize)
                 }
             } catch {
-                print("Fehler beim Lesen der Dateigröße: \(error)")
+                AppLogger.debug.debug("Fehler beim Lesen der Dateigröße: \(error)")
             }
         }
         return total
@@ -413,7 +413,7 @@ struct AdvancedSettingsView: View {
                 return formatBytes(freeSpace.int64Value)
             }
         } catch {
-            print("Error getting available storage: \(error)")
+            AppLogger.debug.debug("Error getting available storage: \(error)")
         }
         return "Unbekannt"
     }
@@ -433,7 +433,7 @@ struct AdvancedSettingsView: View {
             }
             Task { await calculateStorageInfo() }
         } catch {
-            print("Error clearing app cache: \(error)")
+            AppLogger.debug.debug("Error clearing app cache: \(error)")
         }
     }
     
@@ -463,19 +463,19 @@ struct AdvancedSettingsView: View {
     
     // MARK: - Debug Methods
     private func exportDebugLog() {
-        print("Exporting debug log...")
+        AppLogger.debug.debug("Exporting debug log...")
     }
     
     private func clearDebugLog() {
-        print("Clearing debug log...")
+        AppLogger.debug.debug("Clearing debug log...")
     }
     
     private func enableDebugMode() {
-        print("Debug mode enabled")
+        AppLogger.debug.debug("Debug mode enabled")
     }
     
     private func disableDebugMode() {
-        print("Debug mode disabled")
+        AppLogger.debug.debug("Debug mode disabled")
     }
 }
 

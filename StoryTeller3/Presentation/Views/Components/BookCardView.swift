@@ -101,7 +101,7 @@ struct BookCardView: View {
     init(
         book: Book,
         player: AudioPlayer,
-        api: AudiobookshelfAPI?, // <- Optional machen
+        api: AudiobookshelfAPI?,
         downloadManager: DownloadManager,
         style: BookCardStyle = .library,
         onTap: @escaping () -> Void
@@ -185,13 +185,20 @@ struct BookCardView: View {
             // Overlays
             VStack {
                 HStack {
+                    // ← NEU: Series Badge (top-left)
+                    if book.isCollapsedSeries && style == .library {
+                        seriesBadge
+                    }
+                    
                     Spacer()
+                    
+                    // Download Status (top-right)
                     if style == .library {
                         downloadStatusOverlay
                     }
                 }
                 .padding(.top, style == .library ? 8 : 4)
-                .padding(.trailing, style == .library ? 8 : 4)
+                .padding(.horizontal, style == .library ? 8 : 4)
                 
                 Spacer()
                 
@@ -204,8 +211,25 @@ struct BookCardView: View {
         .frame(width: style.coverSize, height: style.coverSize)
     }
     
+    // MARK: - ← NEU: Series Badge
+    private var seriesBadge: some View {
+        HStack(spacing: 4) {
+            Image(systemName: "books.vertical.fill")
+                .font(.system(size: 10))
+            Text("\(book.seriesBookCount)")
+                .font(.system(size: 10, weight: .bold))
+        }
+        .foregroundColor(.white)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 3)
+        .background {
+            Capsule()
+                .fill(.blue)
+        }
+        .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
+    }
+    
     // MARK: - Download Status Overlay
-    // Und den Download-Button nur anzeigen wenn API verfügbar ist:
     private var downloadStatusOverlay: some View {
         Group {
             if isDownloading {
@@ -277,7 +301,8 @@ struct BookCardView: View {
     // MARK: - Book Info Section
     private var bookInfoSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text(book.title)
+            // ← GEÄNDERT: Verwende displayTitle für Series
+            Text(book.displayTitle)
                 .font(style.titleFont)
                 .foregroundColor(.primary)
                 .lineLimit(style == .compact ? 1 : 2)
@@ -322,12 +347,20 @@ struct BookCardView: View {
     private var contextMenuItems: some View {
         Group {
             Button(action: onTap) {
-                Label("Abspielen", systemImage: "play.fill")
+                if book.isCollapsedSeries {
+                    Label("Serie anzeigen", systemImage: "books.vertical.fill")
+                } else {
+                    Label("Abspielen", systemImage: "play.fill")
+                }
             }
             
             if !isDownloaded && style == .library && api != nil {
                 Button(action: startDownload) {
-                    Label("Herunterladen", systemImage: "arrow.down.circle")
+                    if book.isCollapsedSeries {
+                        Label("Serie herunterladen", systemImage: "arrow.down.circle")
+                    } else {
+                        Label("Herunterladen", systemImage: "arrow.down.circle")
+                    }
                 }
             } else if isDownloaded && style == .library {
                 Button(role: .destructive, action: deleteDownload) {
@@ -341,7 +374,7 @@ struct BookCardView: View {
     
     private func startDownload() {
         guard let api = api else {
-            print("[BookCard] Cannot download: API not available")
+            AppLogger.debug.debug("[BookCard] Cannot download: API not available")
             return
         }
         
@@ -355,7 +388,7 @@ struct BookCardView: View {
     }
     
     private func shareBook() {
-        print("[BookCard] Sharing book: \(book.title)")
+        AppLogger.debug.debug("[BookCard] Sharing book: \(book.title)")
     }
 }
 
@@ -365,7 +398,7 @@ extension BookCardView {
     static func library(
         book: Book,
         player: AudioPlayer,
-        api: AudiobookshelfAPI?, // <- Optional
+        api: AudiobookshelfAPI?,
         downloadManager: DownloadManager,
         onTap: @escaping () -> Void
     ) -> BookCardView {
@@ -382,7 +415,7 @@ extension BookCardView {
     static func series(
         book: Book,
         player: AudioPlayer,
-        api: AudiobookshelfAPI?, // <- Optional
+        api: AudiobookshelfAPI?,
         downloadManager: DownloadManager,
         onTap: @escaping () -> Void
     ) -> BookCardView {
@@ -399,7 +432,7 @@ extension BookCardView {
     static func compact(
         book: Book,
         player: AudioPlayer,
-        api: AudiobookshelfAPI?, // <- Optional
+        api: AudiobookshelfAPI?,
         downloadManager: DownloadManager,
         onTap: @escaping () -> Void
     ) -> BookCardView {

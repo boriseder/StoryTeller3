@@ -89,16 +89,16 @@ class AudioPlayer: NSObject, ObservableObject {
     func loadChapter() {
         guard let chapter = currentChapter else {
             #if DEBUG
-            print("[AudioPlayer] ERROR: Kein aktuelles Kapitel gefunden")
+            AppLogger.debug.debug("[AudioPlayer] ERROR: Kein aktuelles Kapitel gefunden")
             #endif
             errorMessage = "Kein Kapitel verfügbar"
             return
         }
         #if DEBUG
-        print("[AudioPlayer] Lade Kapitel: \(chapter.title)")
-        print("[AudioPlayer] Kapitel Index: \(currentChapterIndex)")
-        print("[AudioPlayer] Offline Mode: \(isOfflineMode)")
-        print("[AudioPlayer] Library Item ID: \(chapter.libraryItemId ?? "nil")")
+        AppLogger.debug.debug("[AudioPlayer] Lade Kapitel: \(chapter.title)")
+        AppLogger.debug.debug("[AudioPlayer] Kapitel Index: \(currentChapterIndex)")
+        AppLogger.debug.debug("[AudioPlayer] Offline Mode: \(isOfflineMode)")
+        AppLogger.debug.debug("[AudioPlayer] Library Item ID: \(chapter.libraryItemId ?? "nil")")
         #endif
 
         isLoading = true
@@ -118,13 +118,13 @@ class AudioPlayer: NSObject, ObservableObject {
                 switch result {
                 case .success(let session):
                     #if DEBUG
-                    print("[AudioPlayer] SUCCESS: Playback Session erstellt: \(session.id)")
+                    AppLogger.debug.debug("[AudioPlayer] SUCCESS: Playback Session erstellt: \(session.id)")
                     #endif
                     self?.currentPlaybackSession = session
                     self?.setupPlayerWithSession(session)
                 case .failure(let error):
                     #if DEBUG
-                    print("[AudioPlayer] ERROR: Fehler beim Erstellen der Playback Session: \(error)")
+                    AppLogger.debug.debug("[AudioPlayer] ERROR: Fehler beim Erstellen der Playback Session: \(error)")
                     #endif
                     self?.errorMessage = error.localizedDescription
                 }
@@ -136,7 +136,7 @@ class AudioPlayer: NSObject, ObservableObject {
     func setCurrentChapter(index: Int) {
         guard let book = book, index >= 0, index < book.chapters.count else {
             #if DEBUG
-            print("[AudioPlayer] ERROR: Ungültiger Kapitel-Index: \(index)")
+            AppLogger.debug.debug("[AudioPlayer] ERROR: Ungültiger Kapitel-Index: \(index)")
             #endif
             return
         }
@@ -144,7 +144,7 @@ class AudioPlayer: NSObject, ObservableObject {
         let wasPlaying = isPlaying
         currentChapterIndex = index
         #if DEBUG
-        print("[AudioPlayer] Wechsle zu Kapitel \(index): \(book.chapters[index].title)")
+        AppLogger.debug.debug("[AudioPlayer] Wechsle zu Kapitel \(index): \(book.chapters[index].title)")
         #endif
 
         if wasPlaying {
@@ -166,8 +166,8 @@ class AudioPlayer: NSObject, ObservableObject {
                let localURL = downloadManager.getLocalAudioURL(for: book.id, chapterIndex: currentChapterIndex) {
                 
                 #if DEBUG
-                print("[AudioPlayer] Datei URL: \(localURL)")
-                print("[AudioPlayer] Existiert: \(FileManager.default.fileExists(atPath: localURL.path))")
+                AppLogger.debug.debug("[AudioPlayer] Datei URL: \(localURL)")
+                AppLogger.debug.debug("[AudioPlayer] Existiert: \(FileManager.default.fileExists(atPath: localURL.path))")
                 #endif
                 
                 let playerItem = AVPlayerItem(url: localURL)
@@ -224,7 +224,7 @@ class AudioPlayer: NSObject, ObservableObject {
             return
         }
         #if DEBUG
-        print("[AudioPlayer] Erstelle Playback Session: \(url)")
+        AppLogger.debug.debug("[AudioPlayer] Erstelle Playback Session: \(url)")
         #endif
         
         URLSession.shared.dataTask(with: request) { data, response, error in
@@ -243,12 +243,12 @@ class AudioPlayer: NSObject, ObservableObject {
             do {
                 let session = try JSONDecoder().decode(PlaybackSessionResponse.self, from: data)
                 #if DEBUG
-                print("[AudioPlayer] Playback Session erstellt: \(session.id)")
+                AppLogger.debug.debug("[AudioPlayer] Playback Session erstellt: \(session.id)")
                 #endif
                 completion(.success(session))
             } catch {
                 #if DEBUG
-                print("[AudioPlayer] ERROR: JSON Decode Fehler: \(error)")
+                AppLogger.debug.debug("[AudioPlayer] ERROR: JSON Decode Fehler: \(error)")
                 #endif
                 completion(.failure(error))
             }
@@ -258,14 +258,14 @@ class AudioPlayer: NSObject, ObservableObject {
     private func setupPlayerWithSession(_ session: PlaybackSessionResponse) {
         
         #if DEBUG
-        print("[AudioPlayer] Setting up player with session: \(session.id)")
-        print("[AudioPlayer] Available tracks: \(session.audioTracks.count)")
-        print("[AudioPlayer] Current chapter index: \(currentChapterIndex)")
+        AppLogger.debug.debug("[AudioPlayer] Setting up player with session: \(session.id)")
+        AppLogger.debug.debug("[AudioPlayer] Available tracks: \(session.audioTracks.count)")
+        AppLogger.debug.debug("[AudioPlayer] Current chapter index: \(currentChapterIndex)")
         #endif
         
         guard currentChapterIndex < session.audioTracks.count else {
             #if DEBUG
-            print("[AudioPlayer] ERROR: Kapitel-Index außerhalb der verfügbaren Tracks")
+            AppLogger.debug.debug("[AudioPlayer] ERROR: Kapitel-Index außerhalb der verfügbaren Tracks")
             #endif
             errorMessage = "Kapitel-Index ungültig"
             return
@@ -275,13 +275,13 @@ class AudioPlayer: NSObject, ObservableObject {
         let fullURL = "\(baseURL)\(audioTrack.contentUrl)"
 
         #if DEBUG
-        print("[AudioPlayer] Audio URL: \(fullURL)")
-        print("[AudioPlayer] Track duration: \(audioTrack.duration)")
+        AppLogger.debug.debug("[AudioPlayer] Audio URL: \(fullURL)")
+        AppLogger.debug.debug("[AudioPlayer] Track duration: \(audioTrack.duration)")
         #endif
 
         guard let audioURL = URL(string: fullURL) else {
             #if DEBUG
-            print("[AudioPlayer] ERROR: Ungültige Audio URL: \(fullURL)")
+            AppLogger.debug.debug("[AudioPlayer] ERROR: Ungültige Audio URL: \(fullURL)")
             #endif
             errorMessage = "Ungültige Audio-URL"
             return
@@ -298,13 +298,13 @@ class AudioPlayer: NSObject, ObservableObject {
         duration = audioTrack.duration
         
         #if DEBUG
-        print("[AudioPlayer] Player created, duration set to: \(duration)")
+        AppLogger.debug.debug("[AudioPlayer] Player created, duration set to: \(duration)")
         #endif
         
         if isPlaying {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 #if DEBUG
-                print("[AudioPlayer] Auto-starting playback...")
+                AppLogger.debug.debug("[AudioPlayer] Auto-starting playback...")
                 #endif
                 
                 self.play()
@@ -366,10 +366,10 @@ class AudioPlayer: NSObject, ObservableObject {
         }
         
         #if DEBUG
-        print("[AudioPlayer] Player Status: \(currentItem.status)")
-        print("[AudioPlayer] Player Rate: \(player.rate)")
-        print("[AudioPlayer] Current Time: \(CMTimeGetSeconds(player.currentTime()))")
-        print("[AudioPlayer] Duration: \(duration)")
+        AppLogger.debug.debug("[AudioPlayer] Player Status: \(currentItem.status)")
+        AppLogger.debug.debug("[AudioPlayer] Player Rate: \(player.rate)")
+        AppLogger.debug.debug("[AudioPlayer] Current Time: \(CMTimeGetSeconds(player.currentTime()))")
+        AppLogger.debug.debug("[AudioPlayer] Duration: \(duration)")
         #endif
         
         switch currentItem.status {
@@ -403,7 +403,7 @@ class AudioPlayer: NSObject, ObservableObject {
     func nextChapter() {
         guard let book = book, currentChapterIndex + 1 < book.chapters.count else {
             #if DEBUG
-            print("[AudioPlayer] INFO: Kein nächstes Kapitel verfügbar")
+            AppLogger.debug.debug("[AudioPlayer] INFO: Kein nächstes Kapitel verfügbar")
             #endif
             DispatchQueue.main.async { self.isPlaying = false }
             return
@@ -453,17 +453,17 @@ class AudioPlayer: NSObject, ObservableObject {
         playbackRate = floatRate
         player?.rate = floatRate
         
-        print("[AudioPlayer] Playback rate set to: \(rate)x")
+        AppLogger.debug.debug("[AudioPlayer] Playback rate set to: \(rate)x")
     }
     
     @objc private func playerItemDidFinishPlaying(_ notification: Notification) {
         #if DEBUG
-        print("[AudioPlayer] Kapitel zu Ende - wechsle automatisch zum nächsten")
+        AppLogger.debug.debug("[AudioPlayer] Kapitel zu Ende - wechsle automatisch zum nächsten")
         #endif
         
         guard let book = book, currentChapterIndex + 1 < book.chapters.count else {
             #if DEBUG
-            print("[AudioPlayer] Buch komplett beendet")
+            AppLogger.debug.debug("[AudioPlayer] Buch komplett beendet")
             #endif
             DispatchQueue.main.async { self.isPlaying = false }
             return

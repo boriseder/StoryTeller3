@@ -85,7 +85,7 @@ class SeriesViewModel: BaseViewModel {
             
         } catch {
             handleError(error)
-            print("Fehler beim Laden der Serien: \(error)")
+            AppLogger.debug.debug("Fehler beim Laden der Serien: \(error)")
         }
         
         isLoading = false
@@ -93,18 +93,18 @@ class SeriesViewModel: BaseViewModel {
     
     @MainActor
     func loadAndPlayBook(_ book: Book) async {
-        print("Lade Buch aus Serie: \(book.title)")
+        AppLogger.debug.debug("Lade Buch aus Serie: \(book.title)")
         
         do {
             let fetchedBook = try await api.fetchBookDetails(bookId: book.id)
             player.configure(baseURL: api.baseURLString, authToken: api.authToken, downloadManager: downloadManager)
             player.load(book: fetchedBook)
             onBookSelected()
-            print("Buch '\(fetchedBook.title)' aus Serie geladen")
+            AppLogger.debug.debug("Buch '\(fetchedBook.title)' aus Serie geladen")
         } catch {
             errorMessage = "Konnte '\(book.title)' nicht laden: \(error.localizedDescription)"
             showingErrorAlert = true
-            print("Fehler beim Laden der Buchdetails aus Serie: \(error)")
+            AppLogger.debug.debug("Fehler beim Laden der Buchdetails aus Serie: \(error)")
         }
     }
     

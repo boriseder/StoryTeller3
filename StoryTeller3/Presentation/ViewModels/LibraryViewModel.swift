@@ -1,17 +1,11 @@
-//
-//  LibraryViewModel.swift
-//  StoryTeller3
-//
-//  Created by Boris Eder on 09.09.25.
-//
-
 import SwiftUI
 
 class LibraryViewModel: BaseViewModel {
     @Published var books: [Book] = []
     @Published var searchText = ""
     @Published var selectedSortOption: LibrarySortOption = .title
-    @Published var showDownloadedOnly = false // ← Neu hinzugefügt
+    @Published var showDownloadedOnly = false
+    @Published var showSeriesGrouped = false
     @Published var libraryName: String = "Meine Bibliothek"
     
     let api: AudiobookshelfAPI
@@ -25,7 +19,6 @@ class LibraryViewModel: BaseViewModel {
             (book.author?.localizedCaseInsensitiveContains(searchText) ?? false)
         }
 
-        // ← Filter für heruntergeladene Bücher hinzufügen
         let downloadFiltered = showDownloadedOnly ? filtered.filter { book in
             downloadManager.isBookDownloaded(book.id)
         } : filtered
@@ -42,9 +35,20 @@ class LibraryViewModel: BaseViewModel {
         }
     }
     
-    // ← Neue computed property für UI-Feedback
     var downloadedBooksCount: Int {
         books.filter { downloadManager.isBookDownloaded($0.id) }.count
+    }
+    
+    var totalBooksCount: Int {
+        books.count
+    }
+    
+    var seriesCount: Int {
+        books.filter { $0.isCollapsedSeries }.count
+    }
+    
+    var individualBooksCount: Int {
+        books.filter { !$0.isCollapsedSeries }.count
     }
     
     init(api: AudiobookshelfAPI, player: AudioPlayer, downloadManager: DownloadManager, onBookSelected: @escaping () -> Void) {
@@ -54,8 +58,8 @@ class LibraryViewModel: BaseViewModel {
         self.onBookSelected = onBookSelected
         super.init()
         
-        // ← Load saved filter state
         loadFilterSettings()
+        
     }
     
     func loadBooksIfNeeded() async {
@@ -76,8 +80,11 @@ class LibraryViewModel: BaseViewModel {
                 let libraries = try await api.fetchLibraries()
                 if let selectedLibrary = libraries.first(where: { $0.id == libraryId }) {
                     libraryName = selectedLibrary.name
-                    fetchedBooks = try await api.fetchBooks(from: libraryId)
-                    print("\(fetchedBooks.count) Bücher aus Bibliothek '\(selectedLibrary.name)' geladen")
+                                        
+                    fetchedBooks = try await api.fetchBooks(from: libraryId, limit: 0, collapseSeries: showSeriesGrouped)
+                    
+                    _ = showSeriesGrouped ? "gebündelt" : "einzeln"
+                    
                 } else {
                     throw AudiobookshelfError.libraryNotFound("Selected library not found")
                 }
@@ -85,21 +92,20 @@ class LibraryViewModel: BaseViewModel {
                 let libraries = try await api.fetchLibraries()
                 if let firstLibrary = libraries.first {
                     libraryName = firstLibrary.name
-                    fetchedBooks = try await api.fetchBooks(from: firstLibrary.id)
+                                        
+                    fetchedBooks = try await api.fetchBooks(from: firstLibrary.id, limit: 0, collapseSeries: showSeriesGrouped)
+                    
                     UserDefaults.standard.set(firstLibrary.id, forKey: "selected_library_id")
-                    print("\(fetchedBooks.count) Bücher aus Standard-Bibliothek '\(firstLibrary.name)' geladen")
                 } else {
                     libraryName = "Keine Bibliothek"
                     fetchedBooks = []
                 }
             }
             
-            // Update books with animation
             withAnimation(.easeInOut) {
                 books = fetchedBooks
             }
             
-            // Optional: Preload first 10 covers for better UX
             if !fetchedBooks.isEmpty {
                 CoverCacheManager.shared.preloadCovers(
                     for: Array(fetchedBooks.prefix(10)),
@@ -110,32 +116,46 @@ class LibraryViewModel: BaseViewModel {
             
         } catch {
             handleError(error)
-            print("Fehler beim Laden der Bücher: \(error)")
+            AppLogger.debug.debug("Fehler beim Laden der Bücher: \(error)")
         }
         
         isLoading = false
     }
-    
+        
     @MainActor
     func loadAndPlayBook(_ book: Book) async {
-        print("Lade Buch: \(book.title)")
+        AppLogger.debug.debug("Lade Buch: \(book.title)")
         
         do {
             let fetchedBook = try await api.fetchBookDetails(bookId: book.id)
             player.configure(baseURL: api.baseURLString, authToken: api.authToken, downloadManager: downloadManager)
             player.load(book: fetchedBook)
             onBookSelected()
-            print("Buch '\(fetchedBook.title)' geladen")
-            print("Buch von '\(fetchedBook.author ?? "Unbekannt")'")
+            AppLogger.debug.debug("Buch '\(fetchedBook.title)' geladen")
+            AppLogger.debug.debug("Buch von '\(fetchedBook.author ?? "Unbekannt")'")
 
         } catch {
             errorMessage = "Konnte '\(book.title)' nicht laden: \(error.localizedDescription)"
             showingErrorAlert = true
-            print("Fehler beim Laden der Buchdetails: \(error)")
+            AppLogger.debug.debug("Fehler beim Laden der Buchdetails: \(error)")
         }
     }
     
-    // MARK: - ← Neue Filter-Methoden
+    // MARK: - Series Toggle Funktionen
+    
+    func toggleSeriesMode() {
+        
+        withAnimation(.easeInOut(duration: 0.2)) {
+            showSeriesGrouped.toggle()
+        }
+        
+        saveFilterSettings()
+        
+        // Reload data with new mode
+        Task {
+            await loadBooks()
+        }
+    }
     
     func toggleDownloadFilter() {
         withAnimation(.easeInOut(duration: 0.2)) {
@@ -146,17 +166,24 @@ class LibraryViewModel: BaseViewModel {
     
     private func loadFilterSettings() {
         showDownloadedOnly = UserDefaults.standard.bool(forKey: "library_show_downloaded_only")
+        showSeriesGrouped = UserDefaults.standard.bool(forKey: "library_show_series_grouped")
     }
     
     private func saveFilterSettings() {
         UserDefaults.standard.set(showDownloadedOnly, forKey: "library_show_downloaded_only")
+        UserDefaults.standard.set(showSeriesGrouped, forKey: "library_show_series_grouped")
     }
     
     func resetFilters() {
         withAnimation(.easeInOut(duration: 0.2)) {
             showDownloadedOnly = false
+            showSeriesGrouped = false
             searchText = ""
         }
         saveFilterSettings()
+        
+        Task {
+            await loadBooks()
+        }
     }
 }

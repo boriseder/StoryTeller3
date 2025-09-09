@@ -65,7 +65,7 @@ class AppStateManager: ObservableObject {
         defaults.cacheOptimizationEnabled = true
         defaults.autoCacheCleanup = true
         
-        print("[App] Default cache settings applied")
+        AppLogger.debug.debug("[App] Default cache settings applied")
     }
     
     // MARK: - Public Methods

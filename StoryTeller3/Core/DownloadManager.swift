@@ -47,9 +47,9 @@ class DownloadManager: ObservableObject {
         if !fileManager.fileExists(atPath: downloadsURL.path) {
             do {
                 try fileManager.createDirectory(at: downloadsURL, withIntermediateDirectories: true)
-                print("Created downloads directory")
+                AppLogger.debug.debug("Created downloads directory")
             } catch {
-                print("Failed to create downloads directory: \(error)")
+                AppLogger.debug.debug("Failed to create downloads directory: \(error)")
             }
         }
     }
@@ -74,11 +74,11 @@ class DownloadManager: ObservableObject {
         }
         
         guard !isAlreadyDownloaded else {
-            print("⚠️ Book \(book.title) is already downloaded or downloading")
+            AppLogger.debug.debug("⚠️ Book \(book.title) is already downloaded or downloading")
             return
         }
         
-        print("📥 Starting download for: \(book.title)")
+        AppLogger.debug.debug("📥 Starting download for: \(book.title)")
         
         // Initialize download state on main actor
         await MainActor.run {
@@ -117,7 +117,7 @@ class DownloadManager: ObservableObject {
                 isDownloading[book.id] = false
                 downloadProgress[book.id] = 1.0
                 
-                print("Successfully downloaded: \(fullBook.title)")
+                AppLogger.debug.debug("Successfully downloaded: \(fullBook.title)")
             }
             
         } catch {
@@ -126,7 +126,7 @@ class DownloadManager: ObservableObject {
                 isDownloading[book.id] = false
                 downloadProgress[book.id] = 0.0
                 
-                print("Download failed for \(book.title): \(error)")
+                AppLogger.debug.debug("Download failed for \(book.title): \(error)")
             }
             
             // Clean up partial download
@@ -142,7 +142,7 @@ class DownloadManager: ObservableObject {
         let metadataData = try JSONEncoder().encode(book)
         try metadataData.write(to: metadataURL)
         
-        print("💾 Saved metadata for: \(book.title)")
+        AppLogger.debug.debug("💾 Saved metadata for: \(book.title)")
     }
     
     /**
@@ -150,7 +150,7 @@ class DownloadManager: ObservableObject {
      */
     private func downloadCover(bookId: String, coverPath: String, api: AudiobookshelfAPI, bookDir: URL) async {
         guard let coverURL = URL(string: "\(api.baseURLString)\(coverPath)") else {
-            print("⚠️ Invalid cover URL for book \(bookId)")
+            AppLogger.debug.debug("⚠️ Invalid cover URL for book \(bookId)")
             return
         }
         
@@ -163,17 +163,17 @@ class DownloadManager: ObservableObject {
             
             guard let httpResponse = response as? HTTPURLResponse,
                   httpResponse.statusCode == 200 else {
-                print("⚠️ Cover download failed - HTTP status: \((response as? HTTPURLResponse)?.statusCode ?? -1)")
+                AppLogger.debug.debug("⚠️ Cover download failed - HTTP status: \((response as? HTTPURLResponse)?.statusCode ?? -1)")
                 return
             }
             
             let coverFile = bookDir.appendingPathComponent("cover.jpg")
             try data.write(to: coverFile)
             
-            print("🖼️ Downloaded cover for book \(bookId)")
+            AppLogger.debug.debug("🖼️ Downloaded cover for book \(bookId)")
             
         } catch {
-            print("❌ Cover download error: \(error)")
+            AppLogger.debug.debug("❌ Cover download error: \(error)")
         }
     }
     
@@ -184,7 +184,7 @@ class DownloadManager: ObservableObject {
         // Get the first chapter to determine library item ID
         guard let firstChapter = book.chapters.first,
               let libraryItemId = firstChapter.libraryItemId else {
-            print("⚠️ No chapters or library item ID found")
+            AppLogger.debug.debug("⚠️ No chapters or library item ID found")
             return
         }
         
@@ -193,7 +193,7 @@ class DownloadManager: ObservableObject {
             let session = try await createPlaybackSession(libraryItemId: libraryItemId, api: api)
             let totalTracks = session.audioTracks.count
             
-            print("🎵 Downloading \(totalTracks) audio tracks")
+            AppLogger.debug.debug("🎵 Downloading \(totalTracks) audio tracks")
             
             // Download each audio track
             for (index, audioTrack) in session.audioTracks.enumerated() {
@@ -212,7 +212,7 @@ class DownloadManager: ObservableObject {
             }
             
         } catch {
-            print("❌ Audio download failed: \(error)")
+            AppLogger.debug.debug("❌ Audio download failed: \(error)")
         }
     }
     
@@ -236,7 +236,7 @@ class DownloadManager: ObservableObject {
             
             guard let httpResponse = response as? HTTPURLResponse,
                   httpResponse.statusCode == 200 else {
-                print("⚠️ Audio file download failed - HTTP status: \((response as? HTTPURLResponse)?.statusCode ?? -1)")
+                AppLogger.debug.debug("⚠️ Audio file download failed - HTTP status: \((response as? HTTPURLResponse)?.statusCode ?? -1)")
                 return
             }
             
@@ -247,11 +247,11 @@ class DownloadManager: ObservableObject {
                 let progress = Double(currentTrack + 1) / Double(totalTracks)
                 downloadProgress[bookId] = progress
                 
-                print("🎵 Downloaded audio file \(currentTrack + 1)/\(totalTracks)")
+                AppLogger.debug.debug("🎵 Downloaded audio file \(currentTrack + 1)/\(totalTracks)")
             }
             
         } catch {
-            print("❌ Audio file download error: \(error)")
+            AppLogger.debug.debug("❌ Audio file download error: \(error)")
         }
     }
     
@@ -312,7 +312,7 @@ class DownloadManager: ObservableObject {
         let audioFile = bookDir.appendingPathComponent("chapter_\(chapterIndex).mp3")
         
         guard fileManager.fileExists(atPath: audioFile.path) else {
-            print("⚠️ Audio file not found: \(audioFile.path)")
+            AppLogger.debug.debug("⚠️ Audio file not found: \(audioFile.path)")
             return nil
         }
         
@@ -356,10 +356,10 @@ class DownloadManager: ObservableObject {
                 isDownloading.removeValue(forKey: bookId)
             }
             
-            print("🗑️ Deleted downloaded book: \(bookId)")
+            AppLogger.debug.debug("🗑️ Deleted downloaded book: \(bookId)")
             
         } catch {
-            print("❌ Failed to delete book \(bookId): \(error)")
+            AppLogger.debug.debug("❌ Failed to delete book \(bookId): \(error)")
         }
     }
     
@@ -378,10 +378,10 @@ class DownloadManager: ObservableObject {
                 isDownloading.removeAll()
             }
             
-            print("🗑️ Deleted all downloaded books")
+            AppLogger.debug.debug("🗑️ Deleted all downloaded books")
             
         } catch {
-            print("❌ Failed to delete all books: \(error)")
+            AppLogger.debug.debug("❌ Failed to delete all books: \(error)")
         }
     }
     
@@ -425,7 +425,7 @@ class DownloadManager: ObservableObject {
      */
     private func loadDownloadedBooks() {
         guard fileManager.fileExists(atPath: downloadsURL.path) else {
-            print("📂 No downloads directory found")
+            AppLogger.debug.debug("📂 No downloads directory found")
             return
         }
         
@@ -443,7 +443,6 @@ class DownloadManager: ObservableObject {
                 if let data = try? Data(contentsOf: metadataFile),
                    let book = try? JSONDecoder().decode(Book.self, from: data) {
                     loadedBooks.append(book)
-                    print("📚 Loaded downloaded book: \(book.title)")
                 }
             }
             
@@ -451,10 +450,9 @@ class DownloadManager: ObservableObject {
             Task { @MainActor in
                 downloadedBooks = loadedBooks
             }
-            print("Loaded \(loadedBooks.count) downloaded books")
             
         } catch {
-            print("Failed to load downloaded books: \(error)")
+            AppLogger.debug.debug("Failed to load downloaded books: \(error)")
         }
     }
     
@@ -483,7 +481,7 @@ class DownloadManager: ObservableObject {
         for (index, _) in book.chapters.enumerated() {
             let audioFile = bookDir.appendingPathComponent("chapter_\(index).mp3")
             if !fileManager.fileExists(atPath: audioFile.path) {
-                print("⚠️ Missing audio file for chapter \(index) in book \(bookId)")
+                AppLogger.debug.debug("⚠️ Missing audio file for chapter \(index) in book \(bookId)")
                 return false
             }
         }
@@ -510,7 +508,7 @@ class DownloadManager: ObservableObject {
                 let metadataFile = bookDir.appendingPathComponent("metadata.json")
                 if !fileManager.fileExists(atPath: metadataFile.path) {
                     try fileManager.removeItem(at: bookDir)
-                    print("🧹 Cleaned up incomplete download: \(bookId)")
+                    AppLogger.debug.debug("🧹 Cleaned up incomplete download: \(bookId)")
                     continue
                 }
                 
@@ -522,11 +520,11 @@ class DownloadManager: ObservableObject {
                     Task { @MainActor in
                         downloadedBooks.removeAll { $0.id == bookId }
                     }
-                    print("🧹 Cleaned up corrupted download: \(bookId)")
+                    AppLogger.debug.debug("🧹 Cleaned up corrupted download: \(bookId)")
                 }
             }
         } catch {
-            print("❌ Cleanup failed: \(error)")
+            AppLogger.debug.debug("❌ Cleanup failed: \(error)")
         }
     }
     
