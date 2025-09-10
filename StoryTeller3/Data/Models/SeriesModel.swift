@@ -47,9 +47,31 @@ extension Series {
     }
 }
 
-// MARK: - Series Response (nur zum Lesen)
+// MARK: - SeriesResponseItem (for API responses)
+struct SeriesResponseItem: Decodable {
+    let id: String
+    let name: String
+    let nameIgnorePrefix: String?
+    let nameIgnorePrefixSort: String?
+    let books: [LibraryItem]
+    let addedAt: TimeInterval
+    
+    // Conversion method to Series
+    func toSeries() -> Series {
+        return Series(
+            id: id,
+            name: name,
+            nameIgnorePrefix: nameIgnorePrefix,
+            nameIgnorePrefixSort: nameIgnorePrefixSort,
+            books: books,
+            addedAt: addedAt
+        )
+    }
+}
+
+// Update SeriesResponse to use SeriesResponseItem
 struct SeriesResponse: Decodable {
-    let results: [Series]
+    let results: [SeriesResponseItem]  // ✅ Use SeriesResponseItem
     let total: Int
     let limit: Int
     let page: Int
@@ -58,6 +80,6 @@ struct SeriesResponse: Decodable {
     let filterBy: String?
     let mediaType: String?
     let minified: Bool
-    let collapseseries: Bool?  // <- Optional gemacht
+    let collapseseries: Bool?
     let include: String?
 }

@@ -2,7 +2,7 @@ import SwiftUI
 
 struct LibraryView: View {
     @StateObject private var viewModel: LibraryViewModel
-    @State private var selectedSeries: Book? // ← NEU: Für Series Modal
+    @State private var selectedSeries: Book? // ✅ Diese Variable muss hier stehen
     
     init(player: AudioPlayer, api: AudiobookshelfAPI, downloadManager: DownloadManager, onBookSelected: @escaping () -> Void) {
         self._viewModel = StateObject(wrappedValue: LibraryViewModel(
@@ -60,30 +60,16 @@ struct LibraryView: View {
         .task {
             await viewModel.loadBooksIfNeeded()
         }
-        // ← NEU: Series Modal (temporär auskommentiert bis SeriesDetailModalView erstellt ist)
         .sheet(item: $selectedSeries) { series in
-            // Temporärer Fallback bis SeriesDetailModalView verfügbar ist
-            NavigationStack {
-                VStack {
-                    Text("Serie: \(series.displayTitle)")
-                        .font(.title2)
-                        .padding()
-                    
-                    Text("Hier wird später die SeriesDetailModalView angezeigt")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                        .padding()
-                    
-                    Spacer()
-                }
-                .toolbar {
-                    ToolbarItem(placement: .navigationBarLeading) {
-                        Button("Fertig") {
-                            selectedSeries = nil
-                        }
-                    }
-                }
-            }
+            SeriesQuickAccessView(
+                seriesBook: series,
+                player: viewModel.player,
+                api: viewModel.api,
+                downloadManager: viewModel.downloadManager,
+                onBookSelected: viewModel.onBookSelected
+            )
+            .presentationDetents([.medium])
+            .presentationDragIndicator(.visible)
         }
     }
     
@@ -212,7 +198,7 @@ struct LibraryView: View {
                         .padding(.vertical, 12)
                         .background(Color.secondary.opacity(0.1))
                         .clipShape(Capsule())
-                }
+                    }
                 .buttonStyle(.plain)
             }
         }
@@ -264,14 +250,13 @@ struct LibraryView: View {
                     filterStatusBanner
                 }
                 
-                // ← NEU: Series-Status-Banner (wenn Series-Modus aktiv)
+                // Series-Status-Banner (wenn Series-Modus aktiv)
                 if viewModel.showSeriesGrouped {
                     seriesStatusBanner
                 }
                 
                 ScrollView {
-                    // ← VEREINFACHT: Normale Grid-Darstellung (gleich für Bücher und Serien)
-                    LazyVGrid(columns: columns, spacing: 32) {
+                    LazyVGrid(columns: columns, spacing: 12) {
                         ForEach(viewModel.filteredAndSortedBooks) { book in
                             BookCardView.library(
                                 book: book,
@@ -285,26 +270,22 @@ struct LibraryView: View {
                         }
                     }
                     .padding(.horizontal, 8)
-                    .padding(.vertical, 16)
+                    .padding(.vertical, 8)
                 }
             }
         }
     }
     
-    // MARK: - ← NEU: Book Tap Handling
-    
     private func handleBookTap(_ book: Book) {
         if book.isCollapsedSeries {
-            // Serie → Modal öffnen
             selectedSeries = book
         } else {
-            // Einzelbuch → Playback wie bisher
             Task {
                 await viewModel.loadAndPlayBook(book)
             }
         }
     }
-    
+
     // MARK: - Status Banners
     
     private var filterStatusBanner: some View {
@@ -338,7 +319,6 @@ struct LibraryView: View {
         )
     }
     
-    // ← NEU: Series Status Banner
     private var seriesStatusBanner: some View {
         let seriesCount = viewModel.filteredAndSortedBooks.filter { $0.isCollapsedSeries }.count
         let booksCount = viewModel.filteredAndSortedBooks.filter { !$0.isCollapsedSeries }.count

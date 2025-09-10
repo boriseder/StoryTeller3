@@ -28,7 +28,7 @@ struct HorizontalBookScrollView: View {
     
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 16) {
+            HStack(spacing: 4) {
                 ForEach(books) { book in
                     BookCardView(
                         book: book,
@@ -42,7 +42,7 @@ struct HorizontalBookScrollView: View {
                     )
                 }
             }
-            .padding(.horizontal, 20)
+           // .padding(.horizontal, 10)
         }
     }
 }

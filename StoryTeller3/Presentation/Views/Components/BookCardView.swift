@@ -9,7 +9,7 @@ enum BookCardStyle {
     var coverSize: CGFloat {
         switch self {
         case .library: return 140
-        case .series: return 120
+        case .series: return 100
         case .compact: return 80
         }
     }
@@ -25,7 +25,7 @@ enum BookCardStyle {
     var textPadding: CGFloat {
         switch self {
         case .library: return 8
-        case .series: return 6
+        case .series: return 8
         case .compact: return 4
         }
     }
@@ -40,7 +40,7 @@ enum BookCardStyle {
     
     var cornerRadius: CGFloat {
         switch self {
-        case .library: return 16
+        case .library: return 12
         case .series: return 12
         case .compact: return 10
         }
@@ -48,7 +48,7 @@ enum BookCardStyle {
     
     var titleFont: Font {
         switch self {
-        case .library: return .system(size: 14, weight: .semibold, design: .rounded)
+        case .library: return .system(size: 12, weight: .semibold, design: .rounded)
         case .series: return .system(size: 12, weight: .semibold, design: .rounded)
         case .compact: return .system(size: 10, weight: .semibold, design: .rounded)
         }
@@ -56,7 +56,7 @@ enum BookCardStyle {
     
     var authorFont: Font {
         switch self {
-        case .library: return .system(size: 12, weight: .medium)
+        case .library: return .system(size: 10, weight: .medium)
         case .series: return .system(size: 10, weight: .medium)
         case .compact: return .system(size: 9, weight: .medium)
         }

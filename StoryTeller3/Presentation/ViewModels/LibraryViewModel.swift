@@ -11,7 +11,7 @@ class LibraryViewModel: BaseViewModel {
     let api: AudiobookshelfAPI
     let player: AudioPlayer
     let downloadManager: DownloadManager
-    private let onBookSelected: () -> Void
+     let onBookSelected: () -> Void
     
     var filteredAndSortedBooks: [Book] {
         let filtered = searchText.isEmpty ? books : books.filter { book in
