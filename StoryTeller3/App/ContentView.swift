@@ -1,9 +1,6 @@
 import SwiftUI
 import Combine
 
-import SwiftUI
-import Combine
-
 struct ContentView: View {
     // MARK: - State Objects
     @StateObject private var player = AudioPlayer()
@@ -11,7 +8,7 @@ struct ContentView: View {
     @StateObject private var playerStateManager = PlayerStateManager()
     
     // MARK: - State Variables
-    @State private var selectedTab: TabIndex = .library
+    @State private var selectedTab: TabIndex = .home
     @State private var apiClient: AudiobookshelfAPI?
     @State private var showingWelcome = false
     @State private var showingSettings = false // Neu für Modal
@@ -21,7 +18,7 @@ struct ContentView: View {
     
     // MARK: - Tab Enum (nur noch 2 Tabs)
     enum TabIndex: Hashable {
-        case library, series, downloads
+        case home, library, series, downloads
     }
 
     var body: some View {
@@ -32,6 +29,14 @@ struct ContentView: View {
         ) {
             TabView(selection: $selectedTab) {
                 
+                // MARK: - Home Tab
+                homeTabWithToolbar()
+                    .tabItem {
+                        Image(systemName: "house.fill")
+                        Text("Home")
+                    }
+                    .tag(TabIndex.home)
+                
                 // MARK: - Library Tab
                 libraryTabWithToolbar()
                     .tabItem {
@@ -39,8 +44,8 @@ struct ContentView: View {
                         Text("Bibliothek")
                     }
                     .tag(TabIndex.library)
-                
-                // MARK: - Library Tab
+
+                // MARK: - Series Tab
                 seriesTabWithToolbar()
                     .tabItem {
                         Image(systemName: "rectangle.stack.fill")
@@ -101,6 +106,26 @@ struct ContentView: View {
     }
     
     // MARK: - Helper Views mit Toolbar
+  
+    
+    @ViewBuilder
+    private func homeTabWithToolbar() -> some View {
+        NavigationStack {
+            if let api = apiClient {
+                HomeView(
+                    player: player,
+                    api: api,
+                    downloadManager: downloadManager,
+                    onBookSelected: { openFullscreenPlayer() }
+                )
+            } else {
+                NoServerConfiguredView {
+                    showingSettings = true
+                }
+            }
+        }
+    }
+
     
     @ViewBuilder
     private func seriesTabWithToolbar() -> some View {
