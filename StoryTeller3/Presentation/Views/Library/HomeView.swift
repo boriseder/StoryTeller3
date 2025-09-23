@@ -29,17 +29,20 @@ struct HomeView: View {
 
     var body: some View {
         Group {
-            if viewModel.isLoading {
-                loadingView
-            } else if let error = viewModel.errorMessage {
-                errorView(error)
-            } else if viewModel.personalizedBooks.isEmpty {
-                emptyStateView
-            } else {
+            switch viewModel.uiState {
+            case .loading:
+                LoadingView()
+            case .error(let message):
+                ErrorView(error: message)
+            case .empty:
+                EmptyStateView()
+            case .noDownloads:
+                NoDownloadsView()
+            case .content:
                 contentView
             }
         }
-        .navigationTitle("Für Sie empfohlen")
+        .navigationTitle("Welcome back")
         .navigationBarTitleDisplayMode(.large)
         .refreshable {
             await viewModel.loadPersonalizedBooks()
@@ -49,13 +52,13 @@ struct HomeView: View {
                 settingsButton
             }
         }
-        .alert("Fehler", isPresented: $viewModel.showingErrorAlert) {
+        .alert("Error", isPresented: $viewModel.showingErrorAlert) {
             Button("OK") { }
-            Button("Erneut versuchen") {
+            Button("Retry") {
                 Task { await viewModel.loadPersonalizedBooks() }
             }
         } message: {
-            Text(viewModel.errorMessage ?? "Unbekannter Fehler")
+            Text(viewModel.errorMessage ?? "Unknown Error")
         }
         .task {
             await viewModel.loadPersonalizedBooksIfNeeded()
@@ -63,88 +66,6 @@ struct HomeView: View {
     }
     
     // MARK: - Subviews
-    
-    private var loadingView: some View {
-        VStack(spacing: 20) {
-            ProgressView()
-                .scaleEffect(1.5)
-            
-            Text("Lade Empfehlungen...")
-                .font(.title3)
-                .fontWeight(.medium)
-                .foregroundColor(.secondary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-    
-    private func errorView(_ error: String) -> some View {
-        VStack(spacing: 24) {
-            Image(systemName: "wifi.exclamationmark")
-                .font(.system(size: 60))
-                .foregroundStyle(.red.gradient)
-            
-            VStack(spacing: 12) {
-                Text("Verbindungsfehler")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-                
-                Text(error)
-                    .font(.body)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal)
-            }
-            
-            Button(action: {
-                Task { await viewModel.loadPersonalizedBooks() }
-            }) {
-                Label("Erneut versuchen", systemImage: "arrow.clockwise")
-                    .font(.headline)
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 32)
-                    .padding(.vertical, 12)
-                    .background(Color.accentColor.gradient)
-                    .clipShape(Capsule())
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(40)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-    
-    private var emptyStateView: some View {
-        VStack(spacing: 32) {
-            Image(systemName: "star.circle.fill")
-                .font(.system(size: 80))
-                .foregroundStyle(.yellow.gradient)
-            
-            VStack(spacing: 8) {
-                Text("Keine Empfehlungen")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-                
-                Text("Es wurden keine personalisierten Empfehlungen für Sie gefunden")
-                    .font(.body)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-            }
-            
-            Button(action: {
-                Task { await viewModel.loadPersonalizedBooks() }
-            }) {
-                Label("Aktualisieren", systemImage: "arrow.clockwise")
-                    .font(.headline)
-                    .foregroundColor(.accentColor)
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 12)
-                    .background(Color.accentColor.opacity(0.1))
-                    .clipShape(Capsule())
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(.horizontal, 40)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
     
     private var contentView: some View {
         ZStack {
@@ -158,7 +79,7 @@ struct HomeView: View {
                     // Empfohlene Bücher
                     VStack(alignment: .leading, spacing: 12) {
                         HStack {
-                            Text("Für Sie empfohlen")
+                            Text("For your enjoyment")
                                 .font(.title2)
                                 .fontWeight(.semibold)
                             
@@ -194,40 +115,24 @@ struct HomeView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Willkommen zurück!")
-                        .font(.title3)
-                        .fontWeight(.semibold)
-                    
-                    Text("Entdecken Sie neue Hörbücher")
+                    Text("Explore new books")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
-                
-                Spacer()
-                
-                // Optional: Benutzer-Avatar oder Icon
-                Circle()
-                    .fill(Color.accentColor.opacity(0.2))
-                    .frame(width: 50, height: 50)
-                    .overlay(
-                        Image(systemName: "person.fill")
-                            .font(.title3)
-                            .foregroundColor(.accentColor)
-                    )
             }
             
             // Quick Stats
             HStack(spacing: 20) {
                 StatCard(
                     icon: "books.vertical.fill",
-                    title: "Empfehlungen",
+                    title: "Recommendations",
                     value: "\(viewModel.personalizedBooks.count)",
                     color: .blue
                 )
                 
                 StatCard(
                     icon: "arrow.down.circle.fill",
-                    title: "Heruntergeladen",
+                    title: "Downloaded",
                     value: "\(viewModel.downloadedCount)",
                     color: .green
                 )

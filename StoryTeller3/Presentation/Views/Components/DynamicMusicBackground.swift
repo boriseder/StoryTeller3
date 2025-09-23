@@ -1,26 +1,3 @@
-//
-//  DynamicMusicBackground.swift
-//  StoryTeller3
-//
-//  Created by Boris Eder on 08.09.25.
-//
-
-
-//
-//  DynamicMusicBackground.swift
-//  NavidromeClient
-//
-//  Created by Boris Eder on 04.09.25.
-//
-
-
-//
-//  DynamicMusicBackground.swift
-//  NavidromeClient
-//
-//  Created by Boris Eder on 04.09.25.
-//
-
 import SwiftUI
 
 struct DynamicMusicBackground: View {
@@ -43,9 +20,9 @@ struct DynamicMusicBackground: View {
             // Base gradient
             LinearGradient(
                 colors: [
-                    Color.black.opacity(0.05),
-                    Color.white.opacity(0.95),
-                    Color.black.opacity(0.02)
+                    Color.black.opacity(0.35),
+                    Color.white.opacity(0.55),
+                    Color.black.opacity(0.72)
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing

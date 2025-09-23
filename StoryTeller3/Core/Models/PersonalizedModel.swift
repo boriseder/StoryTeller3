@@ -55,15 +55,15 @@ enum PersonalizedSectionType: String, CaseIterable {
     var displayName: String {
         switch self {
         case .recentlyAdded:
-            return "Kürzlich hinzugefügt"
+            return "Recently added"
         case .recentSeries:
-            return "Aktuelle Serien"
+            return "Series"
         case .discover:
-            return "Entdecken"
+            return "Explore"
         case .newestAuthors:
-            return "Neue Autoren"
+            return "New authors"
         case .continueListening:
-            return "Weiter hören"
+            return "Continue"
         case .recentlyFinished:
             return "Kürzlich beendet"
         }

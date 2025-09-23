@@ -87,7 +87,7 @@ extension AudiobookshelfAPI {
             }
             
             let personalizedSections: PersonalizedResponse = try JSONDecoder().decode(PersonalizedResponse.self, from: data)
-            
+
             AppLogger.debug.debug("Received \(personalizedSections.count) personalized sections")
             
             return personalizedSections

@@ -1,0 +1,24 @@
+//
+//  STateTypes.swift
+//  StoryTeller3
+//
+//  Created by Boris Eder on 23.09.25.
+//
+import SwiftUI
+
+enum LibraryUIState {
+    case loading
+    case error(String)
+    case empty
+    case noDownloads
+    case noSearchResults
+    case content
+}
+
+enum HomeUIState {
+    case loading
+    case error(String)
+    case empty
+    case noDownloads
+    case content
+}

@@ -6,7 +6,7 @@ struct ContentView: View {
     @StateObject private var player = AudioPlayer()
     @StateObject private var downloadManager = DownloadManager()
     @StateObject private var playerStateManager = PlayerStateManager()
-    
+
     // MARK: - State Variables
     @State private var selectedTab: TabIndex = .home
     @State private var apiClient: AudiobookshelfAPI?

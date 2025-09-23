@@ -2,14 +2,6 @@
 //  HomeViewModel.swift
 //  StoryTeller3
 //
-//  Created by Boris Eder on 10.09.25.
-//
-
-
-//
-//  HomeViewModel.swift
-//  StoryTeller3
-//
 //  Created by Assistant on 10.09.25
 //
 
@@ -104,6 +96,20 @@ class HomeViewModel: BaseViewModel {
             errorMessage = "Konnte '\(book.title)' nicht laden: \(error.localizedDescription)"
             showingErrorAlert = true
             AppLogger.debug.debug("Fehler beim Laden der Buchdetails aus Empfehlungen: \(error)")
+        }
+    }
+}
+
+extension HomeViewModel {
+    var uiState: HomeUIState {
+        if isLoading {
+            return .loading
+        } else if let error = errorMessage {
+            return .error(error)
+        } else if personalizedBooks.isEmpty {
+            return .empty
+        } else {
+            return .content
         }
     }
 }

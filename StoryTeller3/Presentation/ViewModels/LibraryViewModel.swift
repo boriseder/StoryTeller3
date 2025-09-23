@@ -11,7 +11,7 @@ class LibraryViewModel: BaseViewModel {
     let api: AudiobookshelfAPI
     let player: AudioPlayer
     let downloadManager: DownloadManager
-     let onBookSelected: () -> Void
+    let onBookSelected: () -> Void
     
     var filteredAndSortedBooks: [Book] {
         let filtered = searchText.isEmpty ? books : books.filter { book in
@@ -184,6 +184,24 @@ class LibraryViewModel: BaseViewModel {
         
         Task {
             await loadBooks()
+        }
+    }
+}
+
+extension LibraryViewModel {
+    var uiState: LibraryUIState {
+        if isLoading {
+            return .loading
+        } else if let error = errorMessage {
+            return .error(error)
+        } else if books.isEmpty {
+            return .empty
+        } else if filteredAndSortedBooks.isEmpty && showDownloadedOnly {
+            return .noDownloads
+        } else if filteredAndSortedBooks.isEmpty {
+            return .noSearchResults
+        } else {
+            return .content
         }
     }
 }

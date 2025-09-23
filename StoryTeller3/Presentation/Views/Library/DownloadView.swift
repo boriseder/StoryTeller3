@@ -19,49 +19,28 @@ struct DownloadsView: View {
         NavigationStack {
             Group {
                 if viewModel.downloadedBooks.isEmpty {
-                    emptyStateView
+                    NoDownloadsView()
                 } else {
                     contentView
                 }
             }
             .navigationTitle("Downloads")
             .navigationBarTitleDisplayMode(.large)
-            .alert("Buch löschen", isPresented: $viewModel.showingDeleteConfirmation) {
-                Button("Abbrechen", role: .cancel) {
+            .alert("Delete book", isPresented: $viewModel.showingDeleteConfirmation) {
+                Button("Cancel", role: .cancel) {
                     viewModel.cancelDelete()
                 }
-                Button("Löschen", role: .destructive) {
+                Button("Delete", role: .destructive) {
                     viewModel.confirmDeleteBook()
                 }
             } message: {
                 if let book = viewModel.bookToDelete {
-                    Text("Möchten Sie '\(book.title)' wirklich von diesem Gerät löschen?")
+                    Text("Are you sure? '\(book.title)' will be delete.")
                 }
             }
         }
     }
-    
-    private var emptyStateView: some View {
-        VStack(spacing: 32) {
-            Image(systemName: "arrow.down.circle")
-                .font(.system(size: 80))
-                .foregroundStyle(.blue.gradient)
-            
-            VStack(spacing: 8) {
-                Text("Keine Downloads")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-                
-                Text("Laden Sie Bücher aus der Bibliothek herunter, um sie offline zu hören")
-                    .font(.body)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-            }
-        }
-        .padding(.horizontal, 40)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-    
+       
     private var contentView: some View {
         ScrollView {
             LazyVGrid(columns: columns, spacing: 8) {
