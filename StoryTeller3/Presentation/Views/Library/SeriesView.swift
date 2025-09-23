@@ -144,7 +144,7 @@ struct SeriesView: View {
             ScrollView {
                 LazyVStack(spacing: 20) {
                     ForEach(viewModel.filteredAndSortedSeries) { series in
-                        SeriesRowView(
+                        SeriesSectionView(
                             series: series,
                             player: viewModel.player,
                             api: viewModel.api,

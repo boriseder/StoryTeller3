@@ -1,23 +1,29 @@
 //
-//  HomeViewModel.swift
+//  Enhanced HomeViewModel.swift
 //  StoryTeller3
-//
-//  Created by Assistant on 10.09.25
 //
 
 import SwiftUI
 
 class HomeViewModel: BaseViewModel {
-    @Published var personalizedBooks: [Book] = []
-    @Published var libraryName: String = "Personalisiert"
+    @Published var personalizedSections: [PersonalizedSection] = []
+    @Published var libraryName: String = "Personalized"
     
     let api: AudiobookshelfAPI
     let player: AudioPlayer
     let downloadManager: DownloadManager
     private let onBookSelected: () -> Void
     
+    // Computed properties for stats
+    var totalItemsCount: Int {
+        personalizedSections.reduce(0) { total, section in
+            total + section.entities.count
+        }
+    }
+    
     var downloadedCount: Int {
-        personalizedBooks.filter { downloadManager.isBookDownloaded($0.id) }.count
+        let allBooks = getAllBooksFromSections()
+        return allBooks.filter { downloadManager.isBookDownloaded($0.id) }.count
     }
     
     init(api: AudiobookshelfAPI, player: AudioPlayer, downloadManager: DownloadManager, onBookSelected: @escaping () -> Void) {
@@ -28,14 +34,16 @@ class HomeViewModel: BaseViewModel {
         super.init()
     }
     
-    func loadPersonalizedBooksIfNeeded() async {
-        if personalizedBooks.isEmpty {
-            await loadPersonalizedBooks()
+    // MARK: - Public Methods
+    
+    func loadPersonalizedSectionsIfNeeded() async {
+        if personalizedSections.isEmpty {
+            await loadPersonalizedSections()
         }
     }
     
     @MainActor
-    func loadPersonalizedBooks() async {
+    func loadPersonalizedSections() async {
         isLoading = true
         resetError()
         
@@ -50,25 +58,26 @@ class HomeViewModel: BaseViewModel {
                 selectedLibrary = first
                 UserDefaults.standard.set(first.id, forKey: "selected_library_id")
             } else {
-                // keine Bibliothek vorhanden
-                libraryName = "Personalisiert"
-                personalizedBooks = []
+                // No library available
+                libraryName = "Personalized"
+                personalizedSections = []
                 isLoading = false
                 return
             }
 
-            libraryName = "\(selectedLibrary.name) - Empfehlungen"
-            let fetchedBooks = try await api.fetchPersonalizedBooks(from: selectedLibrary.id)
+            libraryName = "\(selectedLibrary.name) - Home"
+            let fetchedSections = try await api.fetchPersonalizedSections(from: selectedLibrary.id)
             
-            // Update books with animation
+            // Update sections with animation
             withAnimation(.easeInOut) {
-                personalizedBooks = fetchedBooks
+                personalizedSections = fetchedSections
             }
             
-            // Preload covers für bessere Performance (nur erste 10)
-            if !fetchedBooks.isEmpty {
+            // Preload covers for better performance (first 10 books across all sections)
+            let allBooks = getAllBooksFromSections()
+            if !allBooks.isEmpty {
                 CoverCacheManager.shared.preloadCovers(
-                    for: Array(fetchedBooks.prefix(10)),
+                    for: Array(allBooks.prefix(10)),
                     api: api,
                     downloadManager: downloadManager
                 )
@@ -76,7 +85,7 @@ class HomeViewModel: BaseViewModel {
             
         } catch {
             handleError(error)
-            AppLogger.debug.debug("Fehler beim Laden der personalisierten Bücher: \(error)")
+            AppLogger.debug.debug("Error loading personalized sections: \(error)")
         }
         
         isLoading = false
@@ -84,29 +93,104 @@ class HomeViewModel: BaseViewModel {
     
     @MainActor
     func loadAndPlayBook(_ book: Book) async {
-        AppLogger.debug.debug("Lade Buch aus Empfehlungen: \(book.title)")
+        AppLogger.debug.debug("Loading book from recommendations: \(book.title)")
         
         do {
             let fetchedBook = try await api.fetchBookDetails(bookId: book.id)
             player.configure(baseURL: api.baseURLString, authToken: api.authToken, downloadManager: downloadManager)
             player.load(book: fetchedBook)
             onBookSelected()
-            AppLogger.debug.debug("Buch '\(fetchedBook.title)' aus Empfehlungen geladen")
+            AppLogger.debug.debug("Book '\(fetchedBook.title)' loaded from recommendations")
         } catch {
-            errorMessage = "Konnte '\(book.title)' nicht laden: \(error.localizedDescription)"
+            errorMessage = "Could not load '\(book.title)': \(error.localizedDescription)"
             showingErrorAlert = true
-            AppLogger.debug.debug("Fehler beim Laden der Buchdetails aus Empfehlungen: \(error)")
+            AppLogger.debug.debug("Error loading book details from recommendations: \(error)")
         }
+    }
+    
+    @MainActor
+    func loadSeriesBooks(_ series: Series) async {
+        AppLogger.debug.debug("Loading series: \(series.name)")
+        
+        do {
+            // Get library ID
+            guard let libraryId = UserDefaults.standard.string(forKey: "selected_library_id") else {
+                throw AudiobookshelfError.noLibrarySelected
+            }
+            
+            // Fetch series books
+            let seriesBooks = try await api.fetchSeriesSingle(from: libraryId, seriesId: series.id)
+            
+            // For now, just play the first book in the series
+            // In a real app, you might want to show a sheet with all books
+            if let firstBook = seriesBooks.first {
+                await loadAndPlayBook(firstBook)
+            }
+            
+        } catch {
+            errorMessage = "Could not load series '\(series.name)': \(error.localizedDescription)"
+            showingErrorAlert = true
+            AppLogger.debug.debug("Error loading series: \(error)")
+        }
+    }
+    
+    @MainActor
+    func searchBooksByAuthor(_ authorName: String) async {
+        AppLogger.debug.debug("Searching books by author: \(authorName)")
+        
+        do {
+            // Get library ID
+            guard let libraryId = UserDefaults.standard.string(forKey: "selected_library_id") else {
+                throw AudiobookshelfError.noLibrarySelected
+            }
+            
+            // Fetch all books and filter by author
+            let allBooks = try await api.fetchBooks(from: libraryId, limit: 0, collapseSeries: false)
+            let authorBooks = allBooks.filter { book in
+                book.author?.localizedCaseInsensitiveContains(authorName) == true
+            }
+            
+            // For now, just play the first book by this author
+            // In a real app, you might want to show a sheet with all books by this author
+            if let firstBook = authorBooks.first {
+                await loadAndPlayBook(firstBook)
+            } else {
+                errorMessage = "No books found by '\(authorName)'"
+                showingErrorAlert = true
+            }
+            
+        } catch {
+            errorMessage = "Could not search books by '\(authorName)': \(error.localizedDescription)"
+            showingErrorAlert = true
+            AppLogger.debug.debug("Error searching books by author: \(error)")
+        }
+    }
+    
+    // MARK: - Private Methods
+    
+    private func getAllBooksFromSections() -> [Book] {
+        var allBooks: [Book] = []
+        
+        for section in personalizedSections {
+            let sectionBooks = section.entities
+                .compactMap { $0.asLibraryItem }
+                .compactMap { api.convertLibraryItemToBook($0) }
+            
+            allBooks.append(contentsOf: sectionBooks)
+        }
+        
+        return allBooks
     }
 }
 
+// MARK: - UI State Extension
 extension HomeViewModel {
     var uiState: HomeUIState {
         if isLoading {
             return .loading
         } else if let error = errorMessage {
             return .error(error)
-        } else if personalizedBooks.isEmpty {
+        } else if personalizedSections.isEmpty {
             return .empty
         } else {
             return .content

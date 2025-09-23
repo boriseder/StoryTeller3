@@ -110,6 +110,7 @@ struct SeriesQuickAccessView: View {
             
             Spacer()
         }
+        .background(.yellow)
     }
     
     // MARK: - Loading View

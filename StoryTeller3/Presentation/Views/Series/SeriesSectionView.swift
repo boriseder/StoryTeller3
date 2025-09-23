@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct SeriesRowView: View {
+struct SeriesSectionView: View {
     let series: Series
     @ObservedObject var player: AudioPlayer
     let api: AudiobookshelfAPI
@@ -28,10 +28,11 @@ struct SeriesRowView: View {
         }
         .padding(.vertical, 12)
         .padding(.horizontal, 16)
-        .background {
+        .background  {
             RoundedRectangle(cornerRadius: 16)
-                .fill(.regularMaterial)
+                .fill(.ultraThinMaterial)
                 .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
+            
         }
     }
     

@@ -16,7 +16,8 @@ struct DownloadsView: View {
     ]
     
     var body: some View {
-        NavigationStack {
+        ZStack {
+            DynamicMusicBackground()
             Group {
                 if viewModel.downloadedBooks.isEmpty {
                     NoDownloadsView()
