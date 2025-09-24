@@ -1,10 +1,3 @@
-//
-//  SettingsView.swift
-//  StoryTeller3
-//
-//  Created by Boris Eder on 09.09.25.
-//
-
 import SwiftUI
 
 struct SettingsView: View {
@@ -14,7 +7,7 @@ struct SettingsView: View {
         NavigationStack {
             Form {
                 serverSection
-                apiKeySection
+                credentialsSection
                 connectionSection
                 
                 if !viewModel.libraries.isEmpty {
@@ -24,9 +17,6 @@ struct SettingsView: View {
                 advancedSettingsSection
             }
             .navigationTitle("Einstellungen")
-            .onAppear {
-                // ViewModel lädt die Einstellungen automatisch im init()
-            }
         }
     }
     
@@ -37,24 +27,51 @@ struct SettingsView: View {
                 Text("http").tag("http")
                 Text("https").tag("https")
             }
+            .disabled(viewModel.isLoggedIn)
+            
             TextField("Host", text: $viewModel.host)
                 .autocapitalization(.none)
                 .disableAutocorrection(true)
+                .disabled(viewModel.isLoggedIn)
+            
             TextField("Port", text: $viewModel.port)
                 .keyboardType(.numberPad)
+                .disabled(viewModel.isLoggedIn)
         }
-        .onChange(of: viewModel.host) { _, _ in viewModel.autoTestConnection() }
-        .onChange(of: viewModel.port) { _, _ in viewModel.autoTestConnection() }
-        .onChange(of: viewModel.scheme) { _, _ in viewModel.autoTestConnection() }
+        .onChange(of: viewModel.host) { _, _ in
+            if !viewModel.isLoggedIn {
+                viewModel.autoTestConnection()
+            }
+        }
+        .onChange(of: viewModel.port) { _, _ in
+            if !viewModel.isLoggedIn {
+                viewModel.autoTestConnection()
+            }
+        }
+        .onChange(of: viewModel.scheme) { _, _ in
+            if !viewModel.isLoggedIn {
+                viewModel.autoTestConnection()
+            }
+        }
     }
     
-    // MARK: - API Key Section
-    private var apiKeySection: some View {
-        Section(header: Text("API Key")) {
-            SecureField("API Key", text: $viewModel.apiKey)
-                .onChange(of: viewModel.apiKey) { _, newValue in
-                    viewModel.onApiKeyChanged(newValue)
+    // MARK: - Credentials Section
+    private var credentialsSection: some View {
+        Section(header: Text("Anmeldedaten")) {
+            TextField("Benutzername", text: $viewModel.username)
+                .autocapitalization(.none)
+                .disableAutocorrection(true)
+                .disabled(viewModel.isLoggedIn)
+                .onChange(of: viewModel.username) { _, _ in
+                    viewModel.onCredentialsChanged()
                 }
+            
+            SecureField("Passwort", text: $viewModel.password)
+                .disabled(viewModel.isLoggedIn)
+                .onChange(of: viewModel.password) { _, _ in
+                    viewModel.onCredentialsChanged()
+                    AppLogger.debug.debug("Debug: showLoginButton = \(viewModel.showLoginButton)")
+               }
         }
     }
     
@@ -63,11 +80,20 @@ struct SettingsView: View {
         Section {
             if viewModel.isLoading {
                 connectionLoadingView
+                let _ = AppLogger.debug.debug("Debug: showLoginButton = \(viewModel.showLoginButton)")
+
             } else if !viewModel.connectionStatus.isEmpty {
                 connectionStatusView
-                
+                let _ = AppLogger.debug.debug("Debug: connectionStatus = \(viewModel.connectionStatus)")
+
                 if viewModel.showLoginButton {
+                    let _ = AppLogger.debug.debug("Debug: showLoginButton = \(viewModel.showLoginButton)")
+
                     loginButton
+                } else if viewModel.isLoggedIn {
+                    let _ = AppLogger.debug.debug("Debug: showLoginButton = \(viewModel.showLoginButton)")
+
+                    loggedInView
                 }
             }
         }
@@ -85,12 +111,14 @@ struct SettingsView: View {
             Text(viewModel.connectionStatus)
                 .foregroundColor(viewModel.statusColor)
             Spacer()
-            Button {
-                viewModel.autoTestConnection()
-            } label: {
-                Image(systemName: "arrow.clockwise")
+            if !viewModel.isLoggedIn {
+                Button {
+                    viewModel.autoTestConnection()
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                }
+                .buttonStyle(.borderless)
             }
-            .buttonStyle(.borderless)
         }
     }
     
@@ -109,6 +137,17 @@ struct SettingsView: View {
             .cornerRadius(8)
         }
         .buttonStyle(.plain)
+        .disabled(viewModel.username.isEmpty || viewModel.password.isEmpty)
+    }
+    
+    private var loggedInView: some View {
+        HStack {
+            Image(systemName: "checkmark.circle.fill")
+                .foregroundColor(.green)
+            Text("Angemeldet als \(viewModel.username)")
+                .foregroundColor(.primary)
+            Spacer()
+        }
     }
     
     // MARK: - Libraries Section
@@ -124,7 +163,9 @@ struct SettingsView: View {
                 viewModel.saveSelectedLibrary(newId)
             }
             
-            logoutButton
+            if viewModel.isLoggedIn {
+                logoutButton
+            }
         }
     }
     
