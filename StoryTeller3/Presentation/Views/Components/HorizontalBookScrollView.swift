@@ -42,7 +42,6 @@ struct HorizontalBookScrollView: View {
                     )
                 }
             }
-           .padding(.horizontal, 10)
         }
     }
 }

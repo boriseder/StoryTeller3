@@ -159,6 +159,26 @@ class AudiobookshelfAPI {
             collapsedSeries: item.collapsedSeries
         )
     }
+    
+    func checkConnectionHealth() async -> Bool {
+        guard let url = URL(string: "\(baseURLString)/ping") else {
+            return false
+        }
+        
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 10.0 // Shorter timeout for health check
+        
+        do {
+            let (_, response) = try await URLSession.shared.data(for: request)
+            if let httpResponse = response as? HTTPURLResponse {
+                return httpResponse.statusCode == 200
+            }
+            return false
+        } catch {
+            return false
+        }
+    }
+
 }
 
 

@@ -231,7 +231,6 @@ struct ContentView: View {
     // Add this method to ContentView.swift to replace loadAPIClient()
 
     private func loadAPIClient() {
-        // Try to load from stored credentials
         guard let baseURL = UserDefaults.standard.string(forKey: "baseURL"),
               let username = UserDefaults.standard.string(forKey: "stored_username") else {
             apiClient = nil
@@ -239,18 +238,30 @@ struct ContentView: View {
         }
         
         do {
-            // Get token from keychain
             let token = try KeychainService.shared.getToken(for: username)
+            let client = AudiobookshelfAPI(baseURL: baseURL, apiKey: token)
             
-            // Create API client with token
-            apiClient = AudiobookshelfAPI(baseURL: baseURL, apiKey: token)
-            player.configure(baseURL: baseURL, authToken: token, downloadManager: downloadManager)
+            // Test connection health before setting as active client
+            Task {
+                let isHealthy = await client.checkConnectionHealth()
+                await MainActor.run {
+                    if isHealthy {
+                        apiClient = client
+                        player.configure(baseURL: baseURL, authToken: token, downloadManager: downloadManager)
+                    } else {
+                        AppLogger.debug.debug("API client health check failed")
+                        // Keep apiClient nil to show NoServerConfiguredView
+                        apiClient = nil
+                    }
+                }
+            }
             
         } catch {
             AppLogger.debug.debug("Failed to load authentication token: \(error)")
             apiClient = nil
         }
     }
+
     private func loadAppTheme() {
         if let themeRawValue = UserDefaults.standard.object(forKey: "app_theme") as? String,
            let theme = AppTheme(rawValue: themeRawValue) {

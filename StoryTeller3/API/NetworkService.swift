@@ -10,7 +10,14 @@ class DefaultNetworkService: NetworkService {
     private let urlSession: URLSession
     
     init(urlSession: URLSession = .shared) {
-        self.urlSession = urlSession
+        // Create custom URLSession with proper timeout configuration
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 30.0
+        config.timeoutIntervalForResource = 60.0
+        config.waitsForConnectivity = true
+        config.networkServiceType = .responsiveData
+        
+        self.urlSession = URLSession(configuration: config)
     }
     
     func performRequest<T: Decodable>(_ request: URLRequest, responseType: T.Type) async throws -> T {
@@ -18,6 +25,16 @@ class DefaultNetworkService: NetworkService {
             let (data, response) = try await urlSession.data(for: request)
             try validateResponse(response, data: data)
             return try JSONDecoder().decode(T.self, from: data)
+        } catch let urlError as URLError {
+            // Provide more specific error handling for timeout cases
+            switch urlError.code {
+            case .timedOut:
+                throw AudiobookshelfError.networkError(urlError)
+            case .notConnectedToInternet, .networkConnectionLost:
+                throw AudiobookshelfError.networkError(urlError)
+            default:
+                throw AudiobookshelfError.networkError(urlError)
+            }
         } catch let error as AudiobookshelfError {
             throw error
         } catch let decodingError as DecodingError {
@@ -26,7 +43,7 @@ class DefaultNetworkService: NetworkService {
             throw AudiobookshelfError.networkError(error)
         }
     }
-    
+
     func createAuthenticatedRequest(url: URL, authToken: String) -> URLRequest {
         var request = URLRequest(url: url)
         request.setValue("Bearer \(authToken)", forHTTPHeaderField: "Authorization")

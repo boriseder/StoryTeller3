@@ -13,29 +13,47 @@ enum AudiobookshelfError: LocalizedError {
     case missingLibraryItemId
     case invalidResponse
     case noLibrarySelected
+    case connectionTimeout
+    case serverUnreachable
     
     var errorDescription: String? {
         switch self {
         case .invalidURL(let url):
-            return "Ungültige URL: \(url)"
+            return "Invalid URL: \(url)"
+        case .connectionTimeout:
+            return "Connection timed out. Please check your network connection and server address."
+        case .serverUnreachable:
+            return "Cannot reach the server. Please verify the server is running and accessible."
         case .networkError(let error):
-            return "Netzwerkfehler: \(error.localizedDescription)"
+            if let urlError = error as? URLError {
+                switch urlError.code {
+                case .timedOut:
+                    return "Connection timed out. Please check your network connection."
+                case .notConnectedToInternet:
+                    return "No internet connection available."
+                case .cannotFindHost:
+                    return "Cannot find server. Please check the server address."
+                default:
+                    return "Network error: \(urlError.localizedDescription)"
+                }
+            }
+            return "Network error: \(error.localizedDescription)"
         case .noData:
-            return "Keine Daten vom Server erhalten"
+            return "No data received from server"
         case .decodingError(let error):
-            return "Fehler beim Verarbeiten der Server-Antwort: \(error.localizedDescription)"
+            return "Error processing server response: \(error.localizedDescription)"
         case .libraryNotFound(let name):
-            return "Bibliothek '\(name)' nicht gefunden"
+            return "Library '\(name)' not found"
         case .unauthorized:
-            return "Nicht autorisiert - überprüfen Sie Ihren API-Schlüssel"
+            return "Not authorized - please check your API key"
         case .serverError(let code, let message):
-            return "Server-Fehler (\(code)): \(message ?? "Unbekannt")"
+            return "Server error (\(code)): \(message ?? "Unknown")"
         case .bookNotFound(let id):
-            return "Buch mit ID '\(id)' nicht gefunden"
+            return "Book with ID '\(id)' not found"
         case .missingLibraryItemId:
-            return "Library Item ID fehlt"
+            return "Library Item ID missing"
         case .invalidResponse:
-            return "Ungültige Server-Antwort"
+            return "Invalid server response"
         case .noLibrarySelected:
             return "No library selected"
         }

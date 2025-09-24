@@ -8,7 +8,8 @@ import SwiftUI
 class HomeViewModel: BaseViewModel {
     @Published var personalizedSections: [PersonalizedSection] = []
     @Published var libraryName: String = "Personalized"
-    
+    @Published var libraries: [Library] = []
+
     let api: AudiobookshelfAPI
     let player: AudioPlayer
     let downloadManager: DownloadManager
@@ -48,17 +49,23 @@ class HomeViewModel: BaseViewModel {
         resetError()
         
         do {
-            let libraries = try await api.fetchLibraries()
+            // Use cached libraries if available, otherwise fetch them
+            let availableLibraries: [Library]
+            if libraries.isEmpty {
+                availableLibraries = try await api.fetchLibraries()
+                libraries = availableLibraries
+            } else {
+                availableLibraries = libraries
+            }
+            
             let selectedLibrary: Library
-
             if let savedId = UserDefaults.standard.string(forKey: "selected_library_id"),
-               let found = libraries.first(where: { $0.id == savedId }) {
+               let found = availableLibraries.first(where: { $0.id == savedId }) {
                 selectedLibrary = found
-            } else if let first = libraries.first {
+            } else if let first = availableLibraries.first {
                 selectedLibrary = first
                 UserDefaults.standard.set(first.id, forKey: "selected_library_id")
             } else {
-                // No library available
                 libraryName = "Personalized"
                 personalizedSections = []
                 isLoading = false
@@ -68,16 +75,13 @@ class HomeViewModel: BaseViewModel {
             libraryName = "\(selectedLibrary.name) - Home"
             let fetchedSections = try await api.fetchPersonalizedSections(from: selectedLibrary.id)
             
-            // Update sections with animation
             withAnimation(.easeInOut) {
                 personalizedSections = fetchedSections
             }
             
-            // Preload covers for better performance (first 10 books across all sections)
-            let allBooks = getAllBooksFromSections()
-            if !allBooks.isEmpty {
+            if !getAllBooksFromSections().isEmpty {
                 CoverCacheManager.shared.preloadCovers(
-                    for: Array(allBooks.prefix(10)),
+                    for: Array(getAllBooksFromSections().prefix(10)),
                     api: api,
                     downloadManager: downloadManager
                 )
@@ -90,7 +94,7 @@ class HomeViewModel: BaseViewModel {
         
         isLoading = false
     }
-    
+
     @MainActor
     func loadAndPlayBook(_ book: Book) async {
         AppLogger.debug.debug("Loading book from recommendations: \(book.title)")

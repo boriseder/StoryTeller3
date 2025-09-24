@@ -8,16 +8,16 @@ enum BookCardStyle {
     
     var coverSize: CGFloat {
         switch self {
-        case .library: return 140
-        case .series: return 140
+        case .library: return 152
+        case .series: return 152
         case .compact: return 80
         }
     }
     
     var cardPadding: CGFloat {
         switch self {
-        case .library: return 10
-        case .series: return 10
+        case .library: return 8
+        case .series: return 8
         case .compact: return 8
         }
     }
@@ -40,15 +40,15 @@ enum BookCardStyle {
     
     var cornerRadius: CGFloat {
         switch self {
-        case .library: return 12
-        case .series: return 12
-        case .compact: return 10
+        case .library: return 8
+        case .series: return 8
+        case .compact: return 4
         }
     }
     
     var titleFont: Font {
         switch self {
-        case .library: return .system(size: 12, weight: .semibold, design: .rounded)
+        case .library: return .system(size: 16, weight: .semibold, design: .rounded)
         case .series: return .system(size: 12, weight: .semibold, design: .rounded)
         case .compact: return .system(size: 10, weight: .semibold, design: .rounded)
         }
@@ -56,7 +56,7 @@ enum BookCardStyle {
     
     var authorFont: Font {
         switch self {
-        case .library: return .system(size: 10, weight: .medium)
+        case .library: return .system(size: 12, weight: .medium)
         case .series: return .system(size: 10, weight: .medium)
         case .compact: return .system(size: 9, weight: .medium)
         }
@@ -135,7 +135,7 @@ struct BookCardView: View {
             .frame(width: dimensions.width, height: dimensions.height)
             .background {
                 RoundedRectangle(cornerRadius: style.cornerRadius)
-                    .fill(.regularMaterial)
+                    .fill(.ultraThinMaterial)
                     .shadow(
                         color: .black.opacity(0.1),
                         radius: isPressed ? 4 : 12,
@@ -168,6 +168,7 @@ struct BookCardView: View {
             },
             perform: {}
         )
+        .padding(.trailing, DSLayout.elementPadding)
     }
     
     // MARK: - Book Cover Section
