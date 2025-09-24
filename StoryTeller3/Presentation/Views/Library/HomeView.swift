@@ -2,11 +2,15 @@
 //  Enhanced HomeView.swift
 //  StoryTeller3
 //
+//  Updated to handle all personalized sections
 
 import SwiftUI
 
 struct HomeView: View {
     @StateObject private var viewModel: HomeViewModel
+    
+    @State private var selectedSeries: Series?
+    @State private var selectedAuthor: IdentifiableString?
     
     init(player: AudioPlayer, api: AudiobookshelfAPI, downloadManager: DownloadManager, onBookSelected: @escaping () -> Void) {
         self._viewModel = StateObject(wrappedValue: HomeViewModel(
@@ -19,8 +23,19 @@ struct HomeView: View {
 
     var body: some View {
         Group {
+            switch viewModel.uiState {
+            case .loading:
+                LoadingView()
+            case .error(let message):
+                ErrorView(error: message)
+            case .empty:
+                EmptyStateView()
+            case .noDownloads:
+                NoDownloadsView()
+            case .content:
                 contentView
             }
+        }
         .navigationTitle("Welcome back")
         .navigationBarTitleDisplayMode(.large)
         .refreshable {
@@ -42,6 +57,28 @@ struct HomeView: View {
         .task {
             await viewModel.loadPersonalizedSectionsIfNeeded()
         }
+        .sheet(item: $selectedSeries) { series in
+            SeriesDetailSheet(
+                series: series,
+                player: viewModel.player,
+                api: viewModel.api,
+                downloadManager: viewModel.downloadManager,
+                onBookSelected: viewModel.onBookSelected
+            )
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+        }
+        .sheet(item: $selectedAuthor) { authorWrapper in
+            AuthorDetailSheet(
+                authorName: authorWrapper.value,
+                player: viewModel.player,
+                api: viewModel.api,
+                downloadManager: viewModel.downloadManager,
+                onBookSelected: viewModel.onBookSelected
+            )
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+        }
     }
     
     // MARK: - Content View
@@ -53,7 +90,7 @@ struct HomeView: View {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 24) {
                     // Header with Quick Stats
-                    //homeHeaderView
+                    homeHeaderView
                     
                     // All Personalized Sections
                     ForEach(viewModel.personalizedSections) { section in
@@ -68,14 +105,10 @@ struct HomeView: View {
                                 }
                             },
                             onSeriesSelected: { series in
-                                Task {
-                                    await viewModel.loadSeriesBooks(series)
-                                }
+                                selectedSeries = series
                             },
                             onAuthorSelected: { authorName in
-                                Task {
-                                    await viewModel.searchBooksByAuthor(authorName)
-                                }
+                                selectedAuthor = authorName.asIdentifiable()
                             }
                         )
                     }
@@ -100,23 +133,21 @@ struct HomeView: View {
             }
             
             // Quick Stats
-            /*
             HStack(spacing: 16) {
-                StatCard(
+                HomeStatCard(
                     icon: "books.vertical.fill",
                     title: "Total Items",
                     value: "\(viewModel.totalItemsCount)",
                     color: .blue
                 )
                 
-                StatCard(
+                HomeStatCard(
                     icon: "arrow.down.circle.fill",
                     title: "Downloaded",
                     value: "\(viewModel.downloadedCount)",
                     color: .green
                 )
             }
-             */
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
@@ -160,7 +191,7 @@ struct PersonalizedSectionView: View {
             case "authors":
                 authorsSection
             default:
-                // Fallback for unknown types
+                // Fallback for unknown types - treat as books
                 bookSection
             }
         }
@@ -231,11 +262,18 @@ struct PersonalizedSectionView: View {
     private var seriesSection: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 12) {
-                ForEach(convertToSeries(), id: \.id) { series in
-                    SeriesCardView(
-                        series: series,
+                ForEach(section.entities.indices, id: \.self) { index in
+                    let entity = section.entities[index]
+                    
+                    // Debug: Try multiple approaches to get cover art
+                    SeriesCardViewRobust(
+                        entity: entity,
+                        api: api,
+                        downloadManager: downloadManager,
                         onTap: {
-                            onSeriesSelected(series)
+                            if let series = entity.asSeries {
+                                onSeriesSelected(series)
+                            }
                         }
                     )
                 }
@@ -265,26 +303,151 @@ struct PersonalizedSectionView: View {
     private func convertToSeries() -> [Series] {
         // Convert entities to Series objects
         return section.entities.compactMap { entity -> Series? in
-            guard let libraryItem = entity.asLibraryItem else { return nil }
-            
-            // Create a minimal Series object from the entity
-            return Series(
-                id: entity.id,
-                name: libraryItem.media.metadata.title,
-                nameIgnorePrefix: nil,
-                nameIgnorePrefixSort: nil,
-                books: [libraryItem],
-                addedAt: Date().timeIntervalSince1970
-            )
+            return entity.asSeries
         }
     }
     
     private func extractAuthors() -> [String] {
         return section.entities.compactMap { entity -> String? in
-            guard let libraryItem = entity.asLibraryItem else { return nil }
-            return libraryItem.media.metadata.author
+            // For author sections, the name should be the author name
+            if let name = entity.name {
+                return name
+            }
+            // Fallback: extract from book metadata
+            if let libraryItem = entity.asLibraryItem {
+                return libraryItem.media.metadata.author
+            }
+            return nil
         }
         .uniqued() // Remove duplicates
+    }
+}
+
+// MARK: - Robust Series Card View for Debugging
+struct SeriesCardViewRobust: View {
+    let entity: PersonalizedEntity
+    let api: AudiobookshelfAPI
+    let downloadManager: DownloadManager
+    let onTap: () -> Void
+    
+    private let cardStyle: BookCardStyle = .series
+    
+    var body: some View {
+        Button(action: onTap) {
+            VStack(alignment: .leading, spacing: 8) {
+                // Try multiple approaches to get cover art
+                coverArtView
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(displayName)
+                        .font(.system(size: 12, weight: .semibold))
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                    
+                    if let author = displayAuthor {
+                        Text(author)
+                            .font(.system(size: 10))
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                    }
+                    
+                    Text(displayBookCount)
+                        .font(.system(size: 9))
+                        .foregroundColor(.secondary)
+                }
+                .frame(width: cardStyle.coverSize, alignment: .leading)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+    
+    private var coverArtView: some View {
+        Group {
+            if let coverBook = getCoverBook() {
+                BookCoverView.square(
+                    book: coverBook,
+                    size: cardStyle.coverSize,
+                    api: api,
+                    downloadManager: downloadManager
+                )
+                .clipShape(RoundedRectangle(cornerRadius: cardStyle.cornerRadius))
+            } else {
+                // Fallback placeholder
+                RoundedRectangle(cornerRadius: cardStyle.cornerRadius)
+                    .fill(LinearGradient(
+                        colors: [Color.blue.opacity(0.3), Color.purple.opacity(0.3)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ))
+                    .frame(width: cardStyle.coverSize, height: cardStyle.coverSize)
+                    .overlay(
+                        VStack(spacing: 4) {
+                            Image(systemName: "books.vertical.fill")
+                                .font(.system(size: 24))
+                                .foregroundColor(.white)
+                            
+                            Text(String(displayName.prefix(1)))
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundColor(.white)
+                        }
+                    )
+            }
+        }
+    }
+    
+    private func getCoverBook() -> Book? {
+        // Method 1: Try to get from series books
+        if let series = entity.asSeries,
+           let firstBook = series.books.first {
+            AppLogger.debug.debug("[SeriesCover] Found series with \(series.books.count) books")
+            return api.convertLibraryItemToBook(firstBook)
+        }
+        
+        // Method 2: Try to get from entity as library item
+        if let libraryItem = entity.asLibraryItem {
+            AppLogger.debug.debug("[SeriesCover] Found library item: \(libraryItem.media.metadata.title)")
+            return api.convertLibraryItemToBook(libraryItem)
+        }
+        
+        // Method 3: Create a minimal book for series ID lookup
+        if let name = entity.name {
+            AppLogger.debug.debug("[SeriesCover] Creating minimal book for series: \(name)")
+            return Book(
+                id: entity.id,
+                title: name,
+                author: displayAuthor,
+                chapters: [],
+                coverPath: "/api/items/\(entity.id)/cover", // Standard cover endpoint
+                collapsedSeries: nil
+            )
+        }
+        
+        AppLogger.debug.debug("[SeriesCover] No cover found for entity: \(entity.id)")
+        return nil
+    }
+    
+    private var displayName: String {
+        return entity.name ?? entity.asSeries?.name ?? "Unknown Series"
+    }
+    
+    private var displayAuthor: String? {
+        if let series = entity.asSeries {
+            return series.author
+        }
+        if let libraryItem = entity.asLibraryItem {
+            return libraryItem.media.metadata.author
+        }
+        return nil
+    }
+    
+    private var displayBookCount: String {
+        if let series = entity.asSeries {
+            return "\(series.bookCount) books"
+        }
+        if let numBooks = entity.numBooks {
+            return "\(numBooks) books"
+        }
+        return "Series"
     }
 }
 
@@ -293,47 +456,56 @@ struct SeriesCardView: View {
     let series: Series
     let onTap: () -> Void
     
+    private let cardStyle: BookCardStyle = .series
+    
     var body: some View {
         Button(action: onTap) {
             VStack(alignment: .leading, spacing: 8) {
                 // Series Cover (using first book's cover)
-                if let firstBook = series.firstBook {
-                    BookCoverView.square(
-                        book: Book(
-                            id: firstBook.id,
-                            title: firstBook.media.metadata.title,
-                            author: firstBook.media.metadata.author,
-                            chapters: [],
-                            coverPath: firstBook.coverPath,
-                            collapsedSeries: nil
-                        ),
-                        size: 120
+                if let firstBook = series.books.first {
+                    let coverBook = Book(
+                        id: firstBook.id,
+                        title: firstBook.media.metadata.title,
+                        author: firstBook.media.metadata.author,
+                        chapters: [],
+                        coverPath: firstBook.coverPath,
+                        collapsedSeries: nil
                     )
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    
+                    BookCoverView.square(
+                        book: coverBook,
+                        size: cardStyle.coverSize
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: cardStyle.cornerRadius))
                 } else {
-                    RoundedRectangle(cornerRadius: 12)
+                    RoundedRectangle(cornerRadius: cardStyle.cornerRadius)
                         .fill(Color.gray.opacity(0.3))
-                        .frame(width: 120, height: 120)
+                        .frame(width: cardStyle.coverSize, height: cardStyle.coverSize)
+                        .overlay(
+                            Image(systemName: "books.vertical.fill")
+                                .font(.system(size: cardStyle.coverSize * 0.4))
+                                .foregroundColor(.gray)
+                        )
                 }
                 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(series.name)
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(cardStyle.titleFont)
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
                     
                     if let author = series.author {
                         Text(author)
-                            .font(.system(size: 12))
+                            .font(cardStyle.authorFont)
                             .foregroundColor(.secondary)
                             .lineLimit(1)
                     }
                     
                     Text("\(series.bookCount) books")
-                        .font(.system(size: 11))
+                        .font(.system(size: 9))
                         .foregroundColor(.secondary)
                 }
-                .frame(width: 120, alignment: .leading)
+                .frame(width: cardStyle.coverSize, alignment: .leading)
             }
         }
         .buttonStyle(.plain)
@@ -366,6 +538,43 @@ struct AuthorCardView: View {
             }
         }
         .buttonStyle(.plain)
+    }
+}
+
+// MARK: - Home Stat Card Component
+struct HomeStatCard: View {
+    let icon: String
+    let title: String
+    let value: String
+    let color: Color
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            Circle()
+                .fill(color.opacity(0.2))
+                .frame(width: 40, height: 40)
+                .overlay(
+                    Image(systemName: icon)
+                        .font(.system(size: 16))
+                        .foregroundColor(color)
+                )
+            
+            VStack(alignment: .leading, spacing: 2) {
+                Text(value)
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                
+                Text(title)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            
+            Spacer()
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(color.opacity(0.05))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }
 

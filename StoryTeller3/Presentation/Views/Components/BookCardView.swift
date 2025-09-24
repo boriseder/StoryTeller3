@@ -9,7 +9,7 @@ enum BookCardStyle {
     var coverSize: CGFloat {
         switch self {
         case .library: return 140
-        case .series: return 100
+        case .series: return 140
         case .compact: return 80
         }
     }

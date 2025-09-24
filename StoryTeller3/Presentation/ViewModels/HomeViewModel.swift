@@ -12,7 +12,7 @@ class HomeViewModel: BaseViewModel {
     let api: AudiobookshelfAPI
     let player: AudioPlayer
     let downloadManager: DownloadManager
-    private let onBookSelected: () -> Void
+    let onBookSelected: () -> Void
     
     // Computed properties for stats
     var totalItemsCount: Int {

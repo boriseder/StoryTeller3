@@ -1,8 +1,8 @@
 import Foundation
 import AVFoundation
 import Combine
-import AVKit  // ← Hinzufügen für AVRoutePickerView
-import UIKit  // ← Hinzufügen für UIColor
+import AVKit
+import UIKit
 
 // MARK: - Audio Player
 class AudioPlayer: NSObject, ObservableObject {
@@ -96,8 +96,8 @@ class AudioPlayer: NSObject, ObservableObject {
         }
         #if DEBUG
         AppLogger.debug.debug("[AudioPlayer] Lade Kapitel: \(chapter.title)")
-        AppLogger.debug.debug("[AudioPlayer] Kapitel Index: \(currentChapterIndex)")
-        AppLogger.debug.debug("[AudioPlayer] Offline Mode: \(isOfflineMode)")
+        AppLogger.debug.debug("[AudioPlayer] Kapitel Index: \(self.currentChapterIndex)")
+        AppLogger.debug.debug("[AudioPlayer] Offline Mode: \(self.isOfflineMode)")
         AppLogger.debug.debug("[AudioPlayer] Library Item ID: \(chapter.libraryItemId ?? "nil")")
         #endif
 
@@ -113,20 +113,21 @@ class AudioPlayer: NSObject, ObservableObject {
         // Online mode
         createPlaybackSession(for: chapter) { [weak self] result in
             DispatchQueue.main.async {
-                self?.isLoading = false
+                guard let self = self else { return }
+                self.isLoading = false
                 
                 switch result {
                 case .success(let session):
                     #if DEBUG
                     AppLogger.debug.debug("[AudioPlayer] SUCCESS: Playback Session erstellt: \(session.id)")
                     #endif
-                    self?.currentPlaybackSession = session
-                    self?.setupPlayerWithSession(session)
+                    self.currentPlaybackSession = session
+                    self.setupPlayerWithSession(session)
                 case .failure(let error):
                     #if DEBUG
                     AppLogger.debug.debug("[AudioPlayer] ERROR: Fehler beim Erstellen der Playback Session: \(error)")
                     #endif
-                    self?.errorMessage = error.localizedDescription
+                    self.errorMessage = error.localizedDescription
                 }
             }
         }
@@ -163,7 +164,7 @@ class AudioPlayer: NSObject, ObservableObject {
         
         Task { @MainActor in
             if downloadManager.isBookDownloaded(book.id),
-               let localURL = downloadManager.getLocalAudioURL(for: book.id, chapterIndex: currentChapterIndex) {
+               let localURL = downloadManager.getLocalAudioURL(for: book.id, chapterIndex: self.currentChapterIndex) {
                 
                 #if DEBUG
                 AppLogger.debug.debug("[AudioPlayer] Datei URL: \(localURL)")
@@ -171,11 +172,11 @@ class AudioPlayer: NSObject, ObservableObject {
                 #endif
                 
                 let playerItem = AVPlayerItem(url: localURL)
-                setupOfflinePlayer(playerItem: playerItem, duration: chapter.end ?? 3600)
+                self.setupOfflinePlayer(playerItem: playerItem, duration: chapter.end ?? 3600)
             } else {
-                errorMessage = "Offline-Audiodatei nicht gefunden"
+                self.errorMessage = "Offline-Audiodatei nicht gefunden"
             }
-            isLoading = false
+            self.isLoading = false
         }
     }
     
@@ -260,10 +261,10 @@ class AudioPlayer: NSObject, ObservableObject {
         #if DEBUG
         AppLogger.debug.debug("[AudioPlayer] Setting up player with session: \(session.id)")
         AppLogger.debug.debug("[AudioPlayer] Available tracks: \(session.audioTracks.count)")
-        AppLogger.debug.debug("[AudioPlayer] Current chapter index: \(currentChapterIndex)")
+        AppLogger.debug.debug("[AudioPlayer] Current chapter index: \(self.currentChapterIndex)")
         #endif
         
-        guard currentChapterIndex < session.audioTracks.count else {
+        guard self.currentChapterIndex < session.audioTracks.count else {
             #if DEBUG
             AppLogger.debug.debug("[AudioPlayer] ERROR: Kapitel-Index außerhalb der verfügbaren Tracks")
             #endif
@@ -271,7 +272,7 @@ class AudioPlayer: NSObject, ObservableObject {
             return
         }
         
-        let audioTrack = session.audioTracks[currentChapterIndex]
+        let audioTrack = session.audioTracks[self.currentChapterIndex]
         let fullURL = "\(baseURL)\(audioTrack.contentUrl)"
 
         #if DEBUG
@@ -298,7 +299,7 @@ class AudioPlayer: NSObject, ObservableObject {
         duration = audioTrack.duration
         
         #if DEBUG
-        AppLogger.debug.debug("[AudioPlayer] Player created, duration set to: \(duration)")
+        AppLogger.debug.debug("[AudioPlayer] Player created, duration set to: \(self.duration)")
         #endif
         
         if isPlaying {
@@ -366,27 +367,27 @@ class AudioPlayer: NSObject, ObservableObject {
         }
         
         #if DEBUG
-        AppLogger.debug.debug("[AudioPlayer] Player Status: \(currentItem.status)")
+        AppLogger.debug.debug("[AudioPlayer] Player Status: \(currentItem.status.rawValue)")
         AppLogger.debug.debug("[AudioPlayer] Player Rate: \(player.rate)")
         AppLogger.debug.debug("[AudioPlayer] Current Time: \(CMTimeGetSeconds(player.currentTime()))")
-        AppLogger.debug.debug("[AudioPlayer] Duration: \(duration)")
+        AppLogger.debug.debug("[AudioPlayer] Duration: \(self.duration)")
         #endif
         
         switch currentItem.status {
         case .readyToPlay:
             player.play()
-            player.rate = playbackRate // Apply current playback rate
+            player.rate = playbackRate
             isPlaying = true
         case .failed:
             let error = currentItem.error?.localizedDescription ?? "Unbekannter Fehler"
             errorMessage = "Playback failed: \(error)"
         case .unknown:
             player.play()
-            player.rate = playbackRate // ← Hier auch hinzufügen
+            player.rate = playbackRate
             isPlaying = true
         @unknown default:
             player.play()
-            player.rate = playbackRate // Apply current playback rate
+            player.rate = playbackRate
             isPlaying = true
         }
     }
@@ -476,7 +477,9 @@ class AudioPlayer: NSObject, ObservableObject {
     override func observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSKeyValueChangeKey : Any]?, context: UnsafeMutableRawPointer?) {
         guard let keyPath = keyPath, let playerItem = object as? AVPlayerItem else { return }
         
-        DispatchQueue.main.async {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            
             switch keyPath {
             case "status":
                 switch playerItem.status {
@@ -492,13 +495,6 @@ class AudioPlayer: NSObject, ObservableObject {
                 }
                 
             case "loadedTimeRanges":
-                /*
-                let timeRanges = playerItem.loadedTimeRanges
-                if !timeRanges.isEmpty {
-                    let timeRange = timeRanges[0].timeRangeValue
-                  //  let loadedDuration = CMTimeGetSeconds(timeRange.duration)
-                }
-                 */
                 break
             default:
                 break
@@ -508,7 +504,6 @@ class AudioPlayer: NSObject, ObservableObject {
 
     deinit {
         cleanupPlayer()
-        // Alle Observer explizit entfernen
         NotificationCenter.default.removeObserver(self)
     }
 }
