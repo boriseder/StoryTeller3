@@ -302,22 +302,22 @@ struct BookCardView: View {
     // MARK: - Book Info Section
     private var bookInfoSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // ← GEÄNDERT: Verwende displayTitle für Series
+            // Titel immer mit Platz für 2 Zeilen
             Text(book.displayTitle)
                 .font(style.titleFont)
                 .foregroundColor(.primary)
-                .lineLimit(style == .compact ? 1 : 2)
+                .lineLimit(2)
                 .multilineTextAlignment(.leading)
-            
+                .frame(minHeight: DSLayout.contentGap, alignment: .top)
+
             Spacer()
-            
+
             VStack(alignment: .leading, spacing: style == .compact ? 2 : 4) {
                 Text(book.author ?? "Unbekannter Autor")
                     .font(style.authorFont)
                     .foregroundColor(.secondary)
                     .lineLimit(1)
-                
-                // Progress indicator nur für library style
+
                 if isCurrentBook && player.duration > 0 && style == .library {
                     bookProgressIndicator
                 }
@@ -326,7 +326,6 @@ struct BookCardView: View {
         .padding(.horizontal, style.textPadding)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
-    
     // MARK: - Book Progress Indicator
     private var bookProgressIndicator: some View {
         VStack(spacing: 4) {
