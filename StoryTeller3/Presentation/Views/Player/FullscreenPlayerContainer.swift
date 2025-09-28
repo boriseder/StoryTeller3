@@ -25,10 +25,10 @@ struct FullscreenPlayerContainer<Content: View>: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                // Main Content - TabView with TabBar (nur noch 2 Tabs)
+                // Main Content - TabView with TabBar
                 content
                 
-                // Globaler MiniPlayer - erscheint über Content aber TabBar bleibt sichtbar
+                // Global MiniPlayer - appears over content but TabBar remains visible
                 if playerStateManager.showMiniPlayer && player.book != nil && !playerStateManager.showFullscreenPlayer {
                     VStack {
                         Spacer()
@@ -54,37 +54,50 @@ struct FullscreenPlayerContainer<Content: View>: View {
                     .zIndex(1)
                 }
                 
-                // Fullscreen Player Modal - komplett über allem
+                // Fullscreen Player - true fullscreen implementation
                 if playerStateManager.showFullscreenPlayer {
-                    // Background overlay
-                    Color.black.opacity(0.3)
-                        .ignoresSafeArea()
-                        .zIndex(2)
-                        .onTapGesture {
-                            withAnimation(.easeInOut(duration: 0.4)) {
-                                playerStateManager.dismissFullscreen()
+                    NavigationStack {
+                        ZStack {
+                            // Fullscreen background
+                            Color(.systemBackground)
+                                .ignoresSafeArea(.all)
+                            
+                            if let api = api {
+                                PlayerView(player: player, api: api)
+                                    .navigationBarTitleDisplayMode(.inline)
+                                    .toolbar {
+                                        ToolbarItem(placement: .navigationBarLeading) {
+                                            dismissButton
+                                        }
+                                    }
+                            } else {
+                                // Fallback when no API available
+                                VStack(spacing: 20) {
+                                    Image(systemName: "wifi.exclamationmark")
+                                        .font(.system(size: 60))
+                                        .foregroundColor(.secondary)
+                                    
+                                    Text("Keine Verbindung zum Server")
+                                        .font(.title3)
+                                        .foregroundColor(.secondary)
+                                    
+                                    Button("Schließen") {
+                                        withAnimation(.easeInOut(duration: 0.4)) {
+                                            playerStateManager.dismissFullscreen()
+                                        }
+                                    }
+                                    .buttonStyle(.bordered)
+                                }
+                                .padding()
                             }
                         }
-                    
-                    // Player Modal Content
-                    VStack(spacing: 0) {
-                        fullscreenPlayerContent
-                            .frame(height: geometry.size.height - 80) // Leave small space at bottom
-                            .clipShape(RoundedRectangle(cornerRadius: 20))
-                            .shadow(color: .black.opacity(0.3), radius: 20, x: 0, y: -5)
-                            .padding(.horizontal, 16)
-                            .padding(.top, 50) // Status bar space
-                        
-                        // Bottom spacer
-                        Spacer()
-                            .frame(height: 30)
                     }
                     .offset(y: dragOffset)
                     .gesture(swipeDownGesture)
-                    .zIndex(3)
+                    .zIndex(100) // Ensure it's above everything
                     .transition(.asymmetric(
-                        insertion: .move(edge: .bottom).combined(with: .opacity),
-                        removal: .move(edge: .bottom).combined(with: .opacity)
+                        insertion: .move(edge: .bottom),
+                        removal: .move(edge: .bottom)
                     ))
                 }
             }
@@ -93,43 +106,6 @@ struct FullscreenPlayerContainer<Content: View>: View {
         .animation(.easeInOut(duration: 0.4), value: playerStateManager.showFullscreenPlayer)
         .onChange(of: player.book) { _, newBook in
             playerStateManager.updatePlayerState(hasBook: newBook != nil)
-        }
-    }
-    
-    private var fullscreenPlayerContent: some View {
-        NavigationStack {
-            ZStack {
-                Color(.systemBackground)
-                
-                if let api = api {
-                    PlayerView(player: player, api: api)
-                        .navigationBarTitleDisplayMode(.inline)
-                        .toolbar {
-                            ToolbarItem(placement: .navigationBarLeading) {
-                                dismissButton
-                            }
-                        }
-                } else {
-                    // Fallback wenn keine API verfügbar
-                    VStack(spacing: 20) {
-                        Image(systemName: "wifi.exclamationmark")
-                            .font(.system(size: 60))
-                            .foregroundColor(.secondary)
-                        
-                        Text("Keine Verbindung zum Server")
-                            .font(.title3)
-                            .foregroundColor(.secondary)
-                        
-                        Button("Schließen") {
-                            withAnimation(.easeInOut(duration: 0.4)) {
-                                playerStateManager.dismissFullscreen()
-                            }
-                        }
-                        .buttonStyle(.bordered)
-                    }
-                    .padding()
-                }
-            }
         }
     }
     
@@ -156,14 +132,15 @@ struct FullscreenPlayerContainer<Content: View>: View {
                 }
                 
                 if isDragging {
-                    let translation = max(0, value.translation.height)
+                    // Only allow small drag offset for fullscreen
+                    let translation = max(0, min(value.translation.height, 100))
                     dragOffset = translation
                 }
             }
             .onEnded { value in
                 isDragging = false
                 
-                if value.translation.height > 150 || value.predictedEndTranslation.height > 300 {
+                if value.translation.height > 80 || value.predictedEndTranslation.height > 200 {
                     // Dismiss fullscreen player
                     withAnimation(.easeInOut(duration: 0.4)) {
                         playerStateManager.dismissFullscreen()
