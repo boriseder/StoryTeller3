@@ -205,7 +205,7 @@ struct SeriesQuickAccessView: View {
                 cardStyle: .series, // Gleicher Style wie in SeriesView
                 onBookSelected: { book in
                     Task {
-                        await loadAndPlayBook(book)
+                        await playBook(book)
                     }
                 }
             )
@@ -216,8 +216,7 @@ struct SeriesQuickAccessView: View {
     @MainActor
     private func loadSeriesBooks() async {
         guard let seriesId = seriesBook.collapsedSeries?.id,
-              let libraryId = UserDefaults.standard.string(forKey: "selected_library_id") else {
-            errorMessage = "Serie oder Bibliothek nicht gefunden"
+              let libraryId = LibraryHelpers.getCurrentLibraryId() else {            errorMessage = "Serie oder Bibliothek nicht gefunden"
             showingErrorAlert = true
             return
         }
@@ -232,14 +231,12 @@ struct SeriesQuickAccessView: View {
                 seriesBooks = books
             }
             
-            // Preload covers für bessere Performance (nur erste 6)
-            if !books.isEmpty {
-                CoverCacheManager.shared.preloadCovers(
-                    for: Array(books.prefix(6)),
-                    api: api,
-                    downloadManager: downloadManager
-                )
-            }
+            // Preload covers for better performance
+            CoverPreloadHelpers.preloadIfNeeded(
+                books: books,
+                api: api,
+                downloadManager: downloadManager
+            )
             
         } catch {
             errorMessage = error.localizedDescription
@@ -251,8 +248,9 @@ struct SeriesQuickAccessView: View {
     }
     
     @MainActor
-    private func loadAndPlayBook(_ book: Book) async {
-        AppLogger.debug.debug("Loading book from Quick Access: \(book.title)")
+    private func playBook(_ book: Book) async {
+        isLoading = true
+        errorMessage = nil
         
         do {
             let fetchedBook = try await api.fetchBookDetails(bookId: book.id)
@@ -264,11 +262,13 @@ struct SeriesQuickAccessView: View {
             dismiss()
             onBookSelected()
             
-            AppLogger.debug.debug("Book '\(fetchedBook.title)' loaded from series")
+            AppLogger.debug.debug("[SeriesQuickAccessView] Loaded book: \(fetchedBook.title)")
+            
         } catch {
             errorMessage = "Could not load '\(book.title)': \(error.localizedDescription)"
             showingErrorAlert = true
-            AppLogger.debug.debug("Error loading book details: \(error)")
+            AppLogger.debug.debug("[SeriesQuickAccessView] Failed to load book: \(error)")
         }
-    }
-}
+        
+        isLoading = false
+    }}

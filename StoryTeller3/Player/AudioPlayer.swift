@@ -104,6 +104,7 @@ class AudioPlayer: NSObject, ObservableObject {
         
         loadChapter()
     }
+
     func loadChapter(shouldResumePlayback: Bool = false) {
         guard let chapter = currentChapter else {
             AppLogger.debug.debug("[AudioPlayer] ERROR: No current chapter found")

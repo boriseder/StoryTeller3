@@ -230,7 +230,7 @@ struct SeriesDetailSheet: View {
                         style: .series,
                         onTap: {
                             Task {
-                                await loadAndPlayBook(book)
+                                await playBook(book)
                             }
                         }
                     )
@@ -245,8 +245,7 @@ struct SeriesDetailSheet: View {
     
     @MainActor
     private func loadSeriesBooks() async {
-        guard let libraryId = UserDefaults.standard.string(forKey: "selected_library_id") else {
-            errorMessage = "No library selected"
+        guard let libraryId = LibraryHelpers.getCurrentLibraryId() else {            errorMessage = "No library selected"
             showingErrorAlert = true
             return
         }
@@ -262,13 +261,12 @@ struct SeriesDetailSheet: View {
             }
             
             // Preload covers for better performance
-            if !books.isEmpty {
-                CoverCacheManager.shared.preloadCovers(
-                    for: Array(books.prefix(6)),
-                    api: api,
-                    downloadManager: downloadManager
-                )
-            }
+            // Preload covers for better performance
+            CoverPreloadHelpers.preloadIfNeeded(
+                books: books,
+                api: api,
+                downloadManager: downloadManager
+            )
             
         } catch {
             errorMessage = error.localizedDescription
@@ -280,8 +278,9 @@ struct SeriesDetailSheet: View {
     }
     
     @MainActor
-    private func loadAndPlayBook(_ book: Book) async {
-        AppLogger.debug.debug("Loading book from series sheet: \(book.title)")
+    private func playBook(_ book: Book) async {
+        isLoading = true
+        errorMessage = nil
         
         do {
             let fetchedBook = try await api.fetchBookDetails(bookId: book.id)
@@ -293,11 +292,14 @@ struct SeriesDetailSheet: View {
             dismiss()
             onBookSelected()
             
-            AppLogger.debug.debug("Book '\(fetchedBook.title)' loaded from series")
+            AppLogger.debug.debug("[SeriesDetailSheet] Loaded book: \(fetchedBook.title)")
+            
         } catch {
             errorMessage = "Could not load '\(book.title)': \(error.localizedDescription)"
             showingErrorAlert = true
-            AppLogger.debug.debug("Error loading book details: \(error)")
+            AppLogger.debug.debug("[SeriesDetailSheet] Failed to load book: \(error)")
         }
+        
+        isLoading = false
     }
 }

@@ -61,12 +61,12 @@ class SeriesViewModel: BaseViewModel {
             let libraries = try await api.fetchLibraries()
             let selectedLibrary: Library
 
-            if let savedId = UserDefaults.standard.string(forKey: "selected_library_id"),
+            if let savedId = LibraryHelpers.getCurrentLibraryId(),
                let found = libraries.first(where: { $0.id == savedId }) {
                 selectedLibrary = found
             } else if let first = libraries.first {
                 selectedLibrary = first
-                UserDefaults.standard.set(first.id, forKey: "selected_library_id")
+                LibraryHelpers.saveLibrarySelection(first.id)
             } else {
                 // keine Bibliothek vorhanden
                 libraryName = "Serien"
@@ -92,23 +92,15 @@ class SeriesViewModel: BaseViewModel {
     }
     
     @MainActor
-    func loadAndPlayBook(_ book: Book, restoreState: Bool = true) async {
-        AppLogger.debug.debug("Loading book from series: \(book.title), restoreState: \(restoreState)")
-        
-        do {
-            let fetchedBook = try await api.fetchBookDetails(bookId: book.id)
-            player.configure(baseURL: api.baseURLString, authToken: api.authToken, downloadManager: downloadManager)
-            
-            let isOffline = downloadManager.isBookDownloaded(fetchedBook.id)
-            player.load(book: fetchedBook, isOffline: isOffline, restoreState: restoreState)
-            
-            onBookSelected()
-            AppLogger.debug.debug("Book '\(fetchedBook.title)' loaded from series")
-        } catch {
-            errorMessage = "Could not load '\(book.title)': \(error.localizedDescription)"
-            showingErrorAlert = true
-            AppLogger.debug.debug("Error loading book details from series: \(error)")
-        }
+    func playBook(_ book: Book, restoreState: Bool = true) async {
+        await loadAndPlayBook(
+            book,
+            api: api,
+            player: player,
+            downloadManager: downloadManager,
+            restoreState: restoreState,
+            onSuccess: onBookSelected
+        )
     }
 
     func convertLibraryItemToBook(_ item: LibraryItem) -> Book? {

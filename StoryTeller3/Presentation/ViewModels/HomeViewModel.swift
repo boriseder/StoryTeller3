@@ -59,12 +59,11 @@ class HomeViewModel: BaseViewModel {
             }
             
             let selectedLibrary: Library
-            if let savedId = UserDefaults.standard.string(forKey: "selected_library_id"),
-               let found = availableLibraries.first(where: { $0.id == savedId }) {
-                selectedLibrary = found
+            if let savedId = LibraryHelpers.getCurrentLibraryId(),
+               let found = availableLibraries.first(where: { $0.id == savedId }) {                selectedLibrary = found
             } else if let first = availableLibraries.first {
                 selectedLibrary = first
-                UserDefaults.standard.set(first.id, forKey: "selected_library_id")
+                LibraryHelpers.saveLibrarySelection(first.id)
             } else {
                 libraryName = "Personalized"
                 personalizedSections = []
@@ -79,13 +78,12 @@ class HomeViewModel: BaseViewModel {
                 personalizedSections = fetchedSections
             }
             
-            if !getAllBooksFromSections().isEmpty {
-                CoverCacheManager.shared.preloadCovers(
-                    for: Array(getAllBooksFromSections().prefix(10)),
-                    api: api,
-                    downloadManager: downloadManager
-                )
-            }
+            CoverPreloadHelpers.preloadIfNeeded(
+                books: getAllBooksFromSections(),
+                api: api,
+                downloadManager: downloadManager,
+                limit: 10
+            )
             
         } catch {
             handleError(error)
@@ -96,23 +94,15 @@ class HomeViewModel: BaseViewModel {
     }
 
     @MainActor
-    func loadAndPlayBook(_ book: Book, restoreState: Bool = true) async {
-        AppLogger.debug.debug("Loading book from recommendations: \(book.title), restoreState: \(restoreState)")
-        
-        do {
-            let fetchedBook = try await api.fetchBookDetails(bookId: book.id)
-            player.configure(baseURL: api.baseURLString, authToken: api.authToken, downloadManager: downloadManager)
-            
-            let isOffline = downloadManager.isBookDownloaded(fetchedBook.id)
-            player.load(book: fetchedBook, isOffline: isOffline, restoreState: restoreState)
-            
-            onBookSelected()
-            AppLogger.debug.debug("Book '\(fetchedBook.title)' loaded from recommendations")
-        } catch {
-            errorMessage = "Could not load '\(book.title)': \(error.localizedDescription)"
-            showingErrorAlert = true
-            AppLogger.debug.debug("Error loading book details from recommendations: \(error)")
-        }
+    func playBook(_ book: Book, restoreState: Bool = true) async {
+        await loadAndPlayBook(
+            book,
+            api: api,
+            player: player,
+            downloadManager: downloadManager,
+            restoreState: restoreState,
+            onSuccess: onBookSelected
+        )
     }
 
     @MainActor
@@ -120,18 +110,14 @@ class HomeViewModel: BaseViewModel {
         AppLogger.debug.debug("Loading series: \(series.name)")
         
         do {
-            // Get library ID
-            guard let libraryId = UserDefaults.standard.string(forKey: "selected_library_id") else {
-                throw AudiobookshelfError.noLibrarySelected
-            }
+            let libraryId = try LibraryHelpers.requireLibraryId()
             
-            // Fetch series books
             let seriesBooks = try await api.fetchSeriesSingle(from: libraryId, seriesId: series.id)
             
             // For now, just play the first book in the series
             // In a real app, you might want to show a sheet with all books
             if let firstBook = seriesBooks.first {
-                await loadAndPlayBook(firstBook)
+                await playBook(firstBook)  // ← FIXED: Use playBook instead
             }
             
         } catch {
@@ -146,12 +132,8 @@ class HomeViewModel: BaseViewModel {
         AppLogger.debug.debug("Searching books by author: \(authorName)")
         
         do {
-            // Get library ID
-            guard let libraryId = UserDefaults.standard.string(forKey: "selected_library_id") else {
-                throw AudiobookshelfError.noLibrarySelected
-            }
+            let libraryId = try LibraryHelpers.requireLibraryId()
             
-            // Fetch all books and filter by author
             let allBooks = try await api.fetchBooks(from: libraryId, limit: 0, collapseSeries: false)
             let authorBooks = allBooks.filter { book in
                 book.author?.localizedCaseInsensitiveContains(authorName) == true
@@ -160,7 +142,7 @@ class HomeViewModel: BaseViewModel {
             // For now, just play the first book by this author
             // In a real app, you might want to show a sheet with all books by this author
             if let firstBook = authorBooks.first {
-                await loadAndPlayBook(firstBook)
+                await playBook(firstBook)  // ← FIXED: Use playBook instead
             } else {
                 errorMessage = "No books found by '\(authorName)'"
                 showingErrorAlert = true
@@ -172,7 +154,6 @@ class HomeViewModel: BaseViewModel {
             AppLogger.debug.debug("Error searching books by author: \(error)")
         }
     }
-    
     // MARK: - Private Methods
     
     private func getAllBooksFromSections() -> [Book] {

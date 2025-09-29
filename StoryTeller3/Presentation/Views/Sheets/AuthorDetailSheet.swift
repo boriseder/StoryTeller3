@@ -214,7 +214,7 @@ struct AuthorDetailSheet: View {
                         style: .library,
                         onTap: {
                             Task {
-                                await loadAndPlayBook(book)
+                                await playBook(book)
                             }
                         }
                     )
@@ -229,8 +229,7 @@ struct AuthorDetailSheet: View {
     
     @MainActor
     private func loadAuthorBooks() async {
-        guard let libraryId = UserDefaults.standard.string(forKey: "selected_library_id") else {
-            errorMessage = "No library selected"
+        guard let libraryId = LibraryHelpers.getCurrentLibraryId() else {            errorMessage = "No library selected"
             showingErrorAlert = true
             return
         }
@@ -255,13 +254,11 @@ struct AuthorDetailSheet: View {
             }
             
             // Preload covers for better performance
-            if !sortedBooks.isEmpty {
-                CoverCacheManager.shared.preloadCovers(
-                    for: Array(sortedBooks.prefix(6)),
-                    api: api,
-                    downloadManager: downloadManager
-                )
-            }
+            CoverPreloadHelpers.preloadIfNeeded(
+                books: sortedBooks,
+                api: api,
+                downloadManager: downloadManager
+            )
             
         } catch {
             errorMessage = error.localizedDescription
@@ -273,8 +270,9 @@ struct AuthorDetailSheet: View {
     }
     
     @MainActor
-    private func loadAndPlayBook(_ book: Book) async {
-        AppLogger.debug.debug("Loading book from author sheet: \(book.title)")
+    private func playBook(_ book: Book) async {
+        isLoading = true
+        errorMessage = nil
         
         do {
             let fetchedBook = try await api.fetchBookDetails(bookId: book.id)
@@ -286,11 +284,13 @@ struct AuthorDetailSheet: View {
             dismiss()
             onBookSelected()
             
-            AppLogger.debug.debug("Book '\(fetchedBook.title)' loaded from author view")
+            AppLogger.debug.debug("[AuthorDetailSheet] Loaded book: \(fetchedBook.title)")
+            
         } catch {
             errorMessage = "Could not load '\(book.title)': \(error.localizedDescription)"
             showingErrorAlert = true
-            AppLogger.debug.debug("Error loading book details: \(error)")
+            AppLogger.debug.debug("[AuthorDetailSheet] Failed to load book: \(error)")
         }
-    }
-}
+        
+        isLoading = false
+    }}

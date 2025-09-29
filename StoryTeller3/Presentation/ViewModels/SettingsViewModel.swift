@@ -167,9 +167,9 @@ class SettingsViewModel: BaseViewModel {
     
     func saveSelectedLibrary(_ libraryId: String?) {
         if let id = libraryId {
-            UserDefaults.standard.set(id, forKey: "selected_library_id")
+            LibraryHelpers.saveLibrarySelection(id)
         } else {
-            UserDefaults.standard.removeObject(forKey: "selected_library_id")
+            LibraryHelpers.saveLibrarySelection(nil)
         }
     }
     

@@ -121,7 +121,7 @@ struct LibraryView: View {
             selectedSeries = book
         } else {
             Task {
-                await viewModel.loadAndPlayBook(book)
+                await viewModel.playBook(book)
             }
         }
     }

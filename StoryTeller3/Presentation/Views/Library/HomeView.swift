@@ -102,7 +102,7 @@ struct HomeView: View {
                             downloadManager: viewModel.downloadManager,
                             onBookSelected: { book in
                                 Task {
-                                    await viewModel.loadAndPlayBook(book)
+                                    await viewModel.playBook(book)
                                 }
                             },
                             onSeriesSelected: { series in

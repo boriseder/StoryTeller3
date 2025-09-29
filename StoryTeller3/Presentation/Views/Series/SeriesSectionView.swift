@@ -21,7 +21,7 @@ struct SeriesSectionView: View {
                 cardStyle: .series,
                 onBookSelected: { book in
                     Task {
-                        await loadAndPlayBook(book)
+                        await playBook(book)
                     }
                 }
             )
@@ -71,11 +71,9 @@ struct SeriesSectionView: View {
     }
     
     // MARK: - Helper Methods
-        
+    
     @MainActor
-    private func loadAndPlayBook(_ book: Book) async {
-        AppLogger.debug.debug("Loading book from series section: \(book.title)")
-        
+    private func playBook(_ book: Book) async {
         do {
             let fetchedBook = try await api.fetchBookDetails(bookId: book.id)
             player.configure(baseURL: api.baseURLString, authToken: api.authToken, downloadManager: downloadManager)
@@ -84,8 +82,9 @@ struct SeriesSectionView: View {
             player.load(book: fetchedBook, isOffline: isOffline, restoreState: true)
             
             onBookSelected()
-            AppLogger.debug.debug("Book '\(fetchedBook.title)' loaded from series section")
+            AppLogger.debug.debug("[SeriesSectionView] Loaded book: \(fetchedBook.title)")
         } catch {
-            AppLogger.debug.debug("Error loading book details from series: \(error)")
+            AppLogger.debug.debug("[SeriesSectionView] Failed to load book: \(error)")
         }
-    }}
+    }
+}
