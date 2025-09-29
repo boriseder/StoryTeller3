@@ -10,10 +10,10 @@ struct ContentView: View {
     // MARK: - State Variables
     @State private var selectedTab: TabIndex = .home
     @State private var apiClient: AudiobookshelfAPI?
+    @State private var appLoaded = false
     @State private var showingWelcome = false
-    @State private var showingSettings = false // Neu für Modal
+    @State private var showingSettings = false
     
-    // ✅ MEMORY LEAK FIX - Cancellables for NotificationCenter observers
     @State private var cancellables = Set<AnyCancellable>()
     
     // MARK: - Tab Enum (nur noch 2 Tabs)
@@ -22,87 +22,95 @@ struct ContentView: View {
     }
 
     var body: some View {
-        FullscreenPlayerContainer(
-            player: player,
-            playerStateManager: playerStateManager,
-            api: apiClient
-        ) {
-            TabView(selection: $selectedTab) {
-                
-                // MARK: - Home Tab
-                homeTabWithToolbar()
-                    .tabItem {
-                        Image(systemName: "house.fill")
-                        Text("Home")
-                    }
-                    .tag(TabIndex.home)
-                
-                // MARK: - Library Tab
-                libraryTabWithToolbar()
-                    .tabItem {
-                        Image(systemName: "books.vertical.fill")
-                        Text("Bibliothek")
-                    }
-                    .tag(TabIndex.library)
-
-                // MARK: - Series Tab
-                seriesTabWithToolbar()
-                    .tabItem {
-                        Image(systemName: "rectangle.stack.fill")
-                        Text("Serien")
-                    }
-                    .tag(TabIndex.series)
-
-                
-                // MARK: - Downloads Tab
-                downloadsTabWithToolbar()
-                    .tabItem {
-                        Image(systemName: "arrow.down.circle.fill")
-                        Text("Downloads")
-                    }
-                    .badge(downloadManager.downloadedBooks.count)
-                    .tag(TabIndex.downloads)
+                    
+            FullscreenPlayerContainer(
+                player: player,
+                playerStateManager: playerStateManager,
+                api: apiClient
+            ) {
+                TabView(selection: $selectedTab) {
+                    
+                    // MARK: - Home Tab
+                    homeTabWithToolbar()
+                        .tabItem {
+                            Image(systemName: "house.fill")
+                            Text("Home")
+                        }
+                        .tag(TabIndex.home)
+                    
+                    // MARK: - Library Tab
+                    libraryTabWithToolbar()
+                        .tabItem {
+                            Image(systemName: "books.vertical.fill")
+                            Text("Bibliothek")
+                        }
+                        .tag(TabIndex.library)
+                    
+                    // MARK: - Series Tab
+                    seriesTabWithToolbar()
+                        .tabItem {
+                            Image(systemName: "rectangle.stack.fill")
+                            Text("Serien")
+                        }
+                        .tag(TabIndex.series)
+                    
+                    
+                    // MARK: - Downloads Tab
+                    downloadsTabWithToolbar()
+                        .tabItem {
+                            Image(systemName: "arrow.down.circle.fill")
+                            Text("Downloads")
+                        }
+                        .badge(downloadManager.downloadedBooks.count)
+                        .tag(TabIndex.downloads)
+                }
+                .tint(.accentColor)
             }
-            .tint(.accentColor)
-        }
-        .onAppear(perform: setupApp)
-        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)) { _ in
-            // Optimize cache when app goes to background
-            if UserDefaults.standard.bool(forKey: "auto_cache_cleanup") {
-                Task {
-                    await CoverCacheManager.shared.optimizeCache()
+            .onAppear(
+                perform: setupApp
+            )
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)) { _ in
+                // Optimize cache when app goes to background
+                if UserDefaults.standard.bool(forKey: "auto_cache_cleanup") {
+                    Task {
+                        await CoverCacheManager.shared.optimizeCache()
+                    }
                 }
             }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .init("ServerSettingsChanged"))) { _ in
-            loadAPIClient()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .init("ShowSettings"))) { _ in
-            showingSettings = true
-        }
-        // ✅ MEMORY LEAK FIX - Proper cancellables handling
-        .onDisappear {
-            cancellables.removeAll()
-        }
-        .sheet(isPresented: $showingWelcome) {
-            WelcomeView {
-                showingWelcome = false
+            .onReceive(NotificationCenter.default.publisher(for: .init("ServerSettingsChanged"))) { _ in
+                loadAPIClient()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .init("ShowSettings"))) { _ in
                 showingSettings = true
             }
-        }
-        .sheet(isPresented: $showingSettings) {
-            NavigationStack {
-                SettingsView()
-                    .navigationBarTitleDisplayMode(.inline)
-                    .toolbar {
-                        ToolbarItem(placement: .navigationBarLeading) {
-                            Button("Fertig") {
-                                showingSettings = false
+            .onDisappear {
+                cancellables.removeAll()
+            }
+            
+            .sheet(isPresented: $showingSettings) {
+                NavigationStack {
+                    SettingsView()
+                        .navigationBarTitleDisplayMode(.inline)
+                        .toolbar {
+                            ToolbarItem(placement: .navigationBarLeading) {
+                                Button("Fertig") {
+                                    showingSettings = false
+                                }
                             }
                         }
-                    }
+                }
             }
-        }
+            .sheet(isPresented: $showingWelcome) {
+                if showingWelcome {
+                    WelcomeView {
+                        showingWelcome = false
+                        showingSettings = true
+                    }
+                    .background(Color.accentColor.ignoresSafeArea())
+                    .transition(.opacity)
+                    .animation(.easeInOut(duration: 0.3), value: showingWelcome)
+                }
+            }
     }
     
     // MARK: - Helper Views mit Toolbar
@@ -118,10 +126,6 @@ struct ContentView: View {
                     downloadManager: downloadManager,
                     onBookSelected: { openFullscreenPlayer() }
                 )
-            } else {
-                NoServerConfiguredView {
-                    showingSettings = true
-                }
             }
         }
     }
@@ -137,11 +141,6 @@ struct ContentView: View {
                     downloadManager: downloadManager,
                     onBookSelected: { openFullscreenPlayer() }
                 )
-            } else {
-                NoServerConfiguredView {
-                    showingSettings = true
-                }
-                .appToolbar(onSettingsTapped: { showingSettings = true })
             }
         }
     }
@@ -156,10 +155,6 @@ struct ContentView: View {
                     downloadManager: downloadManager,
                     onBookSelected: { openFullscreenPlayer() }
                 )
-            } else {
-                NoServerConfiguredView {
-                    showingSettings = true
-                }
             }
         }
     }
@@ -201,13 +196,20 @@ struct ContentView: View {
     // MARK: - Setup Methods
     
     private func setupApp() {
+
         loadAPIClient()
-        loadAppTheme()
-        checkFirstLaunch()
         setupNotificationObservers()
+ 
+        // App als geladen markieren, damit ZStack den Inhalt rendert
+        DispatchQueue.main.async {
+            self.appLoaded = true
+
+            // Erst jetzt prüfen, ob WelcomeView gezeigt werden soll
+            checkFirstLaunch()
+        }
+
     }
     
-    // ✅ MEMORY LEAK FIX - Proper NotificationCenter observer setup
     private func setupNotificationObservers() {
         // Background cache optimization
         NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)
@@ -261,31 +263,15 @@ struct ContentView: View {
             apiClient = nil
         }
     }
-
-    private func loadAppTheme() {
-        if let themeRawValue = UserDefaults.standard.object(forKey: "app_theme") as? String,
-           let theme = AppTheme(rawValue: themeRawValue) {
-            applyTheme(theme)
-        }
-    }
-    
-    private func applyTheme(_ theme: AppTheme) {
-        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
-            for window in windowScene.windows {
-                switch theme {
-                case .light: window.overrideUserInterfaceStyle = .light
-                case .dark: window.overrideUserInterfaceStyle = .dark
-                case .automatic: window.overrideUserInterfaceStyle = .unspecified
-                }
-            }
-        }
-    }
     
     private func checkFirstLaunch() {
         let hasLaunchedBefore = UserDefaults.standard.bool(forKey: "has_launched_before")
         if !hasLaunchedBefore {
             UserDefaults.standard.set(true, forKey: "has_launched_before")
-            showingWelcome = true
+            // Verzögert setzen, damit UI schon aufgebaut ist
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                showingWelcome = true
+            }
         }
     }
 }
@@ -404,30 +390,7 @@ struct WelcomeView: View {
         NavigationStack {
             VStack(spacing: 0) {
                 // Page Content
-                TabView(selection: $currentPage) {
-                    WelcomePageView(
-                        icon: "books.vertical.fill",
-                        title: "Ihre Hörbuch-Bibliothek",
-                        description: "Greifen Sie auf Ihre komplette Audiobookshelf-Sammlung zu - überall und jederzeit.",
-                        accentColor: .blue
-                    )
-                    .tag(0)
-                    
-                    WelcomePageView(
-                        icon: "arrow.down.circle.fill",
-                        title: "Offline hören",
-                        description: "Laden Sie Ihre Lieblingsbücher herunter und hören Sie sie auch ohne Internetverbindung.",
-                        accentColor: .green
-                    )
-                    .tag(1)
-                    
-                    WelcomePageView(
-                        icon: "waveform",
-                        title: "Nahtlose Wiedergabe",
-                        description: "Pausieren Sie auf einem Gerät und setzen Sie die Wiedergabe auf einem anderen fort.",
-                        accentColor: .purple
-                    )
-                    .tag(2)
+                Text("HALLOOOOOOO").font(DSText.pageTitle)
                 }
                 .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
                 
@@ -443,104 +406,8 @@ struct WelcomeView: View {
                 .padding(.bottom, 32)
                 
                 // Action Buttons
-                VStack(spacing: 16) {
-                    if currentPage < totalPages - 1 {
-                        Button("Weiter") {
-                            withAnimation(.easeInOut(duration: 0.3)) {
-                                currentPage += 1
-                            }
-                        }
-                        .buttonStyle(PrimaryButtonStyle())
-                        
-                        Button("Überspringen") {
-                            onComplete()
-                        }
-                        .buttonStyle(SecondaryButtonStyle())
-                    } else {
-                        Button("Los geht's!") {
-                            onComplete()
-                        }
-                        .buttonStyle(PrimaryButtonStyle())
-                    }
-                }
-                .padding(.horizontal, 40)
-                .padding(.bottom, 50)
             }
             .navigationBarHidden(true)
         }
-    }
 }
 
-/// Individual welcome page content
-struct WelcomePageView: View {
-    let icon: String
-    let title: String
-    let description: String
-    let accentColor: Color
-    
-    var body: some View {
-        VStack(spacing: 40) {
-            Spacer()
-            
-            // Icon
-            ZStack {
-                Circle()
-                    .fill(accentColor.opacity(0.1))
-                    .frame(width: 140, height: 140)
-                
-                Image(systemName: icon)
-                    .font(.system(size: 60))
-                    .foregroundColor(accentColor)
-            }
-            
-            // Content
-            VStack(spacing: 16) {
-                Text(title)
-                    .font(.title)
-                    .fontWeight(.bold)
-                    .multilineTextAlignment(.center)
-                
-                Text(description)
-                    .font(.body)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 32)
-            }
-            
-            Spacer()
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-}
-
-// MARK: - Button Styles
-
-struct PrimaryButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.headline)
-            .foregroundColor(.white)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 16)
-            .background(Color.accentColor)
-            .clipShape(Capsule())
-            .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
-            .opacity(configuration.isPressed ? 0.8 : 1.0)
-            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
-    }
-}
-
-struct SecondaryButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.headline)
-            .foregroundColor(.accentColor)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 16)
-            .background(Color.accentColor.opacity(0.1))
-            .clipShape(Capsule())
-            .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
-            .opacity(configuration.isPressed ? 0.8 : 1.0)
-            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
-    }
-}

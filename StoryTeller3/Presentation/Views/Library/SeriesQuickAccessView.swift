@@ -15,6 +15,10 @@ struct SeriesQuickAccessView: View {
     @ObservedObject var downloadManager: DownloadManager
     let onBookSelected: () -> Void
     
+    // Zugriff auf das EnvironmentObject
+    @EnvironmentObject var viewModel: LibraryViewModel
+
+    
     @Environment(\.dismiss) private var dismiss
     @State private var seriesBooks: [Book] = []
     @State private var isLoading = false
@@ -22,6 +26,25 @@ struct SeriesQuickAccessView: View {
     @State private var showingErrorAlert = false
     
     var body: some View {
+        Group {
+            switch viewModel.uiState {
+            case .loading:
+                LoadingView()
+            case .error(let message):
+                ErrorView(error: message)
+            case .empty:
+                EmptyStateView()
+            case .noDownloads:
+                NoDownloadsView()
+            case .noSearchResults:
+                NoSearchResultsView()
+            case .content:
+                contentView
+            }
+        }
+    }
+ 
+    private var contentView: some View {
         NavigationStack {
             VStack(spacing: 0) {
                 // Compact Header
@@ -32,18 +55,7 @@ struct SeriesQuickAccessView: View {
                 
                 Divider()
                 
-                // Content
-                Group {
-                    if isLoading {
-                        loadingView
-                    } else if let error = errorMessage {
-                        errorView(error)
-                    } else if seriesBooks.isEmpty {
-                        emptyStateView
-                    } else {
-                        booksScrollView
-                    }
-                }
+                booksScrollView
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 
                 Spacer()
@@ -63,6 +75,7 @@ struct SeriesQuickAccessView: View {
             }
         }
     }
+
     
     // MARK: - Compact Series Header
     private var seriesHeaderView: some View {
@@ -112,75 +125,7 @@ struct SeriesQuickAccessView: View {
         }
         .background(.yellow)
     }
-    
-    // MARK: - Loading View
-    private var loadingView: some View {
-        VStack(spacing: 16) {
-            ProgressView()
-                .scaleEffect(1.2)
-            
-            Text("Lade Serie...")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-    
-    // MARK: - Error View
-    private func errorView(_ error: String) -> some View {
-        VStack(spacing: 20) {
-            Image(systemName: "exclamationmark.triangle")
-                .font(.system(size: 40))
-                .foregroundColor(.orange)
-            
-            VStack(spacing: 8) {
-                Text("Fehler beim Laden")
-                    .font(.headline)
-                    .fontWeight(.semibold)
-                
-                Text(error)
-                    .font(.body)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal)
-            }
-            
-            Button(action: {
-                Task { await loadSeriesBooks() }
-            }) {
-                Text("Erneut versuchen")
-                    .font(.headline)
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 12)
-                    .background(Color.accentColor)
-                    .clipShape(Capsule())
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding()
-    }
-    
-    // MARK: - Empty State
-    private var emptyStateView: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "books.vertical")
-                .font(.system(size: 40))
-                .foregroundColor(.secondary)
-            
-            Text("Keine Bücher gefunden")
-                .font(.headline)
-                .foregroundColor(.secondary)
-            
-            Text("Diese Serie enthält keine Bücher")
-                .font(.body)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding()
-    }
-    
+
     // MARK: - Books Scroll View (REUSE! Gleich wie SeriesView)
     private var booksScrollView: some View {
         VStack(spacing: 0) {

@@ -9,7 +9,6 @@ import SwiftUI
 class AppStateManager: ObservableObject {
     
     // MARK: - Published Properties
-    @Published var currentTheme: AppTheme = .automatic
     @Published var isFirstLaunch: Bool = false
     @Published var apiClient: AudiobookshelfAPI?
     @Published var showingWelcome = false
@@ -18,7 +17,6 @@ class AppStateManager: ObservableObject {
     // MARK: - Initialization
     init() {
         checkFirstLaunch()
-        loadThemePreference()
     }
     
     // MARK: - Private Methods
@@ -35,17 +33,7 @@ class AppStateManager: ObservableObject {
             setupDefaultCacheSettings() // ← Neu hinzugefügt
         }
     }
-    
-    /**
-     * Load theme preference from UserDefaults
-     */
-    private func loadThemePreference() {
-        if let themeRawValue = UserDefaults.standard.string(forKey: "app_theme"),
-           let theme = AppTheme(rawValue: themeRawValue) {
-            currentTheme = theme
-        }
-    }
-    
+        
     /**
      * Setup default cache settings on first launch
      */
@@ -66,38 +54,5 @@ class AppStateManager: ObservableObject {
         defaults.autoCacheCleanup = true
         
         AppLogger.debug.debug("[App] Default cache settings applied")
-    }
-    
-    // MARK: - Public Methods
-    
-    /**
-     * Update the app theme preference
-     */
-    func setTheme(_ theme: AppTheme) {
-        currentTheme = theme
-        UserDefaults.standard.set(theme.rawValue, forKey: "app_theme")
-        
-        // Apply theme immediately
-        applyThemeToWindows(theme)
-    }
-    
-    /**
-     * Apply theme to all app windows
-     */
-    private func applyThemeToWindows(_ theme: AppTheme) {
-        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene else {
-            return
-        }
-        
-        for window in windowScene.windows {
-            switch theme {
-            case .light:
-                window.overrideUserInterfaceStyle = .light
-            case .dark:
-                window.overrideUserInterfaceStyle = .dark
-            case .automatic:
-                window.overrideUserInterfaceStyle = .unspecified
-            }
-        }
     }
 }

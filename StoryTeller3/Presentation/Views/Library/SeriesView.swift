@@ -15,11 +15,11 @@ struct SeriesView: View {
     var body: some View {
         Group {
             if viewModel.isLoading {
-                loadingView
+                LoadingView()
             } else if let error = viewModel.errorMessage {
-                errorView(error)
+                ErrorView(error: error)
             } else if viewModel.series.isEmpty {
-                emptyStateView
+                EmptyStateView()
             } else {
                 contentView
             }
@@ -36,7 +36,7 @@ struct SeriesView: View {
                     if !viewModel.series.isEmpty {
                         sortMenu
                     }
-                    settingsButton
+                    SettingsButton()
                 }
             }
         }
@@ -54,89 +54,7 @@ struct SeriesView: View {
     }
     
     // MARK: - Subviews
-    
-    private var loadingView: some View {
-        VStack(spacing: 20) {
-            ProgressView()
-                .scaleEffect(1.5)
-            
-            Text("Lade Serien...")
-                .font(.title3)
-                .fontWeight(.medium)
-                .foregroundColor(.secondary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-    
-    private func errorView(_ error: String) -> some View {
-        VStack(spacing: 24) {
-            Image(systemName: "wifi.exclamationmark")
-                .font(.system(size: 60))
-                .foregroundStyle(.red.gradient)
-            
-            VStack(spacing: 12) {
-                Text("Verbindungsfehler")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-                
-                Text(error)
-                    .font(.body)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal)
-            }
-            
-            Button(action: {
-                Task { await viewModel.loadSeries() }
-            }) {
-                Label("Erneut versuchen", systemImage: "arrow.clockwise")
-                    .font(.headline)
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 32)
-                    .padding(.vertical, 12)
-                    .background(Color.accentColor.gradient)
-                    .clipShape(Capsule())
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(40)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-    
-    private var emptyStateView: some View {
-        VStack(spacing: 32) {
-            Image(systemName: "books.vertical.circle.fill")
-                .font(.system(size: 80))
-                .foregroundStyle(.blue.gradient)
-            
-            VStack(spacing: 8) {
-                Text("Keine Serien gefunden")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-                
-                Text("Es wurden keine Buchserien in deiner Bibliothek gefunden")
-                    .font(.body)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-            }
-            
-            Button(action: {
-                Task { await viewModel.loadSeries() }
-            }) {
-                Label("Aktualisieren", systemImage: "arrow.clockwise")
-                    .font(.headline)
-                    .foregroundColor(.accentColor)
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 12)
-                    .background(Color.accentColor.opacity(0.1))
-                    .clipShape(Capsule())
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(.horizontal, 40)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-    
+        
     private var contentView: some View {
         ZStack {
             DynamicMusicBackground()
@@ -187,13 +105,4 @@ struct SeriesView: View {
         }
     }
     
-    private var settingsButton: some View {
-        Button(action: {
-            NotificationCenter.default.post(name: .init("ShowSettings"), object: nil)
-        }) {
-            Image(systemName: "gearshape.fill")
-                .font(.system(size: 16))
-                .foregroundColor(.primary)
-        }
-    }
 }

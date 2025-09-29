@@ -50,7 +50,7 @@ struct LibraryView: View {
                     if !viewModel.books.isEmpty {
                         filterAndSortMenu
                     }
-                    settingsButton
+                    SettingsButton()
                 }
             }
         }
@@ -73,6 +73,7 @@ struct LibraryView: View {
                 downloadManager: viewModel.downloadManager,
                 onBookSelected: viewModel.onBookSelected
             )
+            .environmentObject(viewModel)
             .presentationDetents([.medium])
             .presentationDragIndicator(.visible)
         }
@@ -306,16 +307,6 @@ struct LibraryView: View {
                         .offset(x: 8, y: -8)
                 }
             }
-        }
-    }
-    
-    private var settingsButton: some View {
-        Button(action: {
-            NotificationCenter.default.post(name: .init("ShowSettings"), object: nil)
-        }) {
-            Image(systemName: "gearshape.fill")
-                .font(.system(size: 16))
-                .foregroundColor(.primary)
         }
     }
 }
