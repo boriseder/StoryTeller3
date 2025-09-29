@@ -120,13 +120,16 @@ struct ContinueReadingSection: View {
         do {
             let book = try await api.fetchBookDetails(bookId: state.bookId)
             player.configure(baseURL: api.baseURLString, authToken: api.authToken, downloadManager: downloadManager)
-            player.loadWithStateRestoration(book: book)
+            
+            let isOffline = downloadManager.isBookDownloaded(book.id)
+            player.load(book: book, isOffline: isOffline, restoreState: true)
+            
             onBookSelected()
         } catch {
             AppLogger.debug.debug("Failed to resume book: \(error)")
         }
     }
-    
+
     private func timeAgo(_ date: Date) -> String {
         let interval = Date().timeIntervalSince(date)
         if interval < 60 {

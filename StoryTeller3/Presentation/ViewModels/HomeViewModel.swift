@@ -96,13 +96,16 @@ class HomeViewModel: BaseViewModel {
     }
 
     @MainActor
-    func loadAndPlayBook(_ book: Book) async {
-        AppLogger.debug.debug("Loading book from recommendations: \(book.title)")
+    func loadAndPlayBook(_ book: Book, restoreState: Bool = true) async {
+        AppLogger.debug.debug("Loading book from recommendations: \(book.title), restoreState: \(restoreState)")
         
         do {
             let fetchedBook = try await api.fetchBookDetails(bookId: book.id)
             player.configure(baseURL: api.baseURLString, authToken: api.authToken, downloadManager: downloadManager)
-            player.load(book: fetchedBook)
+            
+            let isOffline = downloadManager.isBookDownloaded(fetchedBook.id)
+            player.load(book: fetchedBook, isOffline: isOffline, restoreState: restoreState)
+            
             onBookSelected()
             AppLogger.debug.debug("Book '\(fetchedBook.title)' loaded from recommendations")
         } catch {
@@ -111,7 +114,7 @@ class HomeViewModel: BaseViewModel {
             AppLogger.debug.debug("Error loading book details from recommendations: \(error)")
         }
     }
-    
+
     @MainActor
     func loadSeriesBooks(_ series: Series) async {
         AppLogger.debug.debug("Loading series: \(series.name)")

@@ -123,24 +123,25 @@ class LibraryViewModel: BaseViewModel {
     }
         
     @MainActor
-    func loadAndPlayBook(_ book: Book) async {
-        AppLogger.debug.debug("Lade Buch: \(book.title)")
+    func loadAndPlayBook(_ book: Book, restoreState: Bool = true) async {
+        AppLogger.debug.debug("Loading book: \(book.title), restoreState: \(restoreState)")
         
         do {
             let fetchedBook = try await api.fetchBookDetails(bookId: book.id)
             player.configure(baseURL: api.baseURLString, authToken: api.authToken, downloadManager: downloadManager)
-            player.load(book: fetchedBook)
+            
+            let isOffline = downloadManager.isBookDownloaded(fetchedBook.id)
+            player.load(book: fetchedBook, isOffline: isOffline, restoreState: restoreState)
+            
             onBookSelected()
-            AppLogger.debug.debug("Buch '\(fetchedBook.title)' geladen")
-            AppLogger.debug.debug("Buch von '\(fetchedBook.author ?? "Unbekannt")'")
-
+            AppLogger.debug.debug("Book '\(fetchedBook.title)' loaded")
         } catch {
-            errorMessage = "Konnte '\(book.title)' nicht laden: \(error.localizedDescription)"
+            errorMessage = "Could not load '\(book.title)': \(error.localizedDescription)"
             showingErrorAlert = true
-            AppLogger.debug.debug("Fehler beim Laden der Buchdetails: \(error)")
+            AppLogger.debug.debug("Error loading book details: \(error)")
         }
     }
-    
+
     // MARK: - Series Toggle Funktionen
     
     func toggleSeriesMode() {

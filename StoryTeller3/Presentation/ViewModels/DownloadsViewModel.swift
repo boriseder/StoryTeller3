@@ -29,10 +29,11 @@ class DownloadsViewModel: BaseViewModel {
     }
     
     func playBook(_ book: Book) {
-        player.load(book: book, isOffline: true)
+        let isOffline = downloadManager.isBookDownloaded(book.id)
+        player.load(book: book, isOffline: isOffline, restoreState: true)
         onBookSelected()
     }
-    
+
     func requestDeleteBook(_ book: Book) {
         bookToDelete = book
         showingDeleteConfirmation = true

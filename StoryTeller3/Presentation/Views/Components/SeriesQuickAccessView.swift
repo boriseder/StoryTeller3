@@ -252,22 +252,23 @@ struct SeriesQuickAccessView: View {
     
     @MainActor
     private func loadAndPlayBook(_ book: Book) async {
-        AppLogger.debug.debug("Lade Buch aus Quick Access: \(book.title)")
+        AppLogger.debug.debug("Loading book from Quick Access: \(book.title)")
         
         do {
             let fetchedBook = try await api.fetchBookDetails(bookId: book.id)
             player.configure(baseURL: api.baseURLString, authToken: api.authToken, downloadManager: downloadManager)
-            player.load(book: fetchedBook)
             
-            // Close sheet and show player
+            let isOffline = downloadManager.isBookDownloaded(fetchedBook.id)
+            player.load(book: fetchedBook, isOffline: isOffline, restoreState: true)
+            
             dismiss()
             onBookSelected()
             
-            AppLogger.debug.debug("Buch '\(fetchedBook.title)' aus Serie geladen")
+            AppLogger.debug.debug("Book '\(fetchedBook.title)' loaded from series")
         } catch {
-            errorMessage = "Konnte '\(book.title)' nicht laden: \(error.localizedDescription)"
+            errorMessage = "Could not load '\(book.title)': \(error.localizedDescription)"
             showingErrorAlert = true
-            AppLogger.debug.debug("Fehler beim Laden der Buchdetails: \(error)")
+            AppLogger.debug.debug("Error loading book details: \(error)")
         }
     }
 }

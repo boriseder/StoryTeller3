@@ -74,16 +74,18 @@ struct SeriesSectionView: View {
         
     @MainActor
     private func loadAndPlayBook(_ book: Book) async {
-        AppLogger.debug.debug("Lade Buch aus Serie: \(book.title)")
+        AppLogger.debug.debug("Loading book from series section: \(book.title)")
         
         do {
             let fetchedBook = try await api.fetchBookDetails(bookId: book.id)
             player.configure(baseURL: api.baseURLString, authToken: api.authToken, downloadManager: downloadManager)
-            player.load(book: fetchedBook)
+            
+            let isOffline = downloadManager.isBookDownloaded(fetchedBook.id)
+            player.load(book: fetchedBook, isOffline: isOffline, restoreState: true)
+            
             onBookSelected()
-            AppLogger.debug.debug("Buch '\(fetchedBook.title)' aus Serie geladen")
+            AppLogger.debug.debug("Book '\(fetchedBook.title)' loaded from series section")
         } catch {
-            AppLogger.debug.debug("Fehler beim Laden der Buchdetails aus Serie: \(error)")
+            AppLogger.debug.debug("Error loading book details from series: \(error)")
         }
-    }
-}
+    }}

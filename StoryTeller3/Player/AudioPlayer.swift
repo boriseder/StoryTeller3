@@ -24,6 +24,7 @@ class AudioPlayer: NSObject, ObservableObject {
     private var authToken: String = ""
     private var downloadManager: DownloadManager?
     private var isOfflineMode: Bool = false
+    private var targetSeekTime: Double?
 
     var currentChapter: Chapter? {
         guard let book = book, currentChapterIndex < book.chapters.count else { return nil }
@@ -35,6 +36,11 @@ class AudioPlayer: NSObject, ObservableObject {
         return downloadManager
     }
     
+    override init() {
+        super.init()
+        setupPersistence()
+    }
+
     // MARK: - Configuration
     func configure(baseURL: String, authToken: String, downloadManager: DownloadManager? = nil) {
         self.baseURL = baseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
@@ -79,13 +85,25 @@ class AudioPlayer: NSObject, ObservableObject {
     }
 
     // MARK: - Book Loading
-    func load(book: Book, isOffline: Bool = false) {
-        self.book = book
-        self.currentChapterIndex = 0
-        self.isOfflineMode = isOffline
-        loadChapter() // Default parameter shouldResumePlayback = false
-    }
 
+    func load(book: Book, isOffline: Bool = false, restoreState: Bool = true) {
+        self.book = book
+        self.isOfflineMode = isOffline
+        
+        // Restore saved state BEFORE loading chapter
+        if restoreState {
+            if let savedState = PlaybackPersistenceManager.shared.loadPlaybackState(for: book.id) {
+                self.currentChapterIndex = min(savedState.chapterIndex, book.chapters.count - 1)
+                self.targetSeekTime = savedState.currentTime
+                AppLogger.debug.debug("[AudioPlayer] Restored state: Chapter \(savedState.chapterIndex), Time: \(savedState.currentTime)s")
+            }
+        } else {
+            self.currentChapterIndex = 0
+            self.targetSeekTime = nil
+        }
+        
+        loadChapter()
+    }
     func loadChapter(shouldResumePlayback: Bool = false) {
         guard let chapter = currentChapter else {
             AppLogger.debug.debug("[AudioPlayer] ERROR: No current chapter found")
@@ -149,17 +167,15 @@ class AudioPlayer: NSObject, ObservableObject {
         
         AppLogger.debug.debug("[AudioPlayer] Switching to chapter \(index): \(targetChapter.title), wasPlaying: \(wasPlaying)")
         
-        // Store the playing state and pause
         if isPlaying {
             pause()
         }
         
         currentChapterIndex = index
-        
-        // Load new chapter with resume callback
         loadChapter(shouldResumePlayback: wasPlaying)
+        saveCurrentPlaybackState()
     }
-    
+
     private func loadOfflineChapter(_ chapter: Chapter, shouldResumePlayback: Bool = false) {
         guard let book = book,
               let downloadManager = downloadManager else {
@@ -193,15 +209,27 @@ class AudioPlayer: NSObject, ObservableObject {
         
         AppLogger.debug.debug("[AudioPlayer] Offline player setup complete, duration: \(duration)")
         
-        // Resume playback if requested
-        if shouldResumePlayback {
+        // Handle delayed seek for restored state
+        if let seekTime = targetSeekTime {
+            AppLogger.debug.debug("[AudioPlayer] Delayed seek to restored position: \(seekTime)s")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
+                guard let self = self else { return }
+                self.seek(to: seekTime)
+                self.targetSeekTime = nil
+                
+                if shouldResumePlayback {
+                    AppLogger.debug.debug("[AudioPlayer] Auto-resuming playback after restoration")
+                    self.play()
+                }
+            }
+        } else if shouldResumePlayback {
             AppLogger.debug.debug("[AudioPlayer] Auto-resuming playback for offline chapter")
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
                 self?.play()
             }
         }
     }
-    
+
     // MARK: - Playback Session Management
     private func createPlaybackSession(for chapter: Chapter, completion: @escaping (Result<PlaybackSessionResponse, Error>) -> Void) {
         guard let libraryItemId = chapter.libraryItemId else {
@@ -294,15 +322,27 @@ class AudioPlayer: NSObject, ObservableObject {
         
         AppLogger.debug.debug("[AudioPlayer] Player created, duration set to: \(self.duration)")
         
-        // Resume playback if requested - wait a bit for player to be ready
-        if shouldResumePlayback {
+        // Handle delayed seek for restored state
+        if let seekTime = targetSeekTime {
+            AppLogger.debug.debug("[AudioPlayer] Delayed seek to restored position: \(seekTime)s")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
+                guard let self = self else { return }
+                self.seek(to: seekTime)
+                self.targetSeekTime = nil
+                
+                if shouldResumePlayback {
+                    AppLogger.debug.debug("[AudioPlayer] Auto-resuming playback after restoration")
+                    self.play()
+                }
+            }
+        } else if shouldResumePlayback {
             AppLogger.debug.debug("[AudioPlayer] Auto-resuming playback for online chapter")
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
                 self?.play()
             }
         }
     }
-    
+
     private func createAuthenticatedAsset(url: URL) -> AVURLAsset {
         let headers = [
             "Authorization": "Bearer \(authToken)",
@@ -389,7 +429,9 @@ class AudioPlayer: NSObject, ObservableObject {
     func togglePlayPause() {
         AppLogger.debug.debug("[AudioPlayer] Toggle play/pause - currently playing: \(self.isPlaying)")
         self.isPlaying ? pause() : play()
+        saveCurrentPlaybackState()
     }
+
 
     func nextChapter() {
         guard let book = book else {
@@ -438,7 +480,9 @@ class AudioPlayer: NSObject, ObservableObject {
         let time = CMTime(seconds: seconds, preferredTimescale: 1)
         AppLogger.debug.debug("[AudioPlayer] Seeking to: \(seconds)s")
         player?.seek(to: time)
+        saveCurrentPlaybackState()
     }
+
 
     private func addTimeObserver() {
         guard let player = player else { return }
@@ -449,6 +493,59 @@ class AudioPlayer: NSObject, ObservableObject {
             self?.currentTime = CMTimeGetSeconds(time)
         }
     }
+    
+    // MARK: - Persistence Integration
+
+    private func setupPersistence() {
+        // Listen for auto-save notifications
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleAutoSave),
+            name: .playbackAutoSave,
+            object: nil
+        )
+        
+        // Save when app goes to background
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleAppBackground),
+            name: UIApplication.didEnterBackgroundNotification,
+            object: nil
+        )
+    }
+
+    @objc private func handleAutoSave() {
+        saveCurrentPlaybackState()
+    }
+
+    @objc private func handleAppBackground() {
+        saveCurrentPlaybackState()
+    }
+
+    private func saveCurrentPlaybackState() {
+        guard let book = book else { return }
+        
+        let state = PlaybackState(
+            bookId: book.id,
+            chapterIndex: currentChapterIndex,
+            currentTime: currentTime,
+            duration: duration,
+            lastPlayed: Date(),
+            isFinished: isBookFinished()
+        )
+        
+        PlaybackPersistenceManager.shared.savePlaybackState(state)
+    }
+
+    private func isBookFinished() -> Bool {
+        guard let book = book else { return false }
+        
+        let isLastChapter = currentChapterIndex >= book.chapters.count - 1
+        let nearEnd = duration > 0 && (currentTime / duration) > 0.95
+        
+        return isLastChapter && nearEnd
+    }
+
     
     // MARK: - Playback Speed
     func setPlaybackRate(_ rate: Double) {

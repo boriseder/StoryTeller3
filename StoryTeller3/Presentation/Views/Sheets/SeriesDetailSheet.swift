@@ -286,9 +286,10 @@ struct SeriesDetailSheet: View {
         do {
             let fetchedBook = try await api.fetchBookDetails(bookId: book.id)
             player.configure(baseURL: api.baseURLString, authToken: api.authToken, downloadManager: downloadManager)
-            player.load(book: fetchedBook)
             
-            // Close sheet and show player
+            let isOffline = downloadManager.isBookDownloaded(fetchedBook.id)
+            player.load(book: fetchedBook, isOffline: isOffline, restoreState: true)
+            
             dismiss()
             onBookSelected()
             
