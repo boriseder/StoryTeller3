@@ -8,6 +8,7 @@ import SwiftUI
 
 struct HomeView: View {
     @StateObject private var viewModel: HomeViewModel
+    @EnvironmentObject var appState: AppStateManager
     
     @State private var selectedSeries: Series?
     @State private var selectedAuthor: IdentifiableString?
@@ -34,7 +35,6 @@ struct HomeView: View {
                 NoDownloadsView()
             case .content:
                 contentView
-
             }
         }
         .navigationTitle("Explore & listen")
@@ -66,6 +66,7 @@ struct HomeView: View {
                 downloadManager: viewModel.downloadManager,
                 onBookSelected: viewModel.onBookSelected
             )
+            .environmentObject(appState)
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
         }
@@ -77,6 +78,7 @@ struct HomeView: View {
                 downloadManager: viewModel.downloadManager,
                 onBookSelected: viewModel.onBookSelected
             )
+            .environmentObject(appState)
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
         }
@@ -90,10 +92,8 @@ struct HomeView: View {
             
             ScrollView {
                 LazyVStack(alignment: .leading) {
-                    // Header with Quick Stats
                     homeHeaderView
                     
-                    // All Personalized Sections
                     ForEach(viewModel.personalizedSections) { section in
                         PersonalizedSectionView(
                             section: section,
@@ -102,7 +102,7 @@ struct HomeView: View {
                             downloadManager: viewModel.downloadManager,
                             onBookSelected: { book in
                                 Task {
-                                    await viewModel.playBook(book)
+                                    await viewModel.playBook(book, appState: appState)
                                 }
                             },
                             onSeriesSelected: { series in
@@ -112,8 +112,9 @@ struct HomeView: View {
                                 selectedAuthor = authorName.asIdentifiable()
                             }
                         )
+                        .environmentObject(appState)
                     }
-                    // Bottom padding for mini player
+                    
                     Spacer()
                         .frame(height: 100)
                 }
@@ -124,8 +125,6 @@ struct HomeView: View {
     
     private var homeHeaderView: some View {
         VStack(alignment: .leading, spacing: 12) {
-            
-            // Quick Stats
             HStack(spacing: 16) {
                 HomeStatCard(
                     icon: "books.vertical.fill",

@@ -1,5 +1,3 @@
-import SwiftUI
-
 /**
  * StoryTeller2App - Main application entry point
  *
@@ -10,10 +8,11 @@ import SwiftUI
  * - Server and library statistics
  * - Advanced settings and cache management
  */
+
+import SwiftUI
+
 @main
 struct StoryTeller3App: App {
-    
-    // MARK: - App State
     @StateObject private var appState = AppStateManager()
     
     var body: some Scene {
@@ -21,22 +20,15 @@ struct StoryTeller3App: App {
             ContentView()
                 .environmentObject(appState)
                 .onAppear {
-                    setupCacheManager() // ← Neu hinzugefügt
-            }
+                    setupCacheManager()
+                }
         }
     }
     
-    // MARK: - App Configuration
-    
-    /**
-     * Setup cache manager with saved settings
-     */
     private func setupCacheManager() {
-        // Apply saved cache settings on app launch
         Task { @MainActor in
             CoverCacheManager.shared.updateCacheLimits()
             
-            // Enable automatic cache optimization if set
             if UserDefaults.standard.bool(forKey: "cache_optimization_enabled") {
                 await CoverCacheManager.shared.optimizeCache()
             }
@@ -45,4 +37,3 @@ struct StoryTeller3App: App {
         }
     }
 }
-

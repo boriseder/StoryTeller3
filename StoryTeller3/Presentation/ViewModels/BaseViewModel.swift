@@ -1,6 +1,5 @@
 import SwiftUI
 
-// MARK: - Base ViewModel
 class BaseViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var errorMessage: String?
@@ -17,23 +16,50 @@ class BaseViewModel: ObservableObject {
         showingErrorAlert = false
     }
     
+    // MARK: - Playback Mode
+    
+    enum PlaybackMode: CustomStringConvertible {
+        case online
+        case offline
+        case unavailable
+        
+        var description: String {
+            switch self {
+            case .online: return "online"
+            case .offline: return "offline"
+            case .unavailable: return "unavailable"
+            }
+        }
+    }
+    
+    func determinePlaybackMode(
+        book: Book,
+        downloadManager: DownloadManager,
+        appState: AppStateManager
+    ) -> PlaybackMode {
+        let isDownloaded = downloadManager.isBookDownloaded(book.id)
+        let hasConnection = appState.isDeviceOnline && appState.isServerReachable
+        
+        if isDownloaded {
+            return .offline
+        }
+        
+        if hasConnection {
+            return .online
+        }
+        
+        return .unavailable
+    }
+    
     // MARK: - Common Playback Method
     
-    /// Load book details and start playback
-    /// This method consolidates all loadAndPlayBook implementations across ViewModels
-    /// - Parameters:
-    ///   - book: Book to play (can be partial data, will fetch full details)
-    ///   - api: API client for fetching book details
-    ///   - player: Audio player instance
-    ///   - downloadManager: Download manager for offline detection
-    ///   - restoreState: Whether to restore previous playback position (default: true)
-    ///   - onSuccess: Callback executed after successful playback start
     @MainActor
     func loadAndPlayBook(
         _ book: Book,
         api: AudiobookshelfAPI,
         player: AudioPlayer,
         downloadManager: DownloadManager,
+        appState: AppStateManager,
         restoreState: Bool = true,
         onSuccess: @escaping () -> Void
     ) async {
@@ -41,26 +67,35 @@ class BaseViewModel: ObservableObject {
         errorMessage = nil
         
         do {
-            // Fetch complete book details
             let fullBook = try await api.fetchBookDetails(bookId: book.id)
             
-            // Configure player with API credentials
             player.configure(
                 baseURL: api.baseURLString,
                 authToken: api.authToken,
                 downloadManager: downloadManager
             )
             
-            // Determine if book is available offline
-            let isOffline = downloadManager.isBookDownloaded(fullBook.id)
+            let playbackMode = determinePlaybackMode(
+                book: fullBook,
+                downloadManager: downloadManager,
+                appState: appState
+            )
             
-            // Load book into player
-            player.load(book: fullBook, isOffline: isOffline, restoreState: restoreState)
+            switch playbackMode {
+            case .online:
+                player.load(book: fullBook, isOffline: false, restoreState: restoreState)
+                onSuccess()
+                
+            case .offline:
+                player.load(book: fullBook, isOffline: true, restoreState: restoreState)
+                onSuccess()
+                
+            case .unavailable:
+                errorMessage = "'\(book.title)' is not available offline and no internet connection is available."
+                showingErrorAlert = true
+            }
             
-            // Execute success callback
-            onSuccess()
-            
-            AppLogger.debug.debug("[BaseViewModel] Loaded book: \(fullBook.title)")
+            AppLogger.debug.debug("[BaseViewModel] Loaded book: \(fullBook.title) (mode: \(playbackMode))")
             
         } catch {
             errorMessage = "Could not load '\(book.title)': \(error.localizedDescription)"

@@ -7,6 +7,8 @@ struct SeriesSectionView: View {
     @ObservedObject var downloadManager: DownloadManager
     let onBookSelected: () -> Void
     
+    @EnvironmentObject var appState: AppStateManager
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             // Series Header
@@ -78,13 +80,47 @@ struct SeriesSectionView: View {
             let fetchedBook = try await api.fetchBookDetails(bookId: book.id)
             player.configure(baseURL: api.baseURLString, authToken: api.authToken, downloadManager: downloadManager)
             
-            let isOffline = downloadManager.isBookDownloaded(fetchedBook.id)
-            player.load(book: fetchedBook, isOffline: isOffline, restoreState: true)
+            let playbackMode = determinePlaybackMode(
+                book: fetchedBook,
+                downloadManager: downloadManager,
+                appState: appState
+            )
             
-            onBookSelected()
+            switch playbackMode {
+            case .online:
+                player.load(book: fetchedBook, isOffline: false, restoreState: true)
+                onBookSelected()
+                
+            case .offline:
+                player.load(book: fetchedBook, isOffline: true, restoreState: true)
+                onBookSelected()
+                
+            case .unavailable:
+                AppLogger.debug.debug("[SeriesSectionView] Book not available offline and no connection")
+            }
+            
             AppLogger.debug.debug("[SeriesSectionView] Loaded book: \(fetchedBook.title)")
         } catch {
             AppLogger.debug.debug("[SeriesSectionView] Failed to load book: \(error)")
         }
+    }
+    
+    private func determinePlaybackMode(
+        book: Book,
+        downloadManager: DownloadManager,
+        appState: AppStateManager
+    ) -> BaseViewModel.PlaybackMode {
+        let isDownloaded = downloadManager.isBookDownloaded(book.id)
+        let hasConnection = appState.isDeviceOnline && appState.isServerReachable
+        
+        if isDownloaded {
+            return .offline
+        }
+        
+        if hasConnection {
+            return .online
+        }
+        
+        return .unavailable
     }
 }

@@ -1,8 +1,3 @@
-//
-//  Enhanced HomeViewModel.swift
-//  StoryTeller3
-//
-
 import SwiftUI
 
 class HomeViewModel: BaseViewModel {
@@ -15,7 +10,6 @@ class HomeViewModel: BaseViewModel {
     let downloadManager: DownloadManager
     let onBookSelected: () -> Void
     
-    // Computed properties for stats
     var totalItemsCount: Int {
         personalizedSections.reduce(0) { total, section in
             total + section.entities.count
@@ -49,7 +43,6 @@ class HomeViewModel: BaseViewModel {
         resetError()
         
         do {
-            // Use cached libraries if available, otherwise fetch them
             let availableLibraries: [Library]
             if libraries.isEmpty {
                 availableLibraries = try await api.fetchLibraries()
@@ -60,7 +53,8 @@ class HomeViewModel: BaseViewModel {
             
             let selectedLibrary: Library
             if let savedId = LibraryHelpers.getCurrentLibraryId(),
-               let found = availableLibraries.first(where: { $0.id == savedId }) {                selectedLibrary = found
+               let found = availableLibraries.first(where: { $0.id == savedId }) {
+                selectedLibrary = found
             } else if let first = availableLibraries.first {
                 selectedLibrary = first
                 LibraryHelpers.saveLibrarySelection(first.id)
@@ -94,19 +88,20 @@ class HomeViewModel: BaseViewModel {
     }
 
     @MainActor
-    func playBook(_ book: Book, restoreState: Bool = true) async {
+    func playBook(_ book: Book, appState: AppStateManager, restoreState: Bool = true) async {
         await loadAndPlayBook(
             book,
             api: api,
             player: player,
             downloadManager: downloadManager,
+            appState: appState,
             restoreState: restoreState,
             onSuccess: onBookSelected
         )
     }
 
     @MainActor
-    func loadSeriesBooks(_ series: Series) async {
+    func loadSeriesBooks(_ series: Series, appState: AppStateManager) async {
         AppLogger.debug.debug("Loading series: \(series.name)")
         
         do {
@@ -114,10 +109,8 @@ class HomeViewModel: BaseViewModel {
             
             let seriesBooks = try await api.fetchSeriesSingle(from: libraryId, seriesId: series.id)
             
-            // For now, just play the first book in the series
-            // In a real app, you might want to show a sheet with all books
             if let firstBook = seriesBooks.first {
-                await playBook(firstBook)  // ← FIXED: Use playBook instead
+                await playBook(firstBook, appState: appState)
             }
             
         } catch {
@@ -128,7 +121,7 @@ class HomeViewModel: BaseViewModel {
     }
     
     @MainActor
-    func searchBooksByAuthor(_ authorName: String) async {
+    func searchBooksByAuthor(_ authorName: String, appState: AppStateManager) async {
         AppLogger.debug.debug("Searching books by author: \(authorName)")
         
         do {
@@ -139,10 +132,8 @@ class HomeViewModel: BaseViewModel {
                 book.author?.localizedCaseInsensitiveContains(authorName) == true
             }
             
-            // For now, just play the first book by this author
-            // In a real app, you might want to show a sheet with all books by this author
             if let firstBook = authorBooks.first {
-                await playBook(firstBook)  // ← FIXED: Use playBook instead
+                await playBook(firstBook, appState: appState)
             } else {
                 errorMessage = "No books found by '\(authorName)'"
                 showingErrorAlert = true
@@ -154,6 +145,7 @@ class HomeViewModel: BaseViewModel {
             AppLogger.debug.debug("Error searching books by author: \(error)")
         }
     }
+    
     // MARK: - Private Methods
     
     private func getAllBooksFromSections() -> [Book] {

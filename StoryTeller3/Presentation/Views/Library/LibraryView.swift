@@ -2,8 +2,9 @@ import SwiftUI
 
 struct LibraryView: View {
     @StateObject var viewModel: LibraryViewModel
+    @EnvironmentObject var appState: AppStateManager
 
-    @State private var selectedSeries: Book? // ✅ Diese Variable muss hier stehen
+    @State private var selectedSeries: Book?
     
     init(player: AudioPlayer, api: AudiobookshelfAPI, downloadManager: DownloadManager, onBookSelected: @escaping () -> Void) {
         self._viewModel = StateObject(wrappedValue: LibraryViewModel(
@@ -122,10 +123,11 @@ struct LibraryView: View {
             selectedSeries = book
         } else {
             Task {
-                await viewModel.playBook(book)
+                await viewModel.playBook(book, appState: appState)
             }
         }
     }
+
 
     // MARK: - Status Banners
     

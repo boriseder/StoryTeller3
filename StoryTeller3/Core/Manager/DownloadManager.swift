@@ -1,15 +1,12 @@
 import Foundation
 import AVFoundation
 
-/**
- * DownloadManager handles offline storage of audiobooks
- *
- * Features:
- * - Downloads complete audiobooks with metadata and cover images
- * - Tracks download progress and status
- * - Provides local file access for offline playback
- * - Manages storage cleanup and organization
- */
+enum OfflineStatus {
+    case notDownloaded
+    case incomplete
+    case available
+}
+
 class DownloadManager: ObservableObject {
     
     // MARK: - Published Properties
@@ -42,6 +39,22 @@ class DownloadManager: ObservableObject {
     
     // MARK: - Directory Management
     
+    func getOfflineStatus(for bookId: String) -> OfflineStatus {
+        if !isBookDownloaded(bookId) {
+            return .notDownloaded
+        }
+        
+        if !validateBookIntegrity(bookId) {
+            return .incomplete
+        }
+        
+        return .available
+    }
+
+    func isBookAvailableOffline(_ bookId: String) -> Bool {
+        return getOfflineStatus(for: bookId) == .available
+    }
+
     /// Creates the downloads directory if it doesn't exist
     private func createDownloadsDirectory() {
         if !fileManager.fileExists(atPath: downloadsURL.path) {

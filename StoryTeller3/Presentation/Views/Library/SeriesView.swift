@@ -2,7 +2,8 @@ import SwiftUI
 
 struct SeriesView: View {
     @StateObject private var viewModel: SeriesViewModel
-    
+    @EnvironmentObject var appState: AppStateManager
+
     init(player: AudioPlayer, api: AudiobookshelfAPI, downloadManager: DownloadManager, onBookSelected: @escaping () -> Void) {
         self._viewModel = StateObject(wrappedValue: SeriesViewModel(
             api: api,
@@ -68,12 +69,10 @@ struct SeriesView: View {
                             api: viewModel.api,
                             downloadManager: viewModel.downloadManager,
                             onBookSelected: {
-                                Task {
-                                    // falls du ein konkretes Buch laden willst,
-                                    // musst du das Buch hier aus `series` auswählen
-                                }
+                                // Book selection is handled inside SeriesSectionView
                             }
                         )
+                        .environmentObject(appState)
                     }
                 }
                 .padding(.horizontal, 16)

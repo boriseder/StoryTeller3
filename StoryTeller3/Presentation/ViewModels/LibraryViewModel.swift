@@ -122,16 +122,18 @@ class LibraryViewModel: BaseViewModel {
     }
         
     @MainActor
-    func playBook(_ book: Book, restoreState: Bool = true) async {
+    func playBook(_ book: Book, appState: AppStateManager, restoreState: Bool = true) async {
         await loadAndPlayBook(
             book,
             api: api,
             player: player,
             downloadManager: downloadManager,
+            appState: appState,
             restoreState: restoreState,
             onSuccess: onBookSelected
         )
     }
+    
     // MARK: - Series Toggle Funktionen
     
     func toggleSeriesMode() {
