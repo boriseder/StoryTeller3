@@ -2,7 +2,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @StateObject private var viewModel = SettingsViewModel()
-    
+
     var body: some View {
         NavigationStack {
             Form {
@@ -14,9 +14,34 @@ struct SettingsView: View {
                     librariesSection
                 }
                 
-                advancedSettingsSection
+                cacheSection
+                coverCacheSection
+                downloadSection
+                networkSection
+                debugSection
             }
             .navigationTitle("Einstellungen")
+            .navigationBarTitleDisplayMode(.large)
+            .onAppear { viewModel.loadSettings() }
+            .refreshable { await viewModel.calculateStorageInfo() }
+            .alert("App-Cache leeren", isPresented: $viewModel.showingClearAppCacheAlert) {
+                Button("Abbrechen", role: .cancel) {}
+                Button("Löschen", role: .destructive) { Task { await viewModel.clearAppCache() } }
+            }
+            .alert("Kompletten Cache leeren", isPresented: $viewModel.showingClearAllCacheAlert) {
+                Button("Abbrechen", role: .cancel) {}
+                Button("Alles löschen", role: .destructive) { Task { await viewModel.clearCompleteCache() } }
+            }
+            .alert("Downloads löschen", isPresented: $viewModel.showingClearDownloadsAlert) {
+                Button("Abbrechen", role: .cancel) {}
+                Button("Alle löschen", role: .destructive) { Task { await viewModel.clearAllDownloads() } }
+            }
+            .alert("Cover-Cache verwalten", isPresented: $viewModel.showingClearCoverCacheAlert) {
+                Button("Abbrechen", role: .cancel) {}
+                Button("Nur Memory", role: .destructive) { viewModel.clearCoverMemoryCache() }
+                Button("Alles löschen", role: .destructive) { viewModel.coverCacheManager.clearAllCache() }
+            }
+
         }
     }
     
@@ -187,15 +212,76 @@ struct SettingsView: View {
     }
     
     // MARK: - Advanced Settings Section
-    private var advancedSettingsSection: some View {
+
+    private var cacheSection: some View {
         Section {
-            NavigationLink(destination: AdvancedSettingsView()) {
-                HStack {
-                    Image(systemName: "gearshape.2")
-                        .foregroundColor(.accentColor)
-                    Text("Erweiterte Einstellungen")
-                }
+            HStack { Text("App-Cache"); Spacer(); Text(viewModel.appCacheSize).foregroundColor(.secondary) }
+            Button("App-Cache leeren") { viewModel.showingClearAppCacheAlert = true }.foregroundColor(.orange)
+            Button("Kompletten Cache leeren") { viewModel.showingClearAllCacheAlert = true }.foregroundColor(.red)
+        } header: {
+            Label("Cache-Verwaltung", systemImage: "externaldrive.fill")
+        }
+    }
+
+    private var coverCacheSection: some View {
+        Section {
+            HStack { Text("Cover-Cache"); Spacer(); Text(viewModel.coverCacheSize).foregroundColor(.secondary) }
+            Stepper("Memory Cache Limit: \(viewModel.coverCacheLimit)", value: $viewModel.coverCacheLimit, in: 50...200, step: 10) {_ in
+                viewModel.saveCoverCacheSettings()
             }
+            Stepper("Memory Size: \(viewModel.memoryCacheSize) MB", value: $viewModel.memoryCacheSize, in: 25...200, step: 5) {_ in
+                viewModel.saveCoverCacheSettings()
+            }
+            Button("Cover-Cache verwalten") { viewModel.showingClearCoverCacheAlert = true }.foregroundColor(.blue)
+        } header: {
+            Label("Cover-Cache", systemImage: "photo.stack.fill")
+        }
+    }
+
+    private var downloadSection: some View {
+        Section {
+            HStack { Text("Heruntergeladene Bücher"); Spacer(); Text("\(viewModel.downloadedBooksCount)").foregroundColor(.secondary) }
+            Stepper("Max. gleichzeitige Downloads: \(viewModel.maxConcurrentDownloads)", value: $viewModel.maxConcurrentDownloads, in: 1...5) {_ in
+                viewModel.saveDownloadSettings()
+            }
+            Button("Alle Downloads löschen") { viewModel.showingClearDownloadsAlert = true }.foregroundColor(.red).disabled(viewModel.downloadedBooksCount == 0)
+        } header: {
+            Label("Download-Einstellungen", systemImage: "arrow.down.circle.fill")
+        }
+    }
+
+    private var networkSection: some View {
+        Section {
+            VStack(alignment: .leading) {
+                Text("Verbindungs-Timeout: \(Int(viewModel.connectionTimeout))s")
+                Slider(value: $viewModel.connectionTimeout, in: 10...60, step: 5) { _ in viewModel.saveNetworkSettings() }
+            }
+        } header: {
+            Label("Netzwerk-Einstellungen", systemImage: "network")
+        }
+    }
+
+    private var debugSection: some View {
+        Section {
+            Toggle("Debug-Protokollierung", isOn: $viewModel.enableDebugLogging).onChange(of: viewModel.enableDebugLogging) { viewModel.toggleDebugLogging($0) }
+        } header: {
+            Label("Debug-Einstellungen", systemImage: "ladybug.fill")
+        }
+    }
+
+}
+
+struct StorageItem: View {
+    let title: String
+    let size: String
+    let color: Color
+    var body: some View {
+        HStack {
+            Circle().fill(color).frame(width: 12, height: 12)
+            Text(title)
+            Spacer()
+            Text(size).foregroundColor(.secondary)
         }
     }
 }
+
