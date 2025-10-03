@@ -21,26 +21,26 @@ struct SettingsView: View {
                 aboutSection
                 debugSection
             }
-            .navigationTitle("Einstellungen")
+            .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.large)
             .onAppear { viewModel.loadSettings() }
             .refreshable { await viewModel.calculateStorageInfo() }
-            .alert("App-Cache leeren", isPresented: $viewModel.showingClearAppCacheAlert) {
-                Button("Abbrechen", role: .cancel) {}
-                Button("Löschen", role: .destructive) { Task { await viewModel.clearAppCache() } }
+            .alert("Empty App-Cache", isPresented: $viewModel.showingClearAppCacheAlert) {
+                Button("Cancel", role: .cancel) {}
+                Button("Delete", role: .destructive) { Task { await viewModel.clearAppCache() } }
             }
             .alert("Kompletten Cache leeren", isPresented: $viewModel.showingClearAllCacheAlert) {
-                Button("Abbrechen", role: .cancel) {}
-                Button("Alles löschen", role: .destructive) { Task { await viewModel.clearCompleteCache() } }
+                Button("Cancel", role: .cancel) {}
+                Button("Alles Delete", role: .destructive) { Task { await viewModel.clearCompleteCache() } }
             }
-            .alert("Downloads löschen", isPresented: $viewModel.showingClearDownloadsAlert) {
-                Button("Abbrechen", role: .cancel) {}
-                Button("Alle löschen", role: .destructive) { Task { await viewModel.clearAllDownloads() } }
+            .alert("Downloads Delete", isPresented: $viewModel.showingClearDownloadsAlert) {
+                Button("Cancel", role: .cancel) {}
+                Button("Alle Delete", role: .destructive) { Task { await viewModel.clearAllDownloads() } }
             }
             .alert("Cover-Cache verwalten", isPresented: $viewModel.showingClearCoverCacheAlert) {
-                Button("Abbrechen", role: .cancel) {}
+                Button("Cancel", role: .cancel) {}
                 Button("Nur Memory", role: .destructive) { viewModel.clearCoverMemoryCache() }
-                Button("Alles löschen", role: .destructive) { viewModel.coverCacheManager.clearAllCache() }
+                Button("Alles Delete", role: .destructive) { viewModel.coverCacheManager.clearAllCache() }
             }
 
         }
@@ -48,7 +48,7 @@ struct SettingsView: View {
     
     // MARK: - Server Section
     private var serverSection: some View {
-        Section(header: Text("Server")) {
+        Section(header: Text("Audiobookshelf Server")) {
             Picker("Scheme", selection: $viewModel.scheme) {
                 Text("http").tag("http")
                 Text("https").tag("https")
@@ -93,8 +93,8 @@ struct SettingsView: View {
     
     // MARK: - Credentials Section
     private var credentialsSection: some View {
-        Section(header: Text("Anmeldedaten")) {
-            TextField("Benutzername", text: $viewModel.username)
+        Section(header: Text("Authentication")) {
+            TextField("Username", text: $viewModel.username)
                 .autocapitalization(.none)
                 .disableAutocorrection(true)
                 .disabled(viewModel.isLoggedIn)
@@ -102,7 +102,7 @@ struct SettingsView: View {
                     viewModel.onCredentialsChanged()
                 }
             
-            SecureField("Passwort", text: $viewModel.password)
+            SecureField("Password", text: $viewModel.password)
                 .disabled(viewModel.isLoggedIn)
                 .onChange(of: viewModel.password) { _, _ in
                     viewModel.onCredentialsChanged()
@@ -138,7 +138,7 @@ struct SettingsView: View {
     private var connectionLoadingView: some View {
         HStack {
             ProgressView().scaleEffect(0.8)
-            Text("Verbindung wird getestet...")
+            Text("Testing connection...")
         }
     }
     
@@ -164,7 +164,7 @@ struct SettingsView: View {
         }) {
             HStack {
                 Image(systemName: "person.badge.key")
-                Text("Anmelden")
+                Text("Login")
             }
             .foregroundColor(.white)
             .frame(maxWidth: .infinity)
@@ -180,7 +180,7 @@ struct SettingsView: View {
         HStack {
             Image(systemName: "checkmark.circle.fill")
                 .foregroundColor(.green)
-            Text("Angemeldet als \(viewModel.username)")
+            Text("Login as \(viewModel.username)")
                 .foregroundColor(.primary)
             Spacer()
         }
@@ -188,9 +188,9 @@ struct SettingsView: View {
     
     // MARK: - Libraries Section
     private var librariesSection: some View {
-        Section(header: Text("Bibliotheken")) {
-            Picker("Bibliothek", selection: $viewModel.selectedLibraryId) {
-                Text("Keine Auswahl").tag(nil as String?)
+        Section(header: Text("Libraries")) {
+            Picker("Library", selection: $viewModel.selectedLibraryId) {
+                Text("No selection").tag(nil as String?)
                 ForEach(viewModel.libraries, id: \.id) { library in
                     Text(library.name).tag(library.id as String?)
                 }
@@ -211,7 +211,7 @@ struct SettingsView: View {
         }) {
             HStack {
                 Image(systemName: "rectangle.portrait.and.arrow.right")
-                Text("Abmelden")
+                Text("Logout")
             }
             .foregroundColor(.red)
             .frame(maxWidth: .infinity)
@@ -227,10 +227,10 @@ struct SettingsView: View {
     private var cacheSection: some View {
         Section {
             HStack { Text("App-Cache"); Spacer(); Text(viewModel.appCacheSize).foregroundColor(.secondary) }
-            Button("App-Cache leeren") { viewModel.showingClearAppCacheAlert = true }.foregroundColor(.orange)
-            Button("Kompletten Cache leeren") { viewModel.showingClearAllCacheAlert = true }.foregroundColor(.red)
+            Button("Empty App-Cache") { viewModel.showingClearAppCacheAlert = true }.foregroundColor(.orange)
+            Button("Empty all cached data") { viewModel.showingClearAllCacheAlert = true }.foregroundColor(.red)
         } header: {
-            Label("Cache-Verwaltung", systemImage: "externaldrive.fill")
+            Label("Manage Cache", systemImage: "externaldrive.fill")
         }
     }
 
@@ -243,7 +243,7 @@ struct SettingsView: View {
             Stepper("Memory Size: \(viewModel.memoryCacheSize) MB", value: $viewModel.memoryCacheSize, in: 25...200, step: 5) {_ in
                 viewModel.saveCoverCacheSettings()
             }
-            Button("Cover-Cache verwalten") { viewModel.showingClearCoverCacheAlert = true }.foregroundColor(.blue)
+            Button("Manage Cover-Cache") { viewModel.showingClearCoverCacheAlert = true }.foregroundColor(.blue)
         } header: {
             Label("Cover-Cache", systemImage: "photo.stack.fill")
         }
@@ -251,24 +251,24 @@ struct SettingsView: View {
 
     private var downloadSection: some View {
         Section {
-            HStack { Text("Heruntergeladene Bücher"); Spacer(); Text("\(viewModel.downloadedBooksCount)").foregroundColor(.secondary) }
-            Stepper("Max. gleichzeitige Downloads: \(viewModel.maxConcurrentDownloads)", value: $viewModel.maxConcurrentDownloads, in: 1...5) {_ in
+            HStack { Text("Downloaded booksr"); Spacer(); Text("\(viewModel.downloadedBooksCount)").foregroundColor(.secondary) }
+            Stepper("Max. concurrent downloads: \(viewModel.maxConcurrentDownloads)", value: $viewModel.maxConcurrentDownloads, in: 1...5) {_ in
                 viewModel.saveDownloadSettings()
             }
-            Button("Alle Downloads löschen") { viewModel.showingClearDownloadsAlert = true }.foregroundColor(.red).disabled(viewModel.downloadedBooksCount == 0)
+            Button("Delete all downloads") { viewModel.showingClearDownloadsAlert = true }.foregroundColor(.red).disabled(viewModel.downloadedBooksCount == 0)
         } header: {
-            Label("Download-Einstellungen", systemImage: "arrow.down.circle.fill")
+            Label("Download settings", systemImage: "arrow.down.circle.fill")
         }
     }
 
     private var networkSection: some View {
         Section {
             VStack(alignment: .leading) {
-                Text("Verbindungs-Timeout: \(Int(viewModel.connectionTimeout))s")
+                Text("Connection timeout: \(Int(viewModel.connectionTimeout))s")
                 Slider(value: $viewModel.connectionTimeout, in: 10...60, step: 5) { _ in viewModel.saveNetworkSettings() }
             }
         } header: {
-            Label("Netzwerk-Einstellungen", systemImage: "network")
+            Label("Network settings", systemImage: "network")
         }
     }
 
