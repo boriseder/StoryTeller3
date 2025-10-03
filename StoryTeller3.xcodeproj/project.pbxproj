@@ -6,8 +6,13 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		A1F1E3F62E8FF7D000033B05 /* PrivacyInfo.xcprivacy in Sources */ = {isa = PBXBuildFile; fileRef = A1F1E3F52E8FF7CD00033B05 /* PrivacyInfo.xcprivacy */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		A1ADC2122E53B9D000E332FB /* StoryTeller3.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = StoryTeller3.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A1F1E3F52E8FF7CD00033B05 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -45,6 +50,7 @@
 		A1ADC2092E53B9D000E332FB = {
 			isa = PBXGroup;
 			children = (
+				A1F1E3F52E8FF7CD00033B05 /* PrivacyInfo.xcprivacy */,
 				A1ADC2142E53B9D000E332FB /* StoryTeller3 */,
 				A1ADC2132E53B9D000E332FB /* Products */,
 			);
@@ -132,6 +138,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A1F1E3F62E8FF7D000033B05 /* PrivacyInfo.xcprivacy in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

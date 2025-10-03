@@ -43,7 +43,7 @@ class DefaultNetworkService: NetworkService {
             throw AudiobookshelfError.networkError(error)
         }
     }
-
+    
     func createAuthenticatedRequest(url: URL, authToken: String) -> URLRequest {
         var request = URLRequest(url: url)
         request.setValue("Bearer \(authToken)", forHTTPHeaderField: "Authorization")
@@ -63,7 +63,7 @@ class DefaultNetworkService: NetworkService {
         case 401:
             throw AudiobookshelfError.unauthorized
         case 404:
-            throw AudiobookshelfError.noData
+            throw AudiobookshelfError.resourceNotFound("Resource not found")
         default:
             let errorMessage = String(data: data, encoding: .utf8)
             throw AudiobookshelfError.serverError(httpResponse.statusCode, errorMessage)

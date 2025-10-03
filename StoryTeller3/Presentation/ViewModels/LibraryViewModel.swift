@@ -80,10 +80,69 @@ class LibraryViewModel: BaseViewModel {
                 let libraries = try await api.fetchLibraries()
                 if let selectedLibrary = libraries.first(where: { $0.id == libraryId }) {
                     libraryName = selectedLibrary.name
-                                        
-                    fetchedBooks = try await api.fetchBooks(from: libraryId, limit: 0, collapseSeries: showSeriesGrouped)
                     
-                    _ = showSeriesGrouped ? "gebündelt" : "einzeln"
+                    // ✅ CRASH PROTECTION: Try with series grouping first
+                    do {
+                        fetchedBooks = try await api.fetchBooks(
+                            from: libraryId,
+                            limit: 0,
+                            collapseSeries: showSeriesGrouped
+                        )
+                        
+                        AppLogger.debug.debug("[Library] ✅ Loaded \(fetchedBooks.count) books successfully")
+                        
+                    } catch let decodingError as DecodingError {
+                        // ✅ Handle malformed data gracefully
+                        AppLogger.debug.debug("[Library] ⚠️ Decoding error: \(decodingError)")
+                        
+                        // Try to get detailed error information
+                        let errorDetails = getDecodingErrorDetails(decodingError)
+                        AppLogger.debug.debug("[Library] Error details: \(errorDetails)")
+                        
+                        // Show user-friendly error
+                        errorMessage = """
+                        Some books couldn't be loaded due to data format issues.
+                        
+                        This might happen if:
+                        • Your server has corrupted metadata
+                        • Server version is incompatible
+                        • Network connection was interrupted
+                        
+                        Try: \(errorDetails)
+                        """
+                        
+                        // ✅ Fallback: Try without series grouping
+                        if showSeriesGrouped {
+                            AppLogger.debug.debug("[Library] 🔄 Retrying without series grouping...")
+                            
+                            do {
+                                fetchedBooks = try await api.fetchBooks(
+                                    from: libraryId,
+                                    limit: 0,
+                                    collapseSeries: false
+                                )
+                                
+                                AppLogger.debug.debug("[Library] ✅ Fallback successful: \(fetchedBooks.count) books loaded")
+                                
+                                // Inform user about the workaround
+                                errorMessage = """
+                                Loaded \(fetchedBooks.count) books successfully.
+                                
+                                Note: Series grouping was disabled due to data issues.
+                                Contact your Audiobookshelf admin to check server logs.
+                                """
+                                showingErrorAlert = true
+                                
+                            } catch {
+                                // ✅ Even fallback failed - load what we can
+                                AppLogger.debug.debug("[Library] ❌ Fallback also failed: \(error)")
+                                throw error
+                            }
+                        } else {
+                            // Series grouping was already off, can't fallback further
+                            throw decodingError
+                        }
+                    }
                     
                 } else {
                     throw AudiobookshelfError.libraryNotFound("Selected library not found")
@@ -92,8 +151,12 @@ class LibraryViewModel: BaseViewModel {
                 let libraries = try await api.fetchLibraries()
                 if let firstLibrary = libraries.first {
                     libraryName = firstLibrary.name
-                                        
-                    fetchedBooks = try await api.fetchBooks(from: firstLibrary.id, limit: 0, collapseSeries: showSeriesGrouped)
+                    
+                    fetchedBooks = try await api.fetchBooks(
+                        from: firstLibrary.id,
+                        limit: 0,
+                        collapseSeries: showSeriesGrouped
+                    )
                     
                     UserDefaults.standard.set(firstLibrary.id, forKey: "selected_library_id")
                 } else {
@@ -113,14 +176,69 @@ class LibraryViewModel: BaseViewModel {
                 limit: 10
             )
             
+        } catch let decodingError as DecodingError {
+            // ✅ Handle decoding errors specifically
+            let errorDetails = getDecodingErrorDetails(decodingError)
+            
+            errorMessage = """
+            Failed to load library data.
+            
+            Error: \(errorDetails)
+            
+            Please contact your Audiobookshelf administrator to check:
+            • Server logs for errors
+            • Database integrity
+            • Recent metadata changes
+            """
+            
+            showingErrorAlert = true
+            AppLogger.debug.debug("[Library] ❌ Decoding error: \(decodingError)")
+            
+        } catch let networkError as URLError {
+            // ✅ Handle network errors specifically
+            switch networkError.code {
+            case .timedOut:
+                errorMessage = "Connection timed out. Your library might be very large. Try again or check your network."
+            case .notConnectedToInternet:
+                errorMessage = "No internet connection. Please check your network settings."
+            case .cannotFindHost:
+                errorMessage = "Cannot reach server. Please verify your server address in settings."
+            default:
+                errorMessage = "Network error: \(networkError.localizedDescription)"
+            }
+            
+            showingErrorAlert = true
+            AppLogger.debug.debug("[Library] ❌ Network error: \(networkError)")
+            
         } catch {
+            // ✅ Handle all other errors
             handleError(error)
-            AppLogger.debug.debug("Fehler beim Laden der Bücher: \(error)")
+            AppLogger.debug.debug("[Library] ❌ Fehler beim Laden der Bücher: \(error)")
         }
         
         isLoading = false
     }
-        
+
+    // Helper method to extract detailed decoding error info
+    private func getDecodingErrorDetails(_ error: DecodingError) -> String {
+        switch error {
+        case .typeMismatch(let type, let context):
+            return "Type mismatch for \(type) at \(context.codingPath.map { $0.stringValue }.joined(separator: " → "))"
+            
+        case .valueNotFound(let type, let context):
+            return "Missing value for \(type) at \(context.codingPath.map { $0.stringValue }.joined(separator: " → "))"
+            
+        case .keyNotFound(let key, let context):
+            return "Missing key '\(key.stringValue)' at \(context.codingPath.map { $0.stringValue }.joined(separator: " → "))"
+            
+        case .dataCorrupted(let context):
+            return "Data corrupted at \(context.codingPath.map { $0.stringValue }.joined(separator: " → ")): \(context.debugDescription)"
+            
+        @unknown default:
+            return "Unknown decoding error"
+        }
+    }
+    
     @MainActor
     func playBook(_ book: Book, appState: AppStateManager, restoreState: Bool = true) async {
         await loadAndPlayBook(

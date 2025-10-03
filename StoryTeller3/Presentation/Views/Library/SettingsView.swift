@@ -18,6 +18,7 @@ struct SettingsView: View {
                 coverCacheSection
                 downloadSection
                 networkSection
+                aboutSection
                 debugSection
             }
             .navigationTitle("Einstellungen")
@@ -53,6 +54,16 @@ struct SettingsView: View {
                 Text("https").tag("https")
             }
             .disabled(viewModel.isLoggedIn)
+            if viewModel.scheme == "http" {
+                HStack {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundColor(.orange)
+                    Text("HTTP is not secure. Use HTTPS when possible.")
+                        .font(.caption)
+                        .foregroundColor(.orange)
+                }
+                .padding(.horizontal)
+            }
             
             TextField("Host", text: $viewModel.host)
                 .autocapitalization(.none)
@@ -261,6 +272,26 @@ struct SettingsView: View {
         }
     }
 
+    private var aboutSection: some View {
+        Section {
+            HStack {
+                Text("App Version")
+                Spacer()
+                Text(getAppVersion())
+                    .foregroundColor(.secondary)
+            }
+            
+            HStack {
+                Text("Build")
+                Spacer()
+                Text(getBuildNumber())
+                    .foregroundColor(.secondary)
+            }
+        } header: {
+            Text("About")
+        }
+    }
+    
     private var debugSection: some View {
         Section {
             Toggle("Debug-Protokollierung", isOn: $viewModel.enableDebugLogging).onChange(of: viewModel.enableDebugLogging) { viewModel.toggleDebugLogging($0) }
@@ -271,6 +302,14 @@ struct SettingsView: View {
                 CoverCacheManager.shared.triggerCriticalCleanup()
             }
         }
+    }
+    
+    private func getAppVersion() -> String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
+    }
+
+    private func getBuildNumber() -> String {
+        Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "Unknown"
     }
 
 }

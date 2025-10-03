@@ -24,7 +24,8 @@ struct ContentView: View {
             switch appState.loadingState {
             case .initial, .loadingCredentials, .credentialsFoundValidating:
                 LoadingView()
-            
+                    .transition(.opacity) // Smooth fade transition
+                
             case .noCredentialsSaved:
                 Color.clear
                     .onAppear {
@@ -34,7 +35,7 @@ struct ContentView: View {
                             appState.showingSettings = true
                         }
                     }
-            
+                
             case .networkError(let issueType):
                 NetworkErrorView(
                     issueType: issueType,
@@ -52,21 +53,26 @@ struct ContentView: View {
                         appState.showingSettings = true
                     }
                 )
-            
+                .transition(.opacity)
+                
             case .authenticationError:
                 AuthErrorView(
                     onReLogin: {
                         appState.showingSettings = true
                     }
                 )
-            
+                .transition(.opacity)
+                
             case .loadingData:
-                LoadingView()
-            
+                LoadingView(message: "Loading data...")
+                    .transition(.opacity)
+                
             case .ready:
                 mainContent
+                    .transition(.opacity)
             }
         }
+        .animation(.easeInOut(duration: 0.25), value: appState.loadingState)
         .onAppear(perform: setupApp)
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)) { _ in
             if UserDefaults.standard.bool(forKey: "auto_cache_cleanup") {

@@ -3,6 +3,7 @@ import AVFoundation
 import Combine
 import AVKit
 import UIKit
+import MediaPlayer
 
 // MARK: - Audio Player
 class AudioPlayer: NSObject, ObservableObject {
@@ -52,13 +53,35 @@ class AudioPlayer: NSObject, ObservableObject {
         configureAudioSession()
     }
     
+    // MARK: - ✅ FIXED: Enhanced Audio Session Configuration
     private func configureAudioSession() {
         do {
             let audioSession = AVAudioSession.sharedInstance()
-            try audioSession.setCategory(.playback, mode: .default, options: [.allowAirPlay, .allowBluetooth])
+            
+            // ✅ Configure for background audiobook playback
+            try audioSession.setCategory(
+                .playback,
+                mode: .spokenAudio,  // ⚠️ CRITICAL: Use .spokenAudio for audiobooks
+                options: [
+                    .allowAirPlay,
+                    .allowBluetooth,
+                    .allowBluetoothA2DP,
+                    .duckOthers  // Lower other audio when playing
+                ]
+            )
+            
+            // ✅ Set preferred sample rate for efficiency
+            try audioSession.setPreferredSampleRate(44100.0)
+            
+            // ✅ Set buffer duration for smooth playback
+            try audioSession.setPreferredIOBufferDuration(0.005)
+            
             try audioSession.setActive(true)
             
-            // Listen for route changes
+            // ✅ Setup remote controls and now playing info
+            setupRemoteCommandCenter()
+            
+            // Listen for route changes and interruptions
             NotificationCenter.default.addObserver(
                 self,
                 selector: #selector(audioRouteChanged),
@@ -66,9 +89,158 @@ class AudioPlayer: NSObject, ObservableObject {
                 object: nil
             )
             
+            NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(handleInterruption),
+                name: AVAudioSession.interruptionNotification,
+                object: nil
+            )
+            
             updateAudioRoutes()
         } catch {
             errorMessage = "Audio session configuration failed: \(error.localizedDescription)"
+            AppLogger.debug.debug("[AudioPlayer] ❌ Audio session error: \(error)")
+        }
+    }
+    
+    // MARK: - ✅ NEW: Interruption Handling
+    @objc private func handleInterruption(notification: Notification) {
+        guard let userInfo = notification.userInfo,
+              let typeValue = userInfo[AVAudioSessionInterruptionTypeKey] as? UInt,
+              let type = AVAudioSession.InterruptionType(rawValue: typeValue) else {
+            return
+        }
+        
+        switch type {
+        case .began:
+            // Interruption began (phone call, alarm, etc.)
+            AppLogger.debug.debug("[AudioPlayer] 🔔 Interruption began - pausing")
+            pause()
+            
+        case .ended:
+            // Interruption ended
+            guard let optionsValue = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt else {
+                return
+            }
+            let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
+            if options.contains(.shouldResume) {
+                // Resume playback after interruption
+                AppLogger.debug.debug("[AudioPlayer] 🔔 Interruption ended - resuming")
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                    self?.play()
+                }
+            }
+            
+        @unknown default:
+            break
+        }
+    }
+    
+    // MARK: - ✅ NEW: Remote Command Center Setup
+    private func setupRemoteCommandCenter() {
+        let commandCenter = MPRemoteCommandCenter.shared()
+        
+        // Play command
+        commandCenter.playCommand.isEnabled = true
+        commandCenter.playCommand.addTarget { [weak self] _ in
+            self?.play()
+            return .success
+        }
+        
+        // Pause command
+        commandCenter.pauseCommand.isEnabled = true
+        commandCenter.pauseCommand.addTarget { [weak self] _ in
+            self?.pause()
+            return .success
+        }
+        
+        // Skip forward (15 seconds)
+        commandCenter.skipForwardCommand.isEnabled = true
+        commandCenter.skipForwardCommand.preferredIntervals = [15]
+        commandCenter.skipForwardCommand.addTarget { [weak self] _ in
+            self?.seek15SecondsForward()
+            return .success
+        }
+        
+        // Skip backward (15 seconds)
+        commandCenter.skipBackwardCommand.isEnabled = true
+        commandCenter.skipBackwardCommand.preferredIntervals = [15]
+        commandCenter.skipBackwardCommand.addTarget { [weak self] _ in
+            self?.seek15SecondsBack()
+            return .success
+        }
+        
+        // Next track (next chapter)
+        commandCenter.nextTrackCommand.isEnabled = true
+        commandCenter.nextTrackCommand.addTarget { [weak self] _ in
+            self?.nextChapter()
+            return .success
+        }
+        
+        // Previous track (previous chapter)
+        commandCenter.previousTrackCommand.isEnabled = true
+        commandCenter.previousTrackCommand.addTarget { [weak self] _ in
+            self?.previousChapter()
+            return .success
+        }
+        
+        // Change playback position (scrubbing)
+        commandCenter.changePlaybackPositionCommand.isEnabled = true
+        commandCenter.changePlaybackPositionCommand.addTarget { [weak self] event in
+            guard let self = self,
+                  let positionEvent = event as? MPChangePlaybackPositionCommandEvent else {
+                return .commandFailed
+            }
+            self.seek(to: positionEvent.positionTime)
+            return .success
+        }
+        
+        // Change playback rate
+        commandCenter.changePlaybackRateCommand.isEnabled = true
+        commandCenter.changePlaybackRateCommand.supportedPlaybackRates = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0]
+        commandCenter.changePlaybackRateCommand.addTarget { [weak self] event in
+            guard let self = self,
+                  let rateEvent = event as? MPChangePlaybackRateCommandEvent else {
+                return .commandFailed
+            }
+            self.setPlaybackRate(Double(rateEvent.playbackRate))
+            return .success
+        }
+        
+        AppLogger.debug.debug("[AudioPlayer] ✅ Remote command center configured")
+    }
+    
+    // MARK: - ✅ NEW: Now Playing Info
+    private func updateNowPlayingInfo() {
+        guard let book = book else {
+            MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+            return
+        }
+        
+        var nowPlayingInfo: [String: Any] = [
+            MPMediaItemPropertyTitle: book.title,
+            MPMediaItemPropertyArtist: book.author ?? "Unknown Author",
+            MPMediaItemPropertyPlaybackDuration: duration,
+            MPNowPlayingInfoPropertyElapsedPlaybackTime: currentTime,
+            MPNowPlayingInfoPropertyPlaybackRate: isPlaying ? Double(playbackRate) : 0.0
+        ]
+        
+        // Add chapter info
+        if let chapter = currentChapter {
+            nowPlayingInfo[MPMediaItemPropertyAlbumTitle] = chapter.title
+        }
+        
+        // Add artwork if available
+        Task { @MainActor in
+            if let downloadManager = downloadManager,
+               let localCoverURL = downloadManager.getLocalCoverURL(for: book.id),
+               let image = UIImage(contentsOfFile: localCoverURL.path) {
+                let artwork = MPMediaItemArtwork(boundsSize: image.size) { _ in image }
+                nowPlayingInfo[MPMediaItemPropertyArtwork] = artwork
+                MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
+            } else {
+                MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
+            }
         }
     }
     
@@ -104,6 +276,9 @@ class AudioPlayer: NSObject, ObservableObject {
         }
         
         loadChapter()
+        
+        // Update now playing info
+        updateNowPlayingInfo()
     }
 
     func loadChapter(shouldResumePlayback: Bool = false) {
@@ -140,7 +315,7 @@ class AudioPlayer: NSObject, ObservableObject {
                     self.currentPlaybackSession = session
                     self.setupPlayerWithSession(session, shouldResumePlayback: shouldResumePlayback)
                 case .failure(let error):
-                    AppLogger.debug.debug("[AudioPlayer] ERROR: Failed to create playbook session: \(error)")
+                    AppLogger.debug.debug("[AudioPlayer] ERROR: Failed to create playback session: \(error)")
                     self.errorMessage = error.localizedDescription
                 }
             }
@@ -176,6 +351,9 @@ class AudioPlayer: NSObject, ObservableObject {
         currentChapterIndex = index
         loadChapter(shouldResumePlayback: wasPlaying)
         saveCurrentPlaybackState()
+        
+        // Update now playing info with new chapter
+        updateNowPlayingInfo()
     }
 
     private func loadOfflineChapter(_ chapter: Chapter, shouldResumePlayback: Bool = false) {
@@ -210,6 +388,9 @@ class AudioPlayer: NSObject, ObservableObject {
         self.duration = duration
         
         AppLogger.debug.debug("[AudioPlayer] Offline player setup complete, duration: \(duration)")
+        
+        // Update now playing info
+        updateNowPlayingInfo()
         
         // Handle delayed seek for restored state
         if let seekTime = targetSeekTime {
@@ -324,6 +505,9 @@ class AudioPlayer: NSObject, ObservableObject {
         
         AppLogger.debug.debug("[AudioPlayer] Player created, duration set to: \(self.duration)")
         
+        // Update now playing info
+        updateNowPlayingInfo()
+        
         // Handle delayed seek for restored state
         if let seekTime = targetSeekTime {
             AppLogger.debug.debug("[AudioPlayer] Delayed seek to restored position: \(seekTime)s")
@@ -405,6 +589,7 @@ class AudioPlayer: NSObject, ObservableObject {
             player.play()
             player.rate = self.playbackRate
             isPlaying = true
+            updateNowPlayingInfo()
             AppLogger.debug.debug("[AudioPlayer] Playback started at rate: \(self.playbackRate)")
         case .failed:
             let error = currentItem.error?.localizedDescription ?? "Unbekannter Fehler"
@@ -414,11 +599,13 @@ class AudioPlayer: NSObject, ObservableObject {
             player.play()
             player.rate = self.playbackRate
             isPlaying = true
+            updateNowPlayingInfo()
             AppLogger.debug.debug("[AudioPlayer] Playback started (unknown status)")
         @unknown default:
             player.play()
             player.rate = self.playbackRate
             isPlaying = true
+            updateNowPlayingInfo()
         }
     }
     
@@ -426,6 +613,7 @@ class AudioPlayer: NSObject, ObservableObject {
         AppLogger.debug.debug("[AudioPlayer] Pause requested")
         player?.pause()
         isPlaying = false
+        updateNowPlayingInfo()
     }
     
     func togglePlayPause() {
@@ -433,7 +621,6 @@ class AudioPlayer: NSObject, ObservableObject {
         self.isPlaying ? pause() : play()
         saveCurrentPlaybackState()
     }
-
 
     func nextChapter() {
         guard let book = book else {
@@ -482,9 +669,9 @@ class AudioPlayer: NSObject, ObservableObject {
         let time = CMTime(seconds: seconds, preferredTimescale: 1)
         AppLogger.debug.debug("[AudioPlayer] Seeking to: \(seconds)s")
         player?.seek(to: time)
+        updateNowPlayingInfo()
         saveCurrentPlaybackState()
     }
-
 
     private func addTimeObserver() {
         guard let player = player else { return }
@@ -492,7 +679,13 @@ class AudioPlayer: NSObject, ObservableObject {
             forInterval: CMTime(seconds: 1, preferredTimescale: 1),
             queue: .main
         ) { [weak self] time in
-            self?.currentTime = CMTimeGetSeconds(time)
+            guard let self = self else { return }
+            self.currentTime = CMTimeGetSeconds(time)
+            
+            // Update now playing info periodically (every 5 seconds)
+            if Int(self.currentTime) % 5 == 0 {
+                self.updateNowPlayingInfo()
+            }
         }
     }
     
@@ -543,7 +736,6 @@ class AudioPlayer: NSObject, ObservableObject {
         
         return isLastChapter && nearEnd
     }
-
     
     // MARK: - Playback Speed
     func setPlaybackRate(_ rate: Double) {
@@ -555,6 +747,7 @@ class AudioPlayer: NSObject, ObservableObject {
             player?.rate = floatRate
         }
         
+        updateNowPlayingInfo()
         AppLogger.debug.debug("[AudioPlayer] Playback rate set to: \(rate)x (applied: \(self.isPlaying))")
     }
     
@@ -565,6 +758,7 @@ class AudioPlayer: NSObject, ObservableObject {
             AppLogger.debug.debug("[AudioPlayer] Book finished - stopping playback")
             DispatchQueue.main.async { [weak self] in
                 self?.isPlaying = false
+                self?.updateNowPlayingInfo()
             }
             return
         }
@@ -607,13 +801,31 @@ class AudioPlayer: NSObject, ObservableObject {
     }
 
     deinit {
-        cleanupPlayer()
+        // Clean up player resources
+        if let observer = timeObserver {
+            player?.removeTimeObserver(observer)
+            timeObserver = nil
+        }
+        
+        NotificationCenter.default.removeObserver(self)
+        
+        if let currentItem = player?.currentItem {
+            currentItem.removeObserver(self, forKeyPath: "status", context: nil)
+            currentItem.removeObserver(self, forKeyPath: "loadedTimeRanges", context: nil)
+        }
+        
+        player?.pause()
+        player = nil
         
         // Remove all observers
         observers.forEach { observer in
             NotificationCenter.default.removeObserver(observer)
         }
         observers.removeAll()
-
+        
+        // Clear now playing info
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+        
+        AppLogger.debug.debug("[AudioPlayer] ✅ Deinitialized and cleaned up")
     }
 }

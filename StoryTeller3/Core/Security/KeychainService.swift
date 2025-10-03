@@ -2,14 +2,6 @@
 //  KeychainService.swift
 //  StoryTeller3
 //
-//  Created by Boris Eder on 24.09.25.
-//
-
-
-//
-//  KeychainService.swift
-//  StoryTeller3
-//
 
 import Foundation
 import Security
@@ -30,7 +22,10 @@ class KeychainService {
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: username,
-            kSecValueData as String: data
+            kSecValueData as String: data,
+            // 🔒 CRITICAL SECURITY ADDITIONS
+            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
+            kSecAttrSynchronizable as String: false
         ]
         
         // Delete existing item first
@@ -91,7 +86,10 @@ class KeychainService {
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: account,
-            kSecValueData as String: data
+            kSecValueData as String: data,
+            // 🔒 CRITICAL SECURITY ADDITIONS
+            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
+            kSecAttrSynchronizable as String: false
         ]
         
         // Delete existing token first

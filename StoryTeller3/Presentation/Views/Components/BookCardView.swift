@@ -80,11 +80,7 @@ struct BookCardView: View {
     private var isCurrentBook: Bool {
         player.book?.id == book.id
     }
-    
-    private var downloadProgress: Double {
-        downloadManager.getDownloadProgress(for: book.id)
-    }
-    
+        
     private var isDownloaded: Bool {
         downloadManager.isBookDownloaded(book.id)
     }
@@ -234,48 +230,160 @@ struct BookCardView: View {
     private var downloadStatusOverlay: some View {
         Group {
             if isDownloading {
+                // ✅ Downloading State - Detailed Progress
                 ZStack {
-                    Circle()
-                        .fill(.regularMaterial)
-                        .frame(width: 32, height: 32)
+                    // Background blur
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(.ultraThinMaterial)
+                        .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
                     
-                    CircularProgressView(
-                        progress: downloadProgress,
-                        lineWidth: 2,
-                        color: .accentColor
-                    )
-                    .frame(width: 24, height: 24)
+                    VStack(spacing: 8) {
+                        // Progress Ring with Stage Icon
+                        ZStack {
+                            // Background circle
+                            Circle()
+                                .stroke(Color.white.opacity(0.3), lineWidth: 3)
+                                .frame(width: 44, height: 44)
+                            
+                            // Progress circle
+                            Circle()
+                                .trim(from: 0, to: downloadProgress)
+                                .stroke(
+                                    LinearGradient(
+                                        colors: [.accentColor, .accentColor.opacity(0.7)],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    ),
+                                    style: StrokeStyle(lineWidth: 3, lineCap: .round)
+                                )
+                                .frame(width: 44, height: 44)
+                                .rotationEffect(.degrees(-90))
+                                .animation(.linear(duration: 0.3), value: downloadProgress)
+                            
+                            // Stage Icon (center of ring)
+                            if let stage = downloadManager.downloadStage[book.id] {
+                                Image(systemName: stage.icon)
+                                    .font(.system(size: 16, weight: .semibold))
+                                    .foregroundColor(.white)
+                                    .symbolEffect(.pulse, value: stage)
+                            } else {
+                                // Fallback to percentage
+                                Text("\(Int(downloadProgress * 100))")
+                                    .font(.system(size: 12, weight: .bold))
+                                    .foregroundColor(.white)
+                            }
+                        }
+                        
+                        // Status Text
+                        VStack(spacing: 2) {
+                            // Percentage
+                            Text("\(Int(downloadProgress * 100))%")
+                                .font(.caption)
+                                .fontWeight(.bold)
+                                .foregroundColor(.white)
+                            
+                            // Detailed Status Message
+                            if let status = downloadManager.downloadStatus[book.id] {
+                                Text(status)
+                                    .font(.caption2)
+                                    .foregroundColor(.white.opacity(0.9))
+                                    .lineLimit(2)
+                                    .multilineTextAlignment(.center)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            } else {
+                                Text("Downloading...")
+                                    .font(.caption2)
+                                    .foregroundColor(.white.opacity(0.9))
+                            }
+                        }
+                        .frame(maxWidth: style.coverSize - 20)
+                        
+                        // Cancel Button
+                        Button(action: {
+                            cancelDownload()
+                        }) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.system(size: 10))
+                                Text("Cancel")
+                                    .font(.caption2)
+                                    .fontWeight(.medium)
+                            }
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 4)
+                            .background(Color.red.opacity(0.8))
+                            .clipShape(Capsule())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(12)
                 }
-                .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
+                .frame(width: style.coverSize, height: style.coverSize)
+                .transition(.scale.combined(with: .opacity))
                 
             } else if isDownloaded {
-                ZStack {
-                    Circle()
-                        .fill(.green)
-                        .frame(width: 32, height: 32)
-                    
-                    Image(systemName: "checkmark")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(.white)
-                }
-                .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
-                
-            } else if api != nil { // Nur anzeigen wenn API verfügbar
-                Button(action: startDownload) {
-                    ZStack {
-                        Circle()
-                            .fill(.regularMaterial)
-                            .frame(width: 32, height: 32)
+                // ✅ Downloaded State - Success Badge
+                VStack {
+                    HStack {
+                        Spacer()
                         
-                        Image(systemName: "arrow.down")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(.accentColor)
+                        ZStack {
+                            Circle()
+                                .fill(.green)
+                                .frame(width: 32, height: 32)
+                            
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundColor(.white)
+                        }
+                        .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
+                        .padding(8)
                     }
-                    .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
+                    
+                    Spacer()
                 }
-                .buttonStyle(.plain)
+                .transition(.scale.combined(with: .opacity))
+                
+            } else if api != nil {
+                // ✅ Not Downloaded State - Download Button
+                VStack {
+                    HStack {
+                        Spacer()
+                        
+                        Button(action: startDownload) {
+                            ZStack {
+                                Circle()
+                                    .fill(.regularMaterial)
+                                    .frame(width: 36, height: 36)
+                                
+                                Image(systemName: "arrow.down.circle.fill")
+                                    .font(.system(size: 20))
+                                    .foregroundColor(.accentColor)
+                                    .symbolEffect(.bounce, value: isPressed)
+                            }
+                            .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
+                        }
+                        .buttonStyle(.plain)
+                        .padding(8)
+                    }
+                    
+                    Spacer()
+                }
+                .transition(.scale.combined(with: .opacity))
             }
         }
+    }
+
+    // MARK: - Helper Methods for Download Status
+
+    private var downloadProgress: Double {
+        downloadManager.downloadProgress[book.id] ?? 0.0
+    }
+
+    private func cancelDownload() {
+        AppLogger.debug.debug("[BookCard] Cancel download requested for: \(book.title)")
+        downloadManager.cancelDownload(for: book.id)
     }
 
     // MARK: - Current Book Status Overlay

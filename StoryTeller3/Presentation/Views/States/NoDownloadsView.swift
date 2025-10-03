@@ -9,24 +9,26 @@ import SwiftUI
 
 struct NoDownloadsView: View {
     var body: some View {
-        VStack(spacing: 32) {
-            Image(systemName: "arrow.down.circle")
-                .font(.system(size: 80))
-                .foregroundStyle(.orange.gradient)
-            
-            VStack(spacing: 8) {
-                Text("Keine Downloads gefunden")
-                    .font(.title2)
-                    .fontWeight(.semibold)
+        StateContainer {
+            VStack(spacing: 32) {
+                Image(systemName: "arrow.down.circle")
+                    .font(.system(size: 80))
+                    .foregroundStyle(.orange.gradient)
+                    .frame(width: 80, height: 80)
                 
-                Text("Du hast noch keine Bücher heruntergeladen. Lade Bücher herunter, um sie offline zu hören.")
-                    .font(.body)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
+                VStack(spacing: 8) {
+                    Text("Keine Downloads gefunden")
+                        .font(.title2)
+                        .fontWeight(.semibold)
+                    
+                    Text("Du hast noch keine Bücher heruntergeladen. Lade Bücher herunter, um sie offline zu hören.")
+                        .font(.body)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
-            
+            .padding(.horizontal, 40)
         }
-        .padding(.horizontal, 40)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }

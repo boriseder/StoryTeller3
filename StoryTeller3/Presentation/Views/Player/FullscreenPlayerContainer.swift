@@ -48,7 +48,7 @@ struct FullscreenPlayerContainer<Content: View>: View {
                             }
                         )
                         .padding(.horizontal, 16)
-                        .padding(.bottom, 49) // Space for TabBar + safe area
+                        .padding(.bottom, 49)
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
                     .zIndex(1)

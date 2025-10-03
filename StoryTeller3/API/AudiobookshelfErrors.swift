@@ -15,7 +15,9 @@ enum AudiobookshelfError: LocalizedError {
     case noLibrarySelected
     case connectionTimeout
     case serverUnreachable
-    
+    case resourceNotFound(String)
+    case invalidRequest(String)
+
     var errorDescription: String? {
         switch self {
         case .invalidURL(let url):
@@ -56,6 +58,11 @@ enum AudiobookshelfError: LocalizedError {
             return "Invalid server response"
         case .noLibrarySelected:
             return "No library selected"
+        case .resourceNotFound(let resource):
+            return "Resource not found: \(resource)"
+        case .invalidRequest(let details):
+            return "Invalid request: \(details)"
+
         }
     }
 }
