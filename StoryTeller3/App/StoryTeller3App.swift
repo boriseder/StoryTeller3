@@ -14,7 +14,8 @@ import SwiftUI
 @main
 struct StoryTeller3App: App {
     @StateObject private var appState = AppStateManager()
-    
+    @State private var terminationObserver: NSObjectProtocol?
+
     var body: some Scene {
         WindowGroup {
             ContentView()
@@ -23,6 +24,10 @@ struct StoryTeller3App: App {
                     setupCacheManager()
                 }
         }
+    }
+    
+    init() {
+        setupTerminationHandler()
     }
     
     private func setupCacheManager() {
@@ -36,4 +41,18 @@ struct StoryTeller3App: App {
             AppLogger.debug.debug("[App] Cache manager initialized")
         }
     }
+    
+    private func setupTerminationHandler() {
+        terminationObserver = NotificationCenter.default.addObserver(
+            forName: UIApplication.willTerminateNotification,
+            object: nil,
+            queue: .main
+        ) { _ in
+            Task {
+                await CoverDownloadManager.shared.shutdown()
+                AppLogger.debug.debug("[App] Shutdown complete")
+            }
+        }
+    }
+
 }

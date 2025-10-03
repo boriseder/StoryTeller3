@@ -25,6 +25,7 @@ class AudioPlayer: NSObject, ObservableObject {
     private var downloadManager: DownloadManager?
     private var isOfflineMode: Bool = false
     private var targetSeekTime: Double?
+    private var observers: [NSObjectProtocol] = []
 
     var currentChapter: Chapter? {
         guard let book = book, currentChapterIndex < book.chapters.count else { return nil }
@@ -498,31 +499,27 @@ class AudioPlayer: NSObject, ObservableObject {
     // MARK: - Persistence Integration
 
     private func setupPersistence() {
-        // Listen for auto-save notifications
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(handleAutoSave),
-            name: .playbackAutoSave,
-            object: nil
-        )
+        // Auto-save observer
+        let autoSaveObserver = NotificationCenter.default.addObserver(
+            forName: .playbackAutoSave,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.saveCurrentPlaybackState()
+        }
+        observers.append(autoSaveObserver)
         
-        // Save when app goes to background
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(handleAppBackground),
-            name: UIApplication.didEnterBackgroundNotification,
-            object: nil
-        )
+        // Background observer
+        let backgroundObserver = NotificationCenter.default.addObserver(
+            forName: UIApplication.didEnterBackgroundNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.saveCurrentPlaybackState()
+        }
+        observers.append(backgroundObserver)
     }
-
-    @objc private func handleAutoSave() {
-        saveCurrentPlaybackState()
-    }
-
-    @objc private func handleAppBackground() {
-        saveCurrentPlaybackState()
-    }
-
+    
     private func saveCurrentPlaybackState() {
         guard let book = book else { return }
         
@@ -611,6 +608,12 @@ class AudioPlayer: NSObject, ObservableObject {
 
     deinit {
         cleanupPlayer()
-        NotificationCenter.default.removeObserver(self)
+        
+        // Remove all observers
+        observers.forEach { observer in
+            NotificationCenter.default.removeObserver(observer)
+        }
+        observers.removeAll()
+
     }
 }

@@ -174,6 +174,10 @@ class SettingsViewModel: BaseViewModel {
         
         // Notify other views about logout
         NotificationCenter.default.post(name: .init("ServerSettingsChanged"), object: nil)
+        
+         Task {
+             await CoverDownloadManager.shared.shutdown()
+         }
     }
     
     func onCredentialsChanged() {

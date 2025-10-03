@@ -81,6 +81,16 @@ class DownloadManager: ObservableObject {
      * - Parameter api: API client for server communication
      */
     func downloadBook(_ book: Book, api: AudiobookshelfAPI) async {
+        // Check memory before large download
+        let availableMemory = ProcessInfo.processInfo.physicalMemory
+        
+        if availableMemory < 100_000_000 { // Less than 100MB
+            AppLogger.debug.debug("Low memory detected - triggering cleanup")
+            await MainActor.run {
+                CoverCacheManager.shared.triggerCriticalCleanup()
+            }
+        }
+        
         // Prevent duplicate downloads - Check on main actor
         let isAlreadyDownloaded = await MainActor.run {
             isBookDownloaded(book.id) || isDownloadingBook(book.id)

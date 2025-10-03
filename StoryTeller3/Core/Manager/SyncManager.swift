@@ -54,6 +54,8 @@ class OfflineSyncManager: ObservableObject {
     private let autoSyncInterval: TimeInterval = 300 // 5 minutes
     private var autoSyncTimer: Timer?
     
+    private var observers: [NSObjectProtocol] = []
+
     private init() {
         setupAutoSync()
         observeNetworkChanges()
@@ -61,33 +63,32 @@ class OfflineSyncManager: ObservableObject {
     
     // MARK: - Auto Sync Setup
     private func setupAutoSync() {
-        autoSyncTimer = Timer.scheduledTimer(withTimeInterval: autoSyncInterval, repeats: true) { _ in
-            Task { await self.performSync() }
+        autoSyncTimer = Timer.scheduledTimer(
+            withTimeInterval: autoSyncInterval,
+            repeats: true
+        ) { [weak self] _ in
+            Task { await self?.performSync() }
         }
         
-        // Sync when app becomes active
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(appBecameActive),
-            name: UIApplication.didBecomeActiveNotification,
-            object: nil
-        )
+        // App active observer
+        let activeObserver = NotificationCenter.default.addObserver(
+            forName: UIApplication.didBecomeActiveNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { await self?.performSync() }
+        }
+        observers.append(activeObserver)
         
-        // Sync when network becomes available
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(networkBecameAvailable),
-            name: .networkAvailable,
-            object: nil
-        )
-    }
-    
-    @objc private func appBecameActive() {
-        Task { await performSync() }
-    }
-    
-    @objc private func networkBecameAvailable() {
-        Task { await performSync() }
+        // Network available observer
+        let networkObserver = NotificationCenter.default.addObserver(
+            forName: .networkAvailable,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { await self?.performSync() }
+        }
+        observers.append(networkObserver)
     }
     
     // MARK: - Main Sync Method
@@ -312,11 +313,6 @@ class OfflineSyncManager: ObservableObject {
     private func observeNetworkChanges() {
         // Implement network reachability monitoring
         // When network becomes available, trigger sync
-    }
-    
-    deinit {
-        autoSyncTimer?.invalidate()
-        NotificationCenter.default.removeObserver(self)
     }
 }
 

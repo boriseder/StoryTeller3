@@ -266,6 +266,10 @@ struct SettingsView: View {
             Toggle("Debug-Protokollierung", isOn: $viewModel.enableDebugLogging).onChange(of: viewModel.enableDebugLogging) { viewModel.toggleDebugLogging($0) }
         } header: {
             Label("Debug-Einstellungen", systemImage: "ladybug.fill")
+            
+            Button("Trigger Critical Cleanup") {
+                CoverCacheManager.shared.triggerCriticalCleanup()
+            }
         }
     }
 
