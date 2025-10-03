@@ -2,276 +2,383 @@ import SwiftUI
 
 struct SettingsView: View {
     @StateObject private var viewModel = SettingsViewModel()
+    @EnvironmentObject var appConfig: AppConfig
 
     var body: some View {
         NavigationStack {
             Form {
-                serverSection
-                credentialsSection
-                connectionSection
                 
-                if !viewModel.libraries.isEmpty {
+                themeSection
+                
+                serverSection
+                
+                if viewModel.isServerConfigured {
+                    connectionSection
+                }
+                
+                if viewModel.isLoggedIn {
+                    credentialsSection
                     librariesSection
                 }
                 
-                cacheSection
-                coverCacheSection
-                downloadSection
-                networkSection
+                storageSection
                 aboutSection
-                debugSection
+                advancedSection
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.large)
-            .onAppear { viewModel.loadSettings() }
-            .refreshable { await viewModel.calculateStorageInfo() }
-            .alert("Empty App-Cache", isPresented: $viewModel.showingClearAppCacheAlert) {
-                Button("Cancel", role: .cancel) {}
-                Button("Delete", role: .destructive) { Task { await viewModel.clearAppCache() } }
+            
+            .task {
+                await viewModel.calculateStorageInfo()
             }
-            .alert("Kompletten Cache leeren", isPresented: $viewModel.showingClearAllCacheAlert) {
-                Button("Cancel", role: .cancel) {}
-                Button("Alles Delete", role: .destructive) { Task { await viewModel.clearCompleteCache() } }
+            .refreshable {
+                await viewModel.calculateStorageInfo()
             }
-            .alert("Downloads Delete", isPresented: $viewModel.showingClearDownloadsAlert) {
+            .alert("Clear All Cache?", isPresented: $viewModel.showingClearCacheAlert) {
                 Button("Cancel", role: .cancel) {}
-                Button("Alle Delete", role: .destructive) { Task { await viewModel.clearAllDownloads() } }
+                Button("Clear \(viewModel.totalCacheSize)", role: .destructive) {
+                    Task { await viewModel.clearAllCache() }
+                }
+            } message: {
+                Text("This will clear all cached data including cover images and metadata. Downloaded books are not affected.")
             }
-            .alert("Cover-Cache verwalten", isPresented: $viewModel.showingClearCoverCacheAlert) {
+            .alert("Delete All Downloads?", isPresented: $viewModel.showingClearDownloadsAlert) {
                 Button("Cancel", role: .cancel) {}
-                Button("Nur Memory", role: .destructive) { viewModel.clearCoverMemoryCache() }
-                Button("Alles Delete", role: .destructive) { viewModel.coverCacheManager.clearAllCache() }
+                Button("Delete All", role: .destructive) {
+                    Task { await viewModel.clearAllDownloads() }
+                }
+            } message: {
+                Text("This will permanently delete all \(viewModel.downloadedBooksCount) downloaded books. You can re-download them anytime when online.")
             }
-
+            .alert("Logout?", isPresented: $viewModel.showingLogoutAlert) {
+                Button("Cancel", role: .cancel) {}
+                Button("Logout", role: .destructive) {
+                    viewModel.logout()
+                }
+            } message: {
+                Text("You will need to enter your credentials again to reconnect.")
+            }
+            .alert("Connection Test", isPresented: $viewModel.showingTestResults) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(viewModel.testResultMessage)
+            }
         }
     }
     
+    private var themeSection: some View {
+        Section {
+            // Background Style
+            Picker("Background Style", selection: $appConfig.userBackgroundStyle) {
+                Text("Dynamic").tag(UserBackgroundStyle.dynamic)
+                Text("Light").tag(UserBackgroundStyle.light)
+                Text("Dark").tag(UserBackgroundStyle.dark)
+            }
+            .pickerStyle(.menu)
+            
+            // Accent Color
+            HStack {
+                Text("Accent Color")
+                Spacer()
+                Menu {
+                    Button(action: { appConfig.userAccentColor = .red }) {
+                        Label("Red", systemImage: "circle.fill")
+                    }
+                    Button(action: { appConfig.userAccentColor = .orange }) {
+                        Label("Orange", systemImage: "circle.fill")
+                    }
+                    Button(action: { appConfig.userAccentColor = .green }) {
+                        Label("Green", systemImage: "circle.fill")
+                    }
+                    Button(action: { appConfig.userAccentColor = .blue }) {
+                        Label("Blue", systemImage: "circle.fill")
+                    }
+                    Button(action: { appConfig.userAccentColor = .purple }) {
+                        Label("Purple", systemImage: "circle.fill")
+                    }
+                    Button(action: { appConfig.userAccentColor = .pink }) {
+                        Label("Pink", systemImage: "circle.fill")
+                    }
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "circle.fill")
+                            .foregroundStyle(appConfig.userAccentColor.color)
+                        Text(appConfig.userAccentColor.rawValue.capitalized)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+        } header: {
+            Label("Appearance", systemImage: "paintbrush")
+        }
+    }
     // MARK: - Server Section
+    
     private var serverSection: some View {
-        Section(header: Text("Audiobookshelf Server")) {
-            Picker("Scheme", selection: $viewModel.scheme) {
+        Section {
+            Picker("Protocol", selection: $viewModel.scheme) {
                 Text("http").tag("http")
                 Text("https").tag("https")
             }
             .disabled(viewModel.isLoggedIn)
-            if viewModel.scheme == "http" {
-                HStack {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundColor(.orange)
-                    Text("HTTP is not secure. Use HTTPS when possible.")
-                        .font(.caption)
-                        .foregroundColor(.orange)
-                }
-                .padding(.horizontal)
-            }
             
             TextField("Host", text: $viewModel.host)
                 .autocapitalization(.none)
                 .disableAutocorrection(true)
+                .keyboardType(.URL)
                 .disabled(viewModel.isLoggedIn)
-            
-            TextField("Port", text: $viewModel.port)
-                .keyboardType(.numberPad)
-                .disabled(viewModel.isLoggedIn)
-        }
-        .onChange(of: viewModel.host) { _, _ in
-            if !viewModel.isLoggedIn {
-                viewModel.autoTestConnection()
-            }
-        }
-        .onChange(of: viewModel.port) { _, _ in
-            if !viewModel.isLoggedIn {
-                viewModel.autoTestConnection()
-            }
-        }
-        .onChange(of: viewModel.scheme) { _, _ in
-            if !viewModel.isLoggedIn {
-                viewModel.autoTestConnection()
-            }
-        }
-    }
-    
-    // MARK: - Credentials Section
-    private var credentialsSection: some View {
-        Section(header: Text("Authentication")) {
-            TextField("Username", text: $viewModel.username)
-                .autocapitalization(.none)
-                .disableAutocorrection(true)
-                .disabled(viewModel.isLoggedIn)
-                .onChange(of: viewModel.username) { _, _ in
-                    viewModel.onCredentialsChanged()
+                .onChange(of: viewModel.host) { _, _ in
+                    viewModel.sanitizeHost()
                 }
             
-            SecureField("Password", text: $viewModel.password)
+            TextField("Port (optional)", text: $viewModel.port)
+                .keyboardType(.numberPad)
                 .disabled(viewModel.isLoggedIn)
-                .onChange(of: viewModel.password) { _, _ in
-                    viewModel.onCredentialsChanged()
-                    AppLogger.debug.debug("Debug: showLoginButton = \(viewModel.showLoginButton)")
-               }
+            
+            if viewModel.isServerConfigured {
+                HStack {
+                    Text("Server URL")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Text(viewModel.fullServerURL)
+                        .font(.caption.monospaced())
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+            }
+        } header: {
+            Label("Audiobookshelf Server", systemImage: "server.rack")
+        } footer: {
+            if viewModel.scheme == "http" {
+                Label("HTTP is not secure. Use HTTPS when possible.", systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption)
+                    .foregroundColor(.orange)
+            } else {
+                Text("Enter the address of your Audiobookshelf server")
+                    .font(.caption)
+            }
         }
     }
     
     // MARK: - Connection Section
+    
     private var connectionSection: some View {
         Section {
-            if viewModel.isLoading {
-                connectionLoadingView
-                let _ = AppLogger.debug.debug("Debug: showLoginButton = \(viewModel.showLoginButton)")
-
-            } else if !viewModel.connectionStatus.isEmpty {
-                connectionStatusView
-                let _ = AppLogger.debug.debug("Debug: connectionStatus = \(viewModel.connectionStatus)")
-
-                if viewModel.showLoginButton {
-                    let _ = AppLogger.debug.debug("Debug: showLoginButton = \(viewModel.showLoginButton)")
-
-                    loginButton
-                } else if viewModel.isLoggedIn {
-                    let _ = AppLogger.debug.debug("Debug: showLoginButton = \(viewModel.showLoginButton)")
-
-                    loggedInView
+            if viewModel.isTestingConnection {
+                HStack {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                    Text("Testing connection...")
+                        .foregroundColor(.secondary)
+                }
+            } else if viewModel.connectionState != .initial {
+                HStack {
+                    Text(viewModel.connectionState.statusText)
+                        .foregroundColor(viewModel.connectionState.statusColor)
+                    Spacer()
+                    if viewModel.connectionState == .authenticated {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(.green)
+                    } else if case .failed = viewModel.connectionState {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundColor(.red)
+                    }
                 }
             }
-        }
-    }
-    
-    private var connectionLoadingView: some View {
-        HStack {
-            ProgressView().scaleEffect(0.8)
-            Text("Testing connection...")
-        }
-    }
-    
-    private var connectionStatusView: some View {
-        HStack {
-            Text(viewModel.connectionStatus)
-                .foregroundColor(viewModel.statusColor)
-            Spacer()
+            
             if !viewModel.isLoggedIn {
-                Button {
-                    viewModel.autoTestConnection()
-                } label: {
-                    Image(systemName: "arrow.clockwise")
+                Button("Test Connection") {
+                    viewModel.testConnection()
                 }
-                .buttonStyle(.borderless)
+                .disabled(!viewModel.canTestConnection)
             }
+        } header: {
+            Label("Connection Status", systemImage: "wifi")
         }
     }
     
-    private var loginButton: some View {
-        Button(action: {
-            viewModel.login()
-        }) {
-            HStack {
-                Image(systemName: "person.badge.key")
-                Text("Login")
-            }
-            .foregroundColor(.white)
-            .frame(maxWidth: .infinity)
-            .padding()
-            .background(Color.accentColor)
-            .cornerRadius(8)
-        }
-        .buttonStyle(.plain)
-        .disabled(viewModel.username.isEmpty || viewModel.password.isEmpty)
-    }
+    // MARK: - Credentials Section
     
-    private var loggedInView: some View {
-        HStack {
-            Image(systemName: "checkmark.circle.fill")
-                .foregroundColor(.green)
-            Text("Login as \(viewModel.username)")
-                .foregroundColor(.primary)
-            Spacer()
+    private var credentialsSection: some View {
+        Section {
+            if viewModel.isLoggedIn {
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Logged in as")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Text(viewModel.username)
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                    }
+                    Spacer()
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(.green)
+                    }
+                
+                Button("Logout") {
+                    viewModel.showingLogoutAlert = true
+                }
+                .foregroundColor(.red)
+            } else {
+                TextField("Username", text: $viewModel.username)
+                    .autocapitalization(.none)
+                    .disableAutocorrection(true)
+                
+                SecureField("Password", text: $viewModel.password)
+                
+                Button("Login") {
+                    viewModel.login()
+                }
+                .disabled(!viewModel.canLogin)
+            }
+        } header: {
+            Label("Authentication", systemImage: "person.badge.key")
+        } footer: {
+            if !viewModel.isLoggedIn {
+                Text("Enter your Audiobookshelf credentials to connect")
+                    .font(.caption)
+            }
         }
     }
     
     // MARK: - Libraries Section
+    
     private var librariesSection: some View {
-        Section(header: Text("Libraries")) {
-            Picker("Library", selection: $viewModel.selectedLibraryId) {
-                Text("No selection").tag(nil as String?)
-                ForEach(viewModel.libraries, id: \.id) { library in
-                    Text(library.name).tag(library.id as String?)
+        Section {
+            if viewModel.libraries.isEmpty {
+                HStack {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                    Text("Loading libraries...")
+                        .foregroundColor(.secondary)
+                }
+            } else {
+                Picker("Active Library", selection: $viewModel.selectedLibraryId) {
+                    Text("No selection").tag(nil as String?)
+                    ForEach(viewModel.libraries, id: \.id) { library in
+                        HStack {
+                            Text(library.name)
+                            Spacer()
+                            if library.id == viewModel.selectedLibraryId {
+                                Image(systemName: "checkmark")
+                                    .foregroundColor(.accentColor)
+                            }
+                        }
+                        .tag(library.id as String?)
+                    }
+                }
+                .onChange(of: viewModel.selectedLibraryId) { _, newId in
+                    viewModel.saveSelectedLibrary(newId)
+                }
+                
+                HStack {
+                    Text("Total Libraries")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Text("\(viewModel.libraries.count)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                 }
             }
-            .onChange(of: viewModel.selectedLibraryId) { _, newId in
-                viewModel.saveSelectedLibrary(newId)
-            }
-            
-            if viewModel.isLoggedIn {
-                logoutButton
-            }
+        } header: {
+            Label("Libraries", systemImage: "books.vertical")
+        } footer: {
+            Text("Select which library to use for browsing and playback")
+                .font(.caption)
         }
     }
     
-    private var logoutButton: some View {
-        Button(action: {
-            viewModel.logout()
-        }) {
-            HStack {
-                Image(systemName: "rectangle.portrait.and.arrow.right")
-                Text("Logout")
+    // MARK: - Storage Section
+    
+    private var storageSection: some View {
+        Section {
+            if viewModel.isCalculatingStorage {
+                HStack {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                    Text("Calculating storage...")
+                        .foregroundColor(.secondary)
+                }
+            } else {
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Cache")
+                            .font(.subheadline)
+                        Text("Temporary files and cover images")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    Spacer()
+                    Text(viewModel.totalCacheSize)
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                        .monospacedDigit()
+                }
+                
+                if viewModel.cacheOperationInProgress {
+                    HStack {
+                        ProgressView()
+                            .scaleEffect(0.8)
+                        Text("Clearing cache...")
+                            .foregroundColor(.secondary)
+                    }
+                } else {
+                    Button("Clear All Cache") {
+                        viewModel.showingClearCacheAlert = true
+                    }
+                    .foregroundColor(.orange)
+                    
+                    if let lastCleanup = viewModel.lastCacheCleanupDate {
+                        HStack {
+                            Text("Last cleared")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Spacer()
+                            Text(lastCleanup, style: .relative)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+                
+                Divider()
+                
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Downloads")
+                            .font(.subheadline)
+                        Text("\(viewModel.downloadedBooksCount) books available offline")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    Spacer()
+                    Text(viewModel.totalDownloadSize)
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                        .monospacedDigit()
+                }
+                
+                if viewModel.downloadedBooksCount > 0 {
+                    Button("Delete All Downloads") {
+                        viewModel.showingClearDownloadsAlert = true
+                    }
+                    .foregroundColor(.red)
+                }
             }
-            .foregroundColor(.red)
-            .frame(maxWidth: .infinity)
-            .padding()
-            .background(Color.red.opacity(0.1))
-            .cornerRadius(8)
+        } header: {
+            Label("Storage & Downloads", systemImage: "internaldrive")
+        } footer: {
+            Text("Cache contains temporary files and can be safely cleared. Downloaded books are stored separately.")
+                .font(.caption)
         }
-        .buttonStyle(.plain)
     }
     
-    // MARK: - Advanced Settings Section
-
-    private var cacheSection: some View {
-        Section {
-            HStack { Text("App-Cache"); Spacer(); Text(viewModel.appCacheSize).foregroundColor(.secondary) }
-            Button("Empty App-Cache") { viewModel.showingClearAppCacheAlert = true }.foregroundColor(.orange)
-            Button("Empty all cached data") { viewModel.showingClearAllCacheAlert = true }.foregroundColor(.red)
-        } header: {
-            Label("Manage Cache", systemImage: "externaldrive.fill")
-        }
-    }
-
-    private var coverCacheSection: some View {
-        Section {
-            HStack { Text("Cover-Cache"); Spacer(); Text(viewModel.coverCacheSize).foregroundColor(.secondary) }
-            Stepper("Memory Cache Limit: \(viewModel.coverCacheLimit)", value: $viewModel.coverCacheLimit, in: 50...200, step: 10) {_ in
-                viewModel.saveCoverCacheSettings()
-            }
-            Stepper("Memory Size: \(viewModel.memoryCacheSize) MB", value: $viewModel.memoryCacheSize, in: 25...200, step: 5) {_ in
-                viewModel.saveCoverCacheSettings()
-            }
-            Button("Manage Cover-Cache") { viewModel.showingClearCoverCacheAlert = true }.foregroundColor(.blue)
-        } header: {
-            Label("Cover-Cache", systemImage: "photo.stack.fill")
-        }
-    }
-
-    private var downloadSection: some View {
-        Section {
-            HStack { Text("Downloaded booksr"); Spacer(); Text("\(viewModel.downloadedBooksCount)").foregroundColor(.secondary) }
-            Stepper("Max. concurrent downloads: \(viewModel.maxConcurrentDownloads)", value: $viewModel.maxConcurrentDownloads, in: 1...5) {_ in
-                viewModel.saveDownloadSettings()
-            }
-            Button("Delete all downloads") { viewModel.showingClearDownloadsAlert = true }.foregroundColor(.red).disabled(viewModel.downloadedBooksCount == 0)
-        } header: {
-            Label("Download settings", systemImage: "arrow.down.circle.fill")
-        }
-    }
-
-    private var networkSection: some View {
-        Section {
-            VStack(alignment: .leading) {
-                Text("Connection timeout: \(Int(viewModel.connectionTimeout))s")
-                Slider(value: $viewModel.connectionTimeout, in: 10...60, step: 5) { _ in viewModel.saveNetworkSettings() }
-            }
-        } header: {
-            Label("Network settings", systemImage: "network")
-        }
-    }
-
+    // MARK: - About Section
+    
     private var aboutSection: some View {
         Section {
             HStack {
@@ -279,6 +386,7 @@ struct SettingsView: View {
                 Spacer()
                 Text(getAppVersion())
                     .foregroundColor(.secondary)
+                    .monospacedDigit()
             }
             
             HStack {
@@ -286,45 +394,53 @@ struct SettingsView: View {
                 Spacer()
                 Text(getBuildNumber())
                     .foregroundColor(.secondary)
+                    .monospacedDigit()
+            }
+            
+            Link(destination: URL(string: "https://github.com/yourusername/storyteller")!) {
+                HStack {
+                    Text("GitHub Repository")
+                    Spacer()
+                    Image(systemName: "arrow.up.forward")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+            
+            Link(destination: URL(string: "https://www.audiobookshelf.org")!) {
+                HStack {
+                    Text("Audiobookshelf Project")
+                    Spacer()
+                    Image(systemName: "arrow.up.forward")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
             }
         } header: {
-            Text("About")
+            Label("About", systemImage: "info.circle")
         }
     }
     
-    private var debugSection: some View {
+    // MARK: - Advanced Section
+    
+    private var advancedSection: some View {
         Section {
-            Toggle("Debug-Protokollierung", isOn: $viewModel.enableDebugLogging).onChange(of: viewModel.enableDebugLogging) { viewModel.toggleDebugLogging($0) }
-        } header: {
-            Label("Debug-Einstellungen", systemImage: "ladybug.fill")
-            
-            Button("Trigger Critical Cleanup") {
-                CoverCacheManager.shared.triggerCriticalCleanup()
+            NavigationLink(destination: AdvancedSettingsView(viewModel: viewModel)) {
+                Label("Advanced Settings", systemImage: "gearshape.2")
             }
+        } footer: {
+            Text("Network settings, cache configuration, and debug options")
+                .font(.caption)
         }
     }
+    
+    // MARK: - Helper Methods
     
     private func getAppVersion() -> String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
     }
-
+    
     private func getBuildNumber() -> String {
         Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "Unknown"
     }
-
 }
-
-struct StorageItem: View {
-    let title: String
-    let size: String
-    let color: Color
-    var body: some View {
-        HStack {
-            Circle().fill(color).frame(width: 12, height: 12)
-            Text(title)
-            Spacer()
-            Text(size).foregroundColor(.secondary)
-        }
-    }
-}
-

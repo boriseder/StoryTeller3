@@ -3,6 +3,7 @@ import SwiftUI
 struct LibraryView: View {
     @StateObject var viewModel: LibraryViewModel
     @EnvironmentObject var appState: AppStateManager
+    @EnvironmentObject var appConfig: AppConfig
 
     @State private var selectedSeries: Book?
     
@@ -38,6 +39,12 @@ struct LibraryView: View {
         }
         .navigationTitle(viewModel.libraryName)
         .navigationBarTitleDisplayMode(.large)
+        .toolbarBackground(.visible, for: .navigationBar)
+        .toolbarBackground(.clear, for: .navigationBar)
+        .toolbarColorScheme(
+            appConfig.userBackgroundStyle.textColor == .white ? .dark : .light,
+            for: .navigationBar
+        )
         .searchable(
             text: $viewModel.searchText,
             placement: .automatic,
@@ -83,7 +90,7 @@ struct LibraryView: View {
     
     private var contentView: some View {
         ZStack {
-            DynamicMusicBackground()
+            DynamicBackground()
             
             VStack(spacing: 0) {
                 // Filter-Status-Banner (wenn Download-Filter aktiv)

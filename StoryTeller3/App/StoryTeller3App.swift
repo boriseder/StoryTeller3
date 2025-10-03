@@ -2,16 +2,18 @@ import SwiftUI
 
 @main
 struct StoryTeller3App: App {
-    // ✅ Add AppDelegate
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     
     @StateObject private var appState = AppStateManager()
+    @StateObject private var appConfig = AppConfig.shared 
     @State private var terminationObserver: NSObjectProtocol?
 
     var body: some Scene {
         WindowGroup {
             ContentView()
                 .environmentObject(appState)
+                .environmentObject(appConfig)
+                .accentColor(appConfig.userAccentColor.color)
                 .onAppear {
                     setupCacheManager()
                 }

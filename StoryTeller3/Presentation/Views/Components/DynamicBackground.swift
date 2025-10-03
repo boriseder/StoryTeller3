@@ -1,6 +1,35 @@
 import SwiftUI
 
-struct DynamicMusicBackground: View {
+struct DynamicBackground: View {
+    @EnvironmentObject var appConfig: AppConfig
+    
+    @State private var rotation = 0.0
+    @State private var scale = 1.0
+    @State private var animationPhase = 0.0
+    
+    // Ruhigere Farbpalette
+    let colors: [Color] = [
+        Color.blue.opacity(0.3),
+        Color.teal.opacity(0.3),
+        Color.indigo.opacity(0.3),
+        Color.purple.opacity(0.25)
+    ]
+    
+    var body: some View {
+        ZStack {
+            switch appConfig.userBackgroundStyle {
+            case .dynamic:
+                LinearGradientBackgground()
+            case .light:
+                Color.white.ignoresSafeArea()
+            case .dark:
+                Color.black.ignoresSafeArea()
+            }
+        }
+    }
+}
+
+struct LinearGradientBackgground: View {
     @State private var rotation = 0.0
     @State private var scale = 1.0
     @State private var animationPhase = 0.0

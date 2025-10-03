@@ -2,6 +2,8 @@ import SwiftUI
 
 struct DownloadsView: View {
     @StateObject private var viewModel: DownloadsViewModel
+    @EnvironmentObject private var appConfig: AppConfig
+    
     @State private var showingStorageInfo = false
     
     init(downloadManager: DownloadManager, player: AudioPlayer, api: AudiobookshelfAPI?, onBookSelected: @escaping () -> Void) {
@@ -18,7 +20,7 @@ struct DownloadsView: View {
     
     var body: some View {
         ZStack {
-            DynamicMusicBackground()
+            DynamicBackground()
             
             Group {
                 if viewModel.downloadedBooks.isEmpty {
@@ -29,7 +31,12 @@ struct DownloadsView: View {
             }
             .navigationTitle("Downloads")
             .navigationBarTitleDisplayMode(.large)
-            .toolbar {
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarBackground(.clear, for: .navigationBar)
+            .toolbarColorScheme(
+                appConfig.userBackgroundStyle.textColor == .white ? .dark : .light,
+                for: .navigationBar
+            )            .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     toolbarButtons
                 }

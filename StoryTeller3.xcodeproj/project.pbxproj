@@ -74,6 +74,7 @@
 				A1ADC20E2E53B9D000E332FB /* Sources */,
 				A1ADC20F2E53B9D000E332FB /* Frameworks */,
 				A1ADC2102E53B9D000E332FB /* Resources */,
+				A1F1E3FF2E903D6D00033B05 /* ShellScript */,
 			);
 			buildRules = (
 			);
@@ -132,6 +133,27 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		A1F1E3FF2E903D6D00033B05 /* ShellScript */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "#!/bin/bash\n\n# Only increment on Release builds\nif [ \"${CONFIGURATION}\" == \"Release\" ]; then\n    buildNumber=$(/usr/libexec/PlistBuddy -c \"Print CFBundleVersion\" \"${INFOPLIST_FILE}\")\n    buildNumber=$((buildNumber + 1))\n    /usr/libexec/PlistBuddy -c \"Set :CFBundleVersion $buildNumber\" \"${INFOPLIST_FILE}\"\n    echo \"Build number incremented to: $buildNumber\"\nelse\n    echo \"Debug build - build number not incremented\"\nfi\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		A1ADC20E2E53B9D000E332FB /* Sources */ = {

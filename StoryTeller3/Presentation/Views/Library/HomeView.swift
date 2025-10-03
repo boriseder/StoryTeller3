@@ -9,7 +9,8 @@ import SwiftUI
 struct HomeView: View {
     @StateObject private var viewModel: HomeViewModel
     @EnvironmentObject var appState: AppStateManager
-    
+    @EnvironmentObject var appConfig: AppConfig
+
     @State private var selectedSeries: Series?
     @State private var selectedAuthor: IdentifiableString?
     
@@ -39,6 +40,12 @@ struct HomeView: View {
         }
         .navigationTitle("Explore & listen")
         .navigationBarTitleDisplayMode(.large)
+        .toolbarBackground(.visible, for: .navigationBar)
+        .toolbarBackground(.clear, for: .navigationBar)
+        .toolbarColorScheme(
+            appConfig.userBackgroundStyle.textColor == .white ? .dark : .light,
+            for: .navigationBar
+        )
         .refreshable {
             await viewModel.loadPersonalizedSections()
         }
@@ -88,7 +95,7 @@ struct HomeView: View {
     
     private var contentView: some View {
         ZStack {
-            DynamicMusicBackground()
+            DynamicBackground()
             
             ScrollView {
                 LazyVStack(alignment: .leading) {

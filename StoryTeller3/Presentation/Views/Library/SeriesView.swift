@@ -3,6 +3,7 @@ import SwiftUI
 struct SeriesView: View {
     @StateObject private var viewModel: SeriesViewModel
     @EnvironmentObject var appState: AppStateManager
+    @EnvironmentObject var appConfig: AppConfig
 
     init(player: AudioPlayer, api: AudiobookshelfAPI, downloadManager: DownloadManager, onBookSelected: @escaping () -> Void) {
         self._viewModel = StateObject(wrappedValue: SeriesViewModel(
@@ -27,7 +28,12 @@ struct SeriesView: View {
         }
         .navigationTitle(viewModel.libraryName)
         .navigationBarTitleDisplayMode(.large)
-        .searchable(text: $viewModel.searchText, prompt: "Serien durchsuchen...")
+        .toolbarBackground(.visible, for: .navigationBar)
+        .toolbarBackground(.clear, for: .navigationBar)
+        .toolbarColorScheme(
+            appConfig.userBackgroundStyle.textColor == .white ? .dark : .light,
+            for: .navigationBar
+        )        .searchable(text: $viewModel.searchText, prompt: "Serien durchsuchen...")
         .refreshable {
             await viewModel.loadSeries()
         }
@@ -58,7 +64,7 @@ struct SeriesView: View {
         
     private var contentView: some View {
         ZStack {
-            DynamicMusicBackground()
+            DynamicBackground()
             
             ScrollView {
                 LazyVStack(spacing: 20) {
