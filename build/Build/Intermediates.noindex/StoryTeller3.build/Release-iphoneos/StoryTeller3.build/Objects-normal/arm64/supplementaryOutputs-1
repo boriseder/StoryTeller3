@@ -1,0 +1,12 @@
+{
+  "/Users/boris/code/Xcode/StoryTeller3/StoryTeller3/API/AudiobookshelfAPI.swift" : {
+    "abi-baseline-json" : "/Users/boris/code/Xcode/StoryTeller3/build/Build/Intermediates.noindex/StoryTeller3.build/Release-iphoneos/StoryTeller3.build/Objects-normal/arm64/StoryTeller3.abi.json",
+    "const-values" : "/Users/boris/code/Xcode/StoryTeller3/build/Build/Intermediates.noindex/StoryTeller3.build/Release-iphoneos/StoryTeller3.build/Objects-normal/arm64/StoryTeller3-primary.swiftconstvalues",
+    "dependencies" : "/Users/boris/code/Xcode/StoryTeller3/build/Build/Intermediates.noindex/StoryTeller3.build/Release-iphoneos/StoryTeller3.build/Objects-normal/arm64/StoryTeller3-primary.d",
+    "diagnostics" : "/Users/boris/code/Xcode/StoryTeller3/build/Build/Intermediates.noindex/StoryTeller3.build/Release-iphoneos/StoryTeller3.build/Objects-normal/arm64/StoryTeller3-primary.dia",
+    "objc-header" : "/Users/boris/code/Xcode/StoryTeller3/build/Build/Intermediates.noindex/StoryTeller3.build/Release-iphoneos/StoryTeller3.build/Objects-normal/arm64/StoryTeller3-Swift.h",
+    "swiftdoc" : "/Users/boris/code/Xcode/StoryTeller3/build/Build/Intermediates.noindex/StoryTeller3.build/Release-iphoneos/StoryTeller3.build/Objects-normal/arm64/StoryTeller3.swiftdoc",
+    "swiftmodule" : "/Users/boris/code/Xcode/StoryTeller3/build/Build/Intermediates.noindex/StoryTeller3.build/Release-iphoneos/StoryTeller3.build/Objects-normal/arm64/StoryTeller3.swiftmodule",
+    "swiftsourceinfo" : "/Users/boris/code/Xcode/StoryTeller3/build/Build/Intermediates.noindex/StoryTeller3.build/Release-iphoneos/StoryTeller3.build/Objects-normal/arm64/StoryTeller3.swiftsourceinfo"
+  }
+}

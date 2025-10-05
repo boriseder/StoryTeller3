@@ -1,0 +1,40 @@
+{
+  "source": "/Users/boris/code/Xcode/StoryTeller3/StoryTeller3/Presentation/Views/States/NetworkErrorView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "You have %lld book%@ downloaded",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 45
+        }
+      },
+      {
+        "comment": "",
+        "key": "View Downloaded Books",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 52
+        }
+      },
+      {
+        "comment": "",
+        "key": "Retry Connection",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 69
+        }
+      },
+      {
+        "comment": "",
+        "key": "Check Settings",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 81
+        }
+      }
+    ]
+  },
+  "version": 1
+}

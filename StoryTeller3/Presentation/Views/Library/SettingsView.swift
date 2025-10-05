@@ -16,9 +16,10 @@ struct SettingsView: View {
                     connectionSection
                 }
                 
+                credentialsSection  // Always show (handles both states internally)
+                
                 if viewModel.isLoggedIn {
-                    credentialsSection
-                    librariesSection
+                    librariesSection  // Only show when logged in
                 }
                 
                 storageSection
@@ -131,7 +132,7 @@ struct SettingsView: View {
                     viewModel.sanitizeHost()
                 }
             
-            TextField("Port (optional)", text: $viewModel.port)
+            TextField("Port", text: $viewModel.port)
                 .keyboardType(.numberPad)
                 .disabled(viewModel.isLoggedIn)
             
@@ -200,7 +201,7 @@ struct SettingsView: View {
     }
     
     // MARK: - Credentials Section
-    
+
     private var credentialsSection: some View {
         Section {
             if viewModel.isLoggedIn {
@@ -216,7 +217,7 @@ struct SettingsView: View {
                     Spacer()
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundColor(.green)
-                    }
+                }
                 
                 Button("Logout") {
                     viewModel.showingLogoutAlert = true
@@ -233,17 +234,31 @@ struct SettingsView: View {
                     viewModel.login()
                 }
                 .disabled(!viewModel.canLogin)
+                
+                // ✅ NEW: Show loading state after login
+                if viewModel.isTestingConnection {
+                    HStack {
+                        ProgressView()
+                            .scaleEffect(0.8)
+                        Text("Logging in and setting up...")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
             }
         } header: {
             Label("Authentication", systemImage: "person.badge.key")
         } footer: {
-            if !viewModel.isLoggedIn {
+            if !viewModel.isLoggedIn && !viewModel.isTestingConnection {
                 Text("Enter your Audiobookshelf credentials to connect")
                     .font(.caption)
+            } else if viewModel.isTestingConnection {
+                Text("Please wait while we validate your credentials and load your libraries")
+                    .font(.caption)
+                    .foregroundColor(.orange)
             }
         }
     }
-    
     // MARK: - Libraries Section
     
     private var librariesSection: some View {

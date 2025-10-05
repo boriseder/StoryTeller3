@@ -555,12 +555,29 @@ class SettingsViewModel: ObservableObject {
             UserDefaults.standard.set(baseURL, forKey: "baseURL")
             
             NotificationCenter.default.post(name: .init("ServerSettingsChanged"), object: nil)
+            
+            AppLogger.debug.debug("✅ Credentials stored successfully")
+            
         } catch {
-            AppLogger.debug.debug("Failed to store credentials: \(error)")
+            AppLogger.debug.debug("❌ Failed to store credentials: \(error)")
             connectionState = .failed("Failed to save credentials")
+            
+            // ✅ Show error to user
+            testResultMessage = """
+            ⚠️ Failed to Save Credentials
+            
+            Error: \(error.localizedDescription)
+            
+            Your login was successful, but we couldn't save the credentials securely.
+            Please try logging in again.
+            """
+            showingTestResults = true
+            
+            // ✅ Don't post notification if storage failed!
+            return
         }
     }
-    
+   
     private func fetchLibrariesAndSave() {
         guard let client = apiClient else { return }
         

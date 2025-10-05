@@ -1,0 +1,32 @@
+{
+  "source": "/Users/boris/code/Xcode/StoryTeller3/StoryTeller3/Presentation/Views/States/AuthErrorView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Authentication Failed",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 23
+        }
+      },
+      {
+        "comment": "",
+        "key": "Your credentials are invalid or have expired. Please log in again.",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 27
+        }
+      },
+      {
+        "comment": "",
+        "key": "Update Credentials",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 36
+        }
+      }
+    ]
+  },
+  "version": 1
+}

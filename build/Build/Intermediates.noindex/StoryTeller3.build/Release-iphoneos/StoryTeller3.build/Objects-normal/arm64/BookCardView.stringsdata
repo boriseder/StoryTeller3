@@ -1,0 +1,104 @@
+{
+  "source": "/Users/boris/code/Xcode/StoryTeller3/StoryTeller3/Presentation/Views/Components/BookCardView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 216
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 271
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld%%",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 280
+        }
+      },
+      {
+        "comment": "",
+        "key": "Downloading...",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 294
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 308
+        }
+      },
+      {
+        "comment": "",
+        "key": "Spielt",
+        "location": {
+          "startingColumn": 37,
+          "startingLine": 396
+        }
+      },
+      {
+        "comment": "",
+        "key": "Pausiert",
+        "location": {
+          "startingColumn": 48,
+          "startingLine": 396
+        }
+      },
+      {
+        "comment": "",
+        "key": "Serie anzeigen",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 459
+        }
+      },
+      {
+        "comment": "",
+        "key": "Abspielen",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 461
+        }
+      },
+      {
+        "comment": "",
+        "key": "Serie herunterladen",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 468
+        }
+      },
+      {
+        "comment": "",
+        "key": "Herunterladen",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 470
+        }
+      },
+      {
+        "comment": "",
+        "key": "Download löschen",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 475
+        }
+      }
+    ]
+  },
+  "version": 1
+}

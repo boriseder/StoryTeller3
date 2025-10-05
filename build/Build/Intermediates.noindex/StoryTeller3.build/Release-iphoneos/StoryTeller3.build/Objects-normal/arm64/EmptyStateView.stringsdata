@@ -1,0 +1,24 @@
+{
+  "source": "/Users/boris/code/Xcode/StoryTeller3/StoryTeller3/Presentation/Views/States/EmptyStateView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "No data",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 20
+        }
+      },
+      {
+        "comment": "",
+        "key": "There is nothing personalized for your account",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 24
+        }
+      }
+    ]
+  },
+  "version": 1
+}

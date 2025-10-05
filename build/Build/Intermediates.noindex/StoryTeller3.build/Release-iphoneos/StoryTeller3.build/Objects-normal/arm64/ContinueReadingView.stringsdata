@@ -1,0 +1,224 @@
+{
+  "source": "/Users/boris/code/Xcode/StoryTeller3/StoryTeller3/Presentation/Views/Player/ContinueReadingView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Continue Reading",
+        "location": {
+          "startingColumn": 19,
+          "startingLine": 33
+        }
+      },
+      {
+        "comment": "",
+        "key": "Syncing...",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 53
+        }
+      },
+      {
+        "comment": "",
+        "key": "Synced %@",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 62
+        }
+      },
+      {
+        "comment": "",
+        "key": "Sync failed",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 71
+        }
+      },
+      {
+        "comment": "",
+        "key": "No recent books",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 85
+        }
+      },
+      {
+        "comment": "",
+        "key": "Start listening to see your progress here",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 89
+        }
+      },
+      {
+        "comment": "",
+        "key": "Loading...",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 214
+        }
+      },
+      {
+        "comment": "",
+        "key": "Ready to sync",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 261
+        }
+      },
+      {
+        "comment": "",
+        "key": "Last sync: %@",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 273
+        }
+      },
+      {
+        "comment": "",
+        "key": "Sync failed",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 277
+        }
+      },
+      {
+        "comment": "",
+        "key": "Syncing progress...",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 268
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 290
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 300
+        }
+      },
+      {
+        "comment": "",
+        "key": "Progress & Sync",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 380
+        }
+      },
+      {
+        "comment": "",
+        "key": "Clear Progress Data",
+        "location": {
+          "startingColumn": 16,
+          "startingLine": 381
+        }
+      },
+      {
+        "comment": "",
+        "key": "Progress Synchronization",
+        "location": {
+          "startingColumn": 21,
+          "startingLine": 345
+        }
+      },
+      {
+        "comment": "",
+        "key": "Data Management",
+        "location": {
+          "startingColumn": 21,
+          "startingLine": 373
+        }
+      },
+      {
+        "comment": "",
+        "key": "Auto-sync progress",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 346
+        }
+      },
+      {
+        "comment": "",
+        "key": "Sync only on Wi-Fi",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 347
+        }
+      },
+      {
+        "comment": "",
+        "key": "Sync now",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 365
+        }
+      },
+      {
+        "comment": "",
+        "key": "Last sync",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 350
+        }
+      },
+      {
+        "comment": "",
+        "key": "Failed",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 357
+        }
+      },
+      {
+        "comment": "",
+        "key": "Never",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 360
+        }
+      },
+      {
+        "comment": "",
+        "key": "Clear all progress data",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 374
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 382
+        }
+      },
+      {
+        "comment": "",
+        "key": "Clear",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 383
+        }
+      },
+      {
+        "comment": "",
+        "key": "This will permanently delete all saved reading progress. This action cannot be undone.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 387
+        }
+      }
+    ]
+  },
+  "version": 1
+}

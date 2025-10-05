@@ -155,15 +155,23 @@ class AppStateManager: ObservableObject {
     // MARK: - Private Methods
     
     private func checkFirstLaunch() {
-        let hasLaunchedKey = "has_launched_before"
-        isFirstLaunch = !UserDefaults.standard.bool(forKey: hasLaunchedKey)
+        // Setup is considered complete when credentials are saved
+        // This naturally handles:
+        // - First launch: no credentials → show welcome
+        // - Incomplete setup: no credentials → show welcome again
+        // - Complete setup: credentials exist → skip welcome
+        let hasStoredCredentials = UserDefaults.standard.string(forKey: "stored_username") != nil
+        isFirstLaunch = !hasStoredCredentials
         
-        if isFirstLaunch {
-            UserDefaults.standard.set(true, forKey: hasLaunchedKey)
+        // Only setup defaults on true first launch
+        if isFirstLaunch && !UserDefaults.standard.bool(forKey: "defaults_configured") {
             setupDefaultCacheSettings()
+            UserDefaults.standard.set(true, forKey: "defaults_configured")
         }
     }
+
     
+
     private func setupDefaultCacheSettings() {
         let defaults = UserDefaults.standard
         
