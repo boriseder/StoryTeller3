@@ -22,7 +22,7 @@ struct StoryTeller3App: App {
     
     init() {
         // No longer need setupTerminationHandler - AppDelegate handles it
-        AppLogger.debug.debug("[App] ✅ App initialized")
+        AppLogger.debug.debug("[App] App initialized")
     }
     
     private func setupCacheManager() {

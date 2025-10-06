@@ -49,39 +49,52 @@ class AudioPlayer: NSObject, ObservableObject {
         self.authToken = authToken
         self.downloadManager = downloadManager
         
-        // Configure audio session
-        configureAudioSession()
+        // Setup player-specific features
+        setupRemoteCommandCenter()
+        
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(audioRouteChanged),
+            name: AVAudioSession.routeChangeNotification,
+            object: nil
+        )
+        
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleInterruption),
+            name: AVAudioSession.interruptionNotification,
+            object: nil
+        )
+        
+        updateAudioRoutes()
     }
-    
-    // MARK: - ✅ FIXED: Enhanced Audio Session Configuration
+    // MARK: - FIXED: Enhanced Audio Session Configuration
+/*
     private func configureAudioSession() {
         do {
             let audioSession = AVAudioSession.sharedInstance()
             
-            // ✅ Configure for background audiobook playback
+            // Set category and mode first
             try audioSession.setCategory(
                 .playback,
-                mode: .spokenAudio,  // ⚠️ CRITICAL: Use .spokenAudio for audiobooks
+                mode: .spokenAudio,
                 options: [
                     .allowAirPlay,
-                    .allowBluetooth,
                     .allowBluetoothA2DP,
-                    .duckOthers  // Lower other audio when playing
+                    .duckOthers
                 ]
             )
             
-            // ✅ Set preferred sample rate for efficiency
+            // Set preferred properties BEFORE activation
             try audioSession.setPreferredSampleRate(44100.0)
-            
-            // ✅ Set buffer duration for smooth playback
             try audioSession.setPreferredIOBufferDuration(0.005)
             
+            // Activate LAST
             try audioSession.setActive(true)
             
-            // ✅ Setup remote controls and now playing info
+            // Setup remote controls and observers after activation
             setupRemoteCommandCenter()
             
-            // Listen for route changes and interruptions
             NotificationCenter.default.addObserver(
                 self,
                 selector: #selector(audioRouteChanged),
@@ -102,8 +115,8 @@ class AudioPlayer: NSObject, ObservableObject {
             AppLogger.debug.debug("[AudioPlayer] ❌ Audio session error: \(error)")
         }
     }
-    
-    // MARK: - ✅ NEW: Interruption Handling
+*/
+    // MARK: - NEW: Interruption Handling
     @objc private func handleInterruption(notification: Notification) {
         guard let userInfo = notification.userInfo,
               let typeValue = userInfo[AVAudioSessionInterruptionTypeKey] as? UInt,
@@ -136,7 +149,7 @@ class AudioPlayer: NSObject, ObservableObject {
         }
     }
     
-    // MARK: - ✅ NEW: Remote Command Center Setup
+    // MARK: - NEW: Remote Command Center Setup
     private func setupRemoteCommandCenter() {
         let commandCenter = MPRemoteCommandCenter.shared()
         
@@ -207,10 +220,10 @@ class AudioPlayer: NSObject, ObservableObject {
             return .success
         }
         
-        AppLogger.debug.debug("[AudioPlayer] ✅ Remote command center configured")
+        AppLogger.debug.debug("[AudioPlayer] Remote command center configured")
     }
     
-    // MARK: - ✅ NEW: Now Playing Info
+    // MARK: - NEW: Now Playing Info
     private func updateNowPlayingInfo() {
         guard let book = book else {
             MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
@@ -826,6 +839,6 @@ class AudioPlayer: NSObject, ObservableObject {
         // Clear now playing info
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
         
-        AppLogger.debug.debug("[AudioPlayer] ✅ Deinitialized and cleaned up")
+        AppLogger.debug.debug("[AudioPlayer] Deinitialized and cleaned up")
     }
 }

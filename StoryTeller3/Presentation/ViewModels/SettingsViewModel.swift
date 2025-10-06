@@ -556,13 +556,13 @@ class SettingsViewModel: ObservableObject {
             
             NotificationCenter.default.post(name: .init("ServerSettingsChanged"), object: nil)
             
-            AppLogger.debug.debug("✅ Credentials stored successfully")
+            AppLogger.debug.debug("Credentials stored successfully")
             
         } catch {
             AppLogger.debug.debug("❌ Failed to store credentials: \(error)")
             connectionState = .failed("Failed to save credentials")
             
-            // ✅ Show error to user
+            // Show error to user
             testResultMessage = """
             ⚠️ Failed to Save Credentials
             
@@ -573,7 +573,7 @@ class SettingsViewModel: ObservableObject {
             """
             showingTestResults = true
             
-            // ✅ Don't post notification if storage failed!
+            // Don't post notification if storage failed!
             return
         }
     }

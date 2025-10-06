@@ -31,7 +31,7 @@ actor CoverDownloadManager {
                     self.removeTask(for: cacheKey)
                 }
             }
-            // ✅ SWIFT 6 FIX - Check if self exists before calling method
+            // SWIFT 6 FIX - Check if self exists before calling method
             return try await self.performDownload(for: book, api: api)
         }
         

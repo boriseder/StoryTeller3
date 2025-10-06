@@ -230,7 +230,7 @@ struct BookCardView: View {
     private var downloadStatusOverlay: some View {
         Group {
             if isDownloading {
-                // ✅ Downloading State - Detailed Progress
+                // Downloading State - Detailed Progress
                 ZStack {
                     // Background blur
                     RoundedRectangle(cornerRadius: 8)
@@ -323,7 +323,7 @@ struct BookCardView: View {
                 .transition(.scale.combined(with: .opacity))
                 
             } else if isDownloaded {
-                // ✅ Downloaded State - Success Badge
+                // Downloaded State - Success Badge
                 VStack {
                     HStack {
                         Spacer()
@@ -346,7 +346,7 @@ struct BookCardView: View {
                 .transition(.scale.combined(with: .opacity))
                 
             } else if api != nil {
-                // ✅ Not Downloaded State - Download Button
+                // Not Downloaded State - Download Button
                 VStack {
                     HStack {
                         Spacer()

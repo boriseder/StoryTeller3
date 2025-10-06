@@ -71,7 +71,7 @@ struct SeriesResponseItem: Decodable {
 
 // Update SeriesResponse to use SeriesResponseItem
 struct SeriesResponse: Decodable {
-    let results: [SeriesResponseItem]  // ✅ Use SeriesResponseItem
+    let results: [SeriesResponseItem]  // Use SeriesResponseItem
     let total: Int
     let limit: Int
     let page: Int

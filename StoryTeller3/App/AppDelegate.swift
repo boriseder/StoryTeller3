@@ -18,7 +18,7 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         // Configure audio session early for background playback
         configureAudioSession()
         
-        AppLogger.debug.debug("[AppDelegate] ✅ App launched successfully")
+        AppLogger.debug.debug("[AppDelegate] App launched successfully")
         
         return true
     }
@@ -32,7 +32,7 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         // Give it time to save (synchronous)
         Thread.sleep(forTimeInterval: 0.5)
         
-        AppLogger.debug.debug("[AppDelegate] ✅ State saved before termination")
+        AppLogger.debug.debug("[AppDelegate] State saved before termination")
     }
     
     func applicationDidReceiveMemoryWarning(_ application: UIApplication) {
@@ -48,7 +48,7 @@ class AppDelegate: NSObject, UIApplicationDelegate {
             await CoverDownloadManager.shared.cancelAllDownloads()
         }
         
-        AppLogger.debug.debug("[AppDelegate] ✅ Memory cleanup completed")
+        AppLogger.debug.debug("[AppDelegate] Memory cleanup completed")
     }
     
     func applicationDidEnterBackground(_ application: UIApplication) {
@@ -87,7 +87,7 @@ class AppDelegate: NSObject, UIApplicationDelegate {
     }
     
     func applicationDidBecomeActive(_ application: UIApplication) {
-        AppLogger.debug.debug("[AppDelegate] ✅ App became active")
+        AppLogger.debug.debug("[AppDelegate] App became active")
         
         // Resume any paused activities
     }
@@ -104,21 +104,11 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         do {
             let audioSession = AVAudioSession.sharedInstance()
             
-            // Configure for background playback
-            try audioSession.setCategory(
-                .playback,
-                mode: .spokenAudio,
-                options: [
-                    .allowAirPlay,
-                    .allowBluetooth,
-                    .allowBluetoothA2DP,
-                    .duckOthers
-                ]
-            )
-            
+            // Minimal, compatible configuration
+            try audioSession.setCategory(.playback, mode: .spokenAudio)
             try audioSession.setActive(true)
             
-            AppLogger.debug.debug("[AppDelegate] ✅ Audio session configured")
+            AppLogger.debug.debug("[AppDelegate] Audio session configured")
             
         } catch {
             AppLogger.debug.debug("[AppDelegate] ❌ Failed to configure audio session: \(error)")

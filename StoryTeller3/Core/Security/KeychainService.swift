@@ -18,20 +18,27 @@ class KeychainService {
     func storePassword(_ password: String, for username: String) throws {
         let data = Data(password.utf8)
         
-        let query: [String: Any] = [
+        // Query for deletion - only identifying attributes
+        let deleteQuery: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: username
+        ]
+        
+        // Delete existing item first
+        SecItemDelete(deleteQuery as CFDictionary)
+        
+        // Query for addition - includes data and attributes
+        let addQuery: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: username,
             kSecValueData as String: data,
-            // 🔒 CRITICAL SECURITY ADDITIONS
             kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
             kSecAttrSynchronizable as String: false
         ]
         
-        // Delete existing item first
-        SecItemDelete(query as CFDictionary)
-        
-        let status = SecItemAdd(query as CFDictionary, nil)
+        let status = SecItemAdd(addQuery as CFDictionary, nil)
         
         guard status == errSecSuccess else {
             throw KeychainError.storageError(status)
@@ -82,26 +89,32 @@ class KeychainService {
         let data = Data(token.utf8)
         let account = "\(username)_token"
         
-        let query: [String: Any] = [
+        // Query for deletion - only identifying attributes
+        let deleteQuery: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account
+        ]
+        
+        // Delete existing token first
+        SecItemDelete(deleteQuery as CFDictionary)
+        
+        // Query for addition - includes data and attributes
+        let addQuery: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: account,
             kSecValueData as String: data,
-            // 🔒 CRITICAL SECURITY ADDITIONS
             kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
             kSecAttrSynchronizable as String: false
         ]
         
-        // Delete existing token first
-        SecItemDelete(query as CFDictionary)
-        
-        let status = SecItemAdd(query as CFDictionary, nil)
+        let status = SecItemAdd(addQuery as CFDictionary, nil)
         
         guard status == errSecSuccess else {
             throw KeychainError.storageError(status)
         }
     }
-    
     func getToken(for username: String) throws -> String {
         let account = "\(username)_token"
         

@@ -89,7 +89,7 @@ class DownloadManager: ObservableObject {
     // MARK: - Download Book with Detailed Progress Tracking
 
     func downloadBook(_ book: Book, api: AudiobookshelfAPI) async {
-        // ✅ Check available storage before starting
+        // Check available storage before starting
         guard checkAvailableStorage() else {
             await MainActor.run {
                 AppLogger.debug.debug("❌ Insufficient storage space for download")
@@ -111,7 +111,7 @@ class DownloadManager: ObservableObject {
             }
         }
         
-        // ✅ Prevent duplicate downloads
+        // Prevent duplicate downloads
         let isAlreadyDownloaded = await MainActor.run {
             isBookDownloaded(book.id) || isDownloadingBook(book.id)
         }
@@ -123,7 +123,7 @@ class DownloadManager: ObservableObject {
         
         AppLogger.debug.debug("📥 Starting download for: \(book.title)")
         
-        // ✅ Create the download task (for cancellation support)
+        // Create the download task (for cancellation support)
         let downloadTask = Task { @MainActor in
             await performDownload(book: book, api: api)
         }
@@ -145,7 +145,7 @@ class DownloadManager: ObservableObject {
     // MARK: - Perform Download (Separated for Better Task Management)
 
     private func performDownload(book: Book, api: AudiobookshelfAPI) async {
-        // ✅ Stage 1: Initialize download state
+        // Stage 1: Initialize download state
         await MainActor.run {
             isDownloading[book.id] = true
             downloadProgress[book.id] = 0.0
@@ -156,10 +156,10 @@ class DownloadManager: ObservableObject {
         let bookDir = bookDirectory(for: book.id)
         
         do {
-            // ✅ Check if task was cancelled
+            // Check if task was cancelled
             try Task.checkCancellation()
             
-            // ✅ Stage 2: Create book directory
+            // Stage 2: Create book directory
             await MainActor.run {
                 downloadStage[book.id] = .preparing
                 downloadStatus[book.id] = "Creating download folder..."
@@ -174,10 +174,10 @@ class DownloadManager: ObservableObject {
             // Small delay for visual feedback
             try await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
             
-            // ✅ Check cancellation again
+            // Check cancellation again
             try Task.checkCancellation()
             
-            // ✅ Stage 3: Fetch detailed book information
+            // Stage 3: Fetch detailed book information
             await MainActor.run {
                 downloadStage[book.id] = .fetchingMetadata
                 downloadStatus[book.id] = "Fetching book details from server..."
@@ -189,11 +189,11 @@ class DownloadManager: ObservableObject {
                 downloadProgress[book.id] = 0.10
             }
             
-            AppLogger.debug.debug("✅ Fetched book details: \(fullBook.chapters.count) chapters")
+            AppLogger.debug.debug("Fetched book details: \(fullBook.chapters.count) chapters")
             
             try Task.checkCancellation()
             
-            // ✅ Stage 4: Save book metadata
+            // Stage 4: Save book metadata
             await MainActor.run {
                 downloadStatus[book.id] = "Saving book information..."
             }
@@ -206,7 +206,7 @@ class DownloadManager: ObservableObject {
             
             try Task.checkCancellation()
             
-            // ✅ Stage 5: Download cover image
+            // Stage 5: Download cover image
             if let coverPath = fullBook.coverPath {
                 await MainActor.run {
                     downloadStage[book.id] = .downloadingCover
@@ -224,12 +224,12 @@ class DownloadManager: ObservableObject {
                     downloadProgress[book.id] = 0.20
                 }
                 
-                AppLogger.debug.debug("✅ Cover downloaded")
+                AppLogger.debug.debug("Cover downloaded")
             }
             
             try Task.checkCancellation()
             
-            // ✅ Stage 6: Download audio files (bulk of download time)
+            // Stage 6: Download audio files (bulk of download time)
             await MainActor.run {
                 downloadStage[book.id] = .downloadingAudio
                 downloadStatus[book.id] = "Starting audio download..."
@@ -242,7 +242,7 @@ class DownloadManager: ObservableObject {
             
             try Task.checkCancellation()
             
-            // ✅ Stage 7: Finalizing
+            // Stage 7: Finalizing
             await MainActor.run {
                 downloadStage[book.id] = .finalizing
                 downloadStatus[book.id] = "Verifying download..."
@@ -260,7 +260,7 @@ class DownloadManager: ObservableObject {
             
             try Task.checkCancellation()
             
-            // ✅ Stage 8: Complete
+            // Stage 8: Complete
             await MainActor.run {
                 downloadedBooks.append(fullBook)
                 isDownloading[book.id] = false
@@ -268,10 +268,10 @@ class DownloadManager: ObservableObject {
                 downloadStage[book.id] = .complete
                 downloadStatus[book.id] = "Download complete!"
                 
-                AppLogger.debug.debug("✅ Successfully downloaded: \(fullBook.title)")
+                AppLogger.debug.debug("Successfully downloaded: \(fullBook.title)")
             }
             
-            // ✅ Clear status after 2 seconds
+            // Clear status after 2 seconds
             try? await Task.sleep(nanoseconds: 2_000_000_000)
             
             await MainActor.run {
@@ -280,7 +280,7 @@ class DownloadManager: ObservableObject {
             }
             
         } catch is CancellationError {
-            // ✅ Handle cancellation gracefully
+            // Handle cancellation gracefully
             AppLogger.debug.debug("🚫 Download cancelled for: \(book.title)")
             
             await MainActor.run {
@@ -302,7 +302,7 @@ class DownloadManager: ObservableObject {
             }
             
         } catch let error as DownloadError {
-            // ✅ Handle custom download errors
+            // Handle custom download errors
             AppLogger.debug.debug("❌ Download error for \(book.title): \(error.localizedDescription)")
             
             await MainActor.run {
@@ -315,7 +315,7 @@ class DownloadManager: ObservableObject {
             cleanupPartialDownload(bookDir: bookDir, bookId: book.id)
             
         } catch {
-            // ✅ Handle all other errors
+            // Handle all other errors
             AppLogger.debug.debug("❌ Download failed for \(book.title): \(error.localizedDescription)")
             
             await MainActor.run {
@@ -561,7 +561,7 @@ class DownloadManager: ObservableObject {
         request.timeoutInterval = 300.0
         
         do {
-            // ✅ Update status with current chapter
+            // Update status with current chapter
             await MainActor.run {
                 let chapterNum = currentTrack + 1
                 downloadStatus[bookId] = "Downloading chapter \(chapterNum) of \(totalTracks)..."

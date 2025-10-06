@@ -141,7 +141,7 @@ struct SeriesQuickAccessView: View {
             .padding(.horizontal, 20)
             .padding(.vertical, 12)
             
-            // ✅ REUSE: HorizontalBookScrollView (identisch mit SeriesView!)
+            // REUSE: HorizontalBookScrollView (identisch mit SeriesView!)
             HorizontalBookScrollView(
                 books: seriesBooks,
                 player: player,

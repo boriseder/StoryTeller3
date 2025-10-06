@@ -35,7 +35,7 @@ extension AudiobookshelfAPI {
         let request = networkService.createAuthenticatedRequest(url: url, authToken: authToken)
         
         do {
-            // ✅ CORRECTED: Use LibraryItemsResponse (not SeriesResponse)
+            // CORRECTED: Use LibraryItemsResponse (not SeriesResponse)
             let response: LibraryItemsResponse = try await networkService.performRequest(
                 request,
                 responseType: LibraryItemsResponse.self

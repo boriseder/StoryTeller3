@@ -235,7 +235,7 @@ struct SettingsView: View {
                 }
                 .disabled(!viewModel.canLogin)
                 
-                // ✅ NEW: Show loading state after login
+                // NEW: Show loading state after login
                 if viewModel.isTestingConnection {
                     HStack {
                         ProgressView()

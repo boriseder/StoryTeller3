@@ -81,7 +81,7 @@ class LibraryViewModel: BaseViewModel {
                 if let selectedLibrary = libraries.first(where: { $0.id == libraryId }) {
                     libraryName = selectedLibrary.name
                     
-                    // ✅ CRASH PROTECTION: Try with series grouping first
+                    // CRASH PROTECTION: Try with series grouping first
                     do {
                         fetchedBooks = try await api.fetchBooks(
                             from: libraryId,
@@ -89,10 +89,10 @@ class LibraryViewModel: BaseViewModel {
                             collapseSeries: showSeriesGrouped
                         )
                         
-                        AppLogger.debug.debug("[Library] ✅ Loaded \(fetchedBooks.count) books successfully")
+                        AppLogger.debug.debug("[Library] Loaded \(fetchedBooks.count) books successfully")
                         
                     } catch let decodingError as DecodingError {
-                        // ✅ Handle malformed data gracefully
+                        // Handle malformed data gracefully
                         AppLogger.debug.debug("[Library] ⚠️ Decoding error: \(decodingError)")
                         
                         // Try to get detailed error information
@@ -111,7 +111,7 @@ class LibraryViewModel: BaseViewModel {
                         Try: \(errorDetails)
                         """
                         
-                        // ✅ Fallback: Try without series grouping
+                        // Fallback: Try without series grouping
                         if showSeriesGrouped {
                             AppLogger.debug.debug("[Library] 🔄 Retrying without series grouping...")
                             
@@ -122,7 +122,7 @@ class LibraryViewModel: BaseViewModel {
                                     collapseSeries: false
                                 )
                                 
-                                AppLogger.debug.debug("[Library] ✅ Fallback successful: \(fetchedBooks.count) books loaded")
+                                AppLogger.debug.debug("[Library] Fallback successful: \(fetchedBooks.count) books loaded")
                                 
                                 // Inform user about the workaround
                                 errorMessage = """
@@ -134,7 +134,7 @@ class LibraryViewModel: BaseViewModel {
                                 showingErrorAlert = true
                                 
                             } catch {
-                                // ✅ Even fallback failed - load what we can
+                                // Even fallback failed - load what we can
                                 AppLogger.debug.debug("[Library] ❌ Fallback also failed: \(error)")
                                 throw error
                             }
@@ -177,7 +177,7 @@ class LibraryViewModel: BaseViewModel {
             )
             
         } catch let decodingError as DecodingError {
-            // ✅ Handle decoding errors specifically
+            // Handle decoding errors specifically
             let errorDetails = getDecodingErrorDetails(decodingError)
             
             errorMessage = """
@@ -195,7 +195,7 @@ class LibraryViewModel: BaseViewModel {
             AppLogger.debug.debug("[Library] ❌ Decoding error: \(decodingError)")
             
         } catch let networkError as URLError {
-            // ✅ Handle network errors specifically
+            // Handle network errors specifically
             switch networkError.code {
             case .timedOut:
                 errorMessage = "Connection timed out. Your library might be very large. Try again or check your network."
@@ -211,7 +211,7 @@ class LibraryViewModel: BaseViewModel {
             AppLogger.debug.debug("[Library] ❌ Network error: \(networkError)")
             
         } catch {
-            // ✅ Handle all other errors
+            // Handle all other errors
             handleError(error)
             AppLogger.debug.debug("[Library] ❌ Fehler beim Laden der Bücher: \(error)")
         }
