@@ -41,7 +41,8 @@ private struct SleepTimerPersistenceState: Codable {
 }
 
 // MARK: - Sleep Timer ViewModel
-class SleepTimerViewModel: BaseViewModel {
+@MainActor
+class SleepTimerViewModel: ObservableObject {
     @Published var selectedMinutes: Int = 30
     @Published var isTimerActive = false
     @Published var remainingTime: TimeInterval = 0
@@ -60,8 +61,6 @@ class SleepTimerViewModel: BaseViewModel {
     ) {
         self.player = player
         self.timerService = timerService
-        
-        super.init()
         
         setupTimerDelegate()
         setupNotifications()

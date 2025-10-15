@@ -6,7 +6,7 @@ struct SeriesView: View {
     @EnvironmentObject var appConfig: AppConfig
 
     init(player: AudioPlayer, api: AudiobookshelfAPI, downloadManager: DownloadManager, onBookSelected: @escaping () -> Void) {
-        self._viewModel = StateObject(wrappedValue: SeriesViewModel(
+        self._viewModel = StateObject(wrappedValue: SeriesViewModelFactory.create(
             api: api,
             player: player,
             downloadManager: downloadManager,
@@ -33,7 +33,8 @@ struct SeriesView: View {
         .toolbarColorScheme(
             appConfig.userBackgroundStyle.textColor == .white ? .dark : .light,
             for: .navigationBar
-        )        .searchable(text: $viewModel.searchText, prompt: "Serien durchsuchen...")
+        )
+        .searchable(text: $viewModel.filterState.searchText, prompt: "Serien durchsuchen...")
         .refreshable {
             await viewModel.loadSeries()
         }
@@ -94,11 +95,11 @@ struct SeriesView: View {
             ForEach(SeriesSortOption.allCases, id: \.self) { option in
                 Button(action: {
                     withAnimation(.easeInOut(duration: 0.2)) {
-                        viewModel.selectedSortOption = option
+                        viewModel.filterState.selectedSortOption = option
                     }
                 }) {
                     Label(option.rawValue, systemImage: option.systemImage)
-                    if viewModel.selectedSortOption == option {
+                    if viewModel.filterState.selectedSortOption == option {
                         Image(systemName: "checkmark")
                     }
                 }
@@ -109,5 +110,4 @@ struct SeriesView: View {
                 .foregroundColor(.primary)
         }
     }
-    
 }

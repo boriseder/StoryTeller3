@@ -1,64 +1,33 @@
 import SwiftUI
 
-class SeriesViewModel: BaseViewModel {
+@MainActor
+class SeriesViewModel: ObservableObject {
+    // MARK: - Published UI State
     @Published var series: [Series] = []
-    @Published var searchText = ""
-    @Published var selectedSortOption: SeriesSortOption = .name
+    @Published var filterState = SeriesFilterState()
     @Published var libraryName: String = "Serien"
+    @Published var isLoading = false
+    @Published var errorMessage: String?
+    @Published var showingErrorAlert = false
     
-    // Dependencies
+    // MARK: - Dependencies
     private let fetchSeriesUseCase: FetchSeriesUseCaseProtocol
+    private let playBookUseCase: PlayBookUseCase
     private let downloadRepository: DownloadRepositoryProtocol
     private let libraryRepository: LibraryRepositoryProtocol
+    
     let api: AudiobookshelfAPI
     let downloadManager: DownloadManager
     let player: AudioPlayer
-    private let onBookSelected: () -> Void
+    let onBookSelected: () -> Void
     
+    // MARK: - Computed Properties for UI
     var filteredAndSortedSeries: [Series] {
-        let filtered = searchText.isEmpty ? series : series.filter { series in
-            series.name.localizedCaseInsensitiveContains(searchText) ||
-            (series.author?.localizedCaseInsensitiveContains(searchText) ?? false)
-        }
-
-        return filtered.sorted { series1, series2 in
-            switch selectedSortOption {
-            case .name:
-                return series1.name.localizedCompare(series2.name) == .orderedAscending
-            case .recent:
-                return series1.addedAt > series2.addedAt
-            case .bookCount:
-                return series1.bookCount > series2.bookCount
-            case .duration:
-                return series1.totalDuration > series2.totalDuration
-            }
-        }
+        let filtered = series.filter { filterState.matchesSearchFilter($0) }
+        return filterState.applySorting(to: filtered)
     }
     
-    // MARK: - Convenience initializer for backward compatibility
-    convenience init(
-        api: AudiobookshelfAPI,
-        player: AudioPlayer,
-        downloadManager: DownloadManager,
-        onBookSelected: @escaping () -> Void
-    ) {
-        let bookRepository = BookRepository(api: api, cache: BookCache())
-        let fetchSeriesUseCase = FetchSeriesUseCase(bookRepository: bookRepository)
-        let downloadRepository = DownloadRepository(downloadManager: downloadManager)
-        let libraryRepository = LibraryRepository(api: api)
-        
-        self.init(
-            fetchSeriesUseCase: fetchSeriesUseCase,
-            downloadRepository: downloadRepository,
-            libraryRepository: libraryRepository,
-            api: api,
-            downloadManager: downloadManager,
-            player: player,
-            onBookSelected: onBookSelected
-        )
-    }
-    
-    // MARK: - Main initializer with use cases
+    // MARK: - Init with DI
     init(
         fetchSeriesUseCase: FetchSeriesUseCaseProtocol,
         downloadRepository: DownloadRepositoryProtocol,
@@ -69,25 +38,25 @@ class SeriesViewModel: BaseViewModel {
         onBookSelected: @escaping () -> Void
     ) {
         self.fetchSeriesUseCase = fetchSeriesUseCase
+        self.playBookUseCase = PlayBookUseCase()
         self.downloadRepository = downloadRepository
         self.libraryRepository = libraryRepository
         self.api = api
         self.downloadManager = downloadManager
         self.player = player
         self.onBookSelected = onBookSelected
-        super.init()
     }
     
+    // MARK: - Actions
     func loadSeriesIfNeeded() async {
         if series.isEmpty {
             await loadSeries()
         }
     }
     
-    @MainActor
     func loadSeries() async {
         isLoading = true
-        resetError()
+        errorMessage = nil
         
         do {
             guard let selectedLibrary = try await libraryRepository.getSelectedLibrary() else {
@@ -110,23 +79,32 @@ class SeriesViewModel: BaseViewModel {
         } catch let error as RepositoryError {
             handleRepositoryError(error)
         } catch {
-            handleError(error)
+            errorMessage = error.localizedDescription
+            showingErrorAlert = true
         }
         
         isLoading = false
     }
     
-    @MainActor
     func playBook(_ book: Book, appState: AppStateManager, restoreState: Bool = true) async {
-        await loadAndPlayBook(
-            book,
-            api: api,
-            player: player,
-            downloadManager: downloadManager,
-            appState: appState,
-            restoreState: restoreState,
-            onSuccess: onBookSelected
-        )
+        isLoading = true
+        
+        do {
+            try await playBookUseCase.execute(
+                book: book,
+                api: api,
+                player: player,
+                downloadManager: downloadManager,
+                appState: appState,
+                restoreState: restoreState
+            )
+            onBookSelected()
+        } catch {
+            errorMessage = error.localizedDescription
+            showingErrorAlert = true
+        }
+        
+        isLoading = false
     }
     
     func convertLibraryItemToBook(_ item: LibraryItem) -> Book? {
@@ -134,7 +112,6 @@ class SeriesViewModel: BaseViewModel {
     }
     
     // MARK: - Error Handling
-    
     private func handleRepositoryError(_ error: RepositoryError) {
         errorMessage = error.localizedDescription
         showingErrorAlert = true
