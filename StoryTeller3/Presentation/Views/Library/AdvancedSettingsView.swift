@@ -34,13 +34,13 @@ struct AdvancedSettingsView: View {
                 HStack {
                     Text("Connection Timeout")
                     Spacer()
-                    Text("\(Int(viewModel.connectionTimeout))s")
+                    Text("\(Int(viewModel.advancedSettings.connectionTimeout))s")
                         .foregroundColor(.secondary)
                         .monospacedDigit()
                 }
                 
-                Slider(value: $viewModel.connectionTimeout, in: 10...60, step: 5)
-                    .onChange(of: viewModel.connectionTimeout) { _, _ in
+                Slider(value: $viewModel.advancedSettings.connectionTimeout, in: 10...60, step: 5)
+                    .onChange(of: viewModel.advancedSettings.connectionTimeout) { _, _ in
                         viewModel.saveNetworkSettings()
                     }
                 
@@ -53,9 +53,9 @@ struct AdvancedSettingsView: View {
             Divider()
             
             VStack(alignment: .leading, spacing: 8) {
-                Stepper("Max Concurrent Downloads: \(viewModel.maxConcurrentDownloads)", 
-                        value: $viewModel.maxConcurrentDownloads, in: 1...5)
-                    .onChange(of: viewModel.maxConcurrentDownloads) { _, _ in
+                Stepper("Max Concurrent Downloads: \(viewModel.advancedSettings.maxConcurrentDownloads)", 
+                        value: $viewModel.advancedSettings.maxConcurrentDownloads, in: 1...5)
+                    .onChange(of: viewModel.advancedSettings.maxConcurrentDownloads) { _, _ in
                         viewModel.saveDownloadSettings()
                     }
                 
@@ -73,15 +73,15 @@ struct AdvancedSettingsView: View {
     
     private var cacheSection: some View {
         Section {
-            Stepper("Cover Cache Limit: \(viewModel.coverCacheLimit)", 
-                    value: $viewModel.coverCacheLimit, in: 50...500, step: 50)
-                .onChange(of: viewModel.coverCacheLimit) { _, _ in
+            Stepper("Cover Cache Limit: \(viewModel.advancedSettings.coverCacheLimit)", 
+                    value: $viewModel.advancedSettings.coverCacheLimit, in: 50...500, step: 50)
+                .onChange(of: viewModel.advancedSettings.coverCacheLimit) { _, _ in
                     viewModel.saveCacheSettings()
                 }
             
-            Stepper("Memory Cache: \(viewModel.memoryCacheSize) MB", 
-                    value: $viewModel.memoryCacheSize, in: 25...200, step: 25)
-                .onChange(of: viewModel.memoryCacheSize) { _, _ in
+            Stepper("Memory Cache: \(viewModel.advancedSettings.memoryCacheSize) MB", 
+                    value: $viewModel.advancedSettings.memoryCacheSize, in: 25...200, step: 25)
+                .onChange(of: viewModel.advancedSettings.memoryCacheSize) { _, _ in
                     viewModel.saveCacheSettings()
                 }
             
@@ -101,17 +101,17 @@ struct AdvancedSettingsView: View {
     
     private var debugSection: some View {
         Section {
-            Toggle("Enable Debug Logging", isOn: $viewModel.enableDebugLogging)
-                .onChange(of: viewModel.enableDebugLogging) { _, newValue in
+            Toggle("Enable Debug Logging", isOn: $viewModel.advancedSettings.enableDebugLogging)
+                .onChange(of: viewModel.advancedSettings.enableDebugLogging) { _, newValue in
                     viewModel.toggleDebugLogging(newValue)
                 }
             
-            if viewModel.enableDebugLogging {
+            if viewModel.advancedSettings.enableDebugLogging {
                 Button("Export Debug Logs") {
                     viewModel.exportDebugLogs()
                 }
                 
-                if let lastExport = viewModel.lastDebugExport {
+                if let lastExport = viewModel.advancedSettings.lastDebugExport {
                     HStack {
                         Text("Last Export")
                             .font(.caption)

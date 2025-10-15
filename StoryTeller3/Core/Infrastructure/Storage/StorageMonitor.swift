@@ -1,6 +1,6 @@
 import Foundation
 
-struct StorageInfo {
+struct DeviceStorageInfo {
     let totalSpace: Int64
     let availableSpace: Int64
     let usedSpace: Int64
@@ -52,7 +52,7 @@ enum StorageWarningLevel {
 }
 
 protocol StorageMonitoring {
-    func getStorageInfo() -> StorageInfo
+    func getStorageInfo() -> DeviceStorageInfo
     func getWarningLevel() -> StorageWarningLevel
     func hasEnoughSpace(required: Int64) -> Bool
     func calculateDirectorySize(at url: URL) -> Int64
@@ -63,16 +63,16 @@ class StorageMonitor: StorageMonitoring {
     
     private let fileManager = FileManager.default
     
-    func getStorageInfo() -> StorageInfo {
+    func getStorageInfo() -> DeviceStorageInfo {
         guard let systemAttributes = try? fileManager.attributesOfFileSystem(forPath: NSHomeDirectory()),
               let totalSpace = systemAttributes[.systemSize] as? Int64,
               let freeSpace = systemAttributes[.systemFreeSize] as? Int64 else {
-            return StorageInfo(totalSpace: 0, availableSpace: 0, usedSpace: 0)
+            return DeviceStorageInfo(totalSpace: 0, availableSpace: 0, usedSpace: 0)
         }
         
         let usedSpace = totalSpace - freeSpace
         
-        return StorageInfo(
+        return DeviceStorageInfo(
             totalSpace: totalSpace,
             availableSpace: freeSpace,
             usedSpace: usedSpace

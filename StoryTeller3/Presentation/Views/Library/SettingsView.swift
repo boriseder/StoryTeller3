@@ -1,69 +1,42 @@
 import SwiftUI
 
 struct SettingsView: View {
-    @StateObject private var viewModel = SettingsViewModel()
+    @StateObject private var viewModel = SettingsViewModelFactory.create()
     @EnvironmentObject var appConfig: AppConfig
 
     var body: some View {
         NavigationStack {
-            Form {
-                
-                themeSection
-                
-                serverSection
-                
-                if viewModel.isServerConfigured {
-                    connectionSection
+            formContent
+                .navigationTitle("Settings")
+                .navigationBarTitleDisplayMode(.large)
+                .task {
+                    await viewModel.calculateStorageInfo()
                 }
-                
-                credentialsSection  // Always show (handles both states internally)
-                
-                if viewModel.isLoggedIn {
-                    librariesSection  // Only show when logged in
+                .refreshable {
+                    await viewModel.calculateStorageInfo()
                 }
-                
-                storageSection
-                aboutSection
-                advancedSection
-            }
-            .navigationTitle("Settings")
-            .navigationBarTitleDisplayMode(.large)
+                .modifier(AlertsModifier(viewModel: viewModel))
+        }
+    }
+    
+    private var formContent: some View {
+        Form {
+            themeSection
+            serverSection
             
-            .task {
-                await viewModel.calculateStorageInfo()
+            if viewModel.serverConfig.isServerConfigured {
+                connectionSection
             }
-            .refreshable {
-                await viewModel.calculateStorageInfo()
+            
+            credentialsSection
+            
+            if viewModel.isLoggedIn {
+                librariesSection
             }
-            .alert("Clear All Cache?", isPresented: $viewModel.showingClearCacheAlert) {
-                Button("Cancel", role: .cancel) {}
-                Button("Clear \(viewModel.totalCacheSize)", role: .destructive) {
-                    Task { await viewModel.clearAllCache() }
-                }
-            } message: {
-                Text("This will clear all cached data including cover images and metadata. Downloaded books are not affected.")
-            }
-            .alert("Delete All Downloads?", isPresented: $viewModel.showingClearDownloadsAlert) {
-                Button("Cancel", role: .cancel) {}
-                Button("Delete All", role: .destructive) {
-                    Task { await viewModel.clearAllDownloads() }
-                }
-            } message: {
-                Text("This will permanently delete all \(viewModel.downloadedBooksCount) downloaded books. You can re-download them anytime when online.")
-            }
-            .alert("Logout?", isPresented: $viewModel.showingLogoutAlert) {
-                Button("Cancel", role: .cancel) {}
-                Button("Logout", role: .destructive) {
-                    viewModel.logout()
-                }
-            } message: {
-                Text("You will need to enter your credentials again to reconnect.")
-            }
-            .alert("Connection Test", isPresented: $viewModel.showingTestResults) {
-                Button("OK", role: .cancel) {}
-            } message: {
-                Text(viewModel.testResultMessage)
-            }
+            
+            storageSection
+            aboutSection
+            advancedSection
         }
     }
     
@@ -117,32 +90,32 @@ struct SettingsView: View {
     
     private var serverSection: some View {
         Section {
-            Picker("Protocol", selection: $viewModel.scheme) {
+            Picker("Protocol", selection: $viewModel.serverConfig.scheme) {
                 Text("http").tag("http")
                 Text("https").tag("https")
             }
             .disabled(viewModel.isLoggedIn)
             
-            TextField("Host", text: $viewModel.host)
+            TextField("Host", text: $viewModel.serverConfig.host)
                 .autocapitalization(.none)
                 .disableAutocorrection(true)
                 .keyboardType(.URL)
                 .disabled(viewModel.isLoggedIn)
-                .onChange(of: viewModel.host) { _, _ in
+                .onChange(of: viewModel.serverConfig.host) { _, _ in
                     viewModel.sanitizeHost()
                 }
             
-            TextField("Port", text: $viewModel.port)
+            TextField("Port", text: $viewModel.serverConfig.port)
                 .keyboardType(.numberPad)
                 .disabled(viewModel.isLoggedIn)
             
-            if viewModel.isServerConfigured {
+            if viewModel.serverConfig.isServerConfigured {
                 HStack {
                     Text("Server URL")
                         .font(.caption)
                         .foregroundColor(.secondary)
                     Spacer()
-                    Text(viewModel.fullServerURL)
+                    Text(viewModel.serverConfig.fullServerURL)
                         .font(.caption.monospaced())
                         .foregroundColor(.secondary)
                         .lineLimit(1)
@@ -152,7 +125,7 @@ struct SettingsView: View {
         } header: {
             Label("Audiobookshelf Server", systemImage: "server.rack")
         } footer: {
-            if viewModel.scheme == "http" {
+            if viewModel.serverConfig.scheme == "http" {
                 Label("HTTP is not secure. Use HTTPS when possible.", systemImage: "exclamationmark.triangle.fill")
                     .font(.caption)
                     .foregroundColor(.orange)
@@ -210,7 +183,7 @@ struct SettingsView: View {
                         Text("Logged in as")
                             .font(.caption)
                             .foregroundColor(.secondary)
-                        Text(viewModel.username)
+                        Text(viewModel.serverConfig.username)
                             .font(.subheadline)
                             .fontWeight(.medium)
                     }
@@ -224,11 +197,11 @@ struct SettingsView: View {
                 }
                 .foregroundColor(.red)
             } else {
-                TextField("Username", text: $viewModel.username)
+                TextField("Username", text: $viewModel.serverConfig.username)
                     .autocapitalization(.none)
                     .disableAutocorrection(true)
                 
-                SecureField("Password", text: $viewModel.password)
+                SecureField("Password", text: $viewModel.serverConfig.password)
                 
                 Button("Login") {
                     viewModel.login()
@@ -311,7 +284,7 @@ struct SettingsView: View {
     
     private var storageSection: some View {
         Section {
-            if viewModel.isCalculatingStorage {
+            if viewModel.storage.isCalculatingStorage {
                 HStack {
                     ProgressView()
                         .scaleEffect(0.8)
@@ -328,13 +301,13 @@ struct SettingsView: View {
                             .foregroundColor(.secondary)
                     }
                     Spacer()
-                    Text(viewModel.totalCacheSize)
+                    Text(viewModel.storage.totalCacheSize)
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                         .monospacedDigit()
                 }
                 
-                if viewModel.cacheOperationInProgress {
+                if viewModel.storage.cacheOperationInProgress {
                     HStack {
                         ProgressView()
                             .scaleEffect(0.8)
@@ -347,7 +320,7 @@ struct SettingsView: View {
                     }
                     .foregroundColor(.orange)
                     
-                    if let lastCleanup = viewModel.lastCacheCleanupDate {
+                    if let lastCleanup = viewModel.storage.lastCacheCleanupDate {
                         HStack {
                             Text("Last cleared")
                                 .font(.caption)
@@ -366,18 +339,18 @@ struct SettingsView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Downloads")
                             .font(.subheadline)
-                        Text("\(viewModel.downloadedBooksCount) books available offline")
+                        Text("\(viewModel.storage.downloadedBooksCount) books available offline")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
                     Spacer()
-                    Text(viewModel.totalDownloadSize)
+                    Text(viewModel.storage.totalDownloadSize)
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                         .monospacedDigit()
                 }
                 
-                if viewModel.downloadedBooksCount > 0 {
+                if viewModel.storage.downloadedBooksCount > 0 {
                     Button("Delete All Downloads") {
                         viewModel.showingClearDownloadsAlert = true
                     }
@@ -457,5 +430,42 @@ struct SettingsView: View {
     
     private func getBuildNumber() -> String {
         Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "Unknown"
+    }
+}
+
+private struct AlertsModifier: ViewModifier {
+    @ObservedObject var viewModel: SettingsViewModel
+    
+    func body(content: Content) -> some View {
+        content
+            .alert("Clear All Cache?", isPresented: $viewModel.showingClearCacheAlert) {
+                Button("Cancel", role: .cancel) {}
+                Button("Clear \(viewModel.storage.totalCacheSize)", role: .destructive) {
+                    Task { await viewModel.clearAllCache() }
+                }
+            } message: {
+                Text("This will clear all cached data including cover images and metadata. Downloaded books are not affected.")
+            }
+            .alert("Delete All Downloads?", isPresented: $viewModel.showingClearDownloadsAlert) {
+                Button("Cancel", role: .cancel) {}
+                Button("Delete All", role: .destructive) {
+                    Task { await viewModel.clearAllDownloads() }
+                }
+            } message: {
+                Text("This will permanently delete all \(viewModel.storage.downloadedBooksCount) downloaded books. You can re-download them anytime when online.")
+            }
+            .alert("Logout?", isPresented: $viewModel.showingLogoutAlert) {
+                Button("Cancel", role: .cancel) {}
+                Button("Logout", role: .destructive) {
+                    viewModel.logout()
+                }
+            } message: {
+                Text("You will need to enter your credentials again to reconnect.")
+            }
+            .alert("Connection Test", isPresented: $viewModel.showingTestResults) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(viewModel.testResultMessage)
+            }
     }
 }

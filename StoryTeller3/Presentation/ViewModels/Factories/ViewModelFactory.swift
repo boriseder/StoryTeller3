@@ -98,8 +98,4 @@ class ViewModelFactory {
     func makeSleepTimerViewModel() -> SleepTimerViewModel {
         SleepTimerViewModel(player: player)
     }
-    
-    func makeSettingsViewModel() -> SettingsViewModel {
-        SettingsViewModel()
-    }
 }

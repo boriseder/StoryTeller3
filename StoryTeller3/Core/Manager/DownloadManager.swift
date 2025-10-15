@@ -880,17 +880,6 @@ class DownloadManager: ObservableObject {
     }
 }
 
-enum DownloadError: LocalizedError {
-    case insufficientStorage
-    
-    var errorDescription: String? {
-        switch self {
-        case .insufficientStorage:
-            return "Not enough storage space. Please free up space and try again."
-        }
-    }
-}
-
 // MARK: - Download Stage Enum
 enum DownloadStage: String, Equatable {
     case preparing = "Preparing..."
