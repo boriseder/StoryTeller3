@@ -36,7 +36,8 @@ struct DownloadsView: View {
             .toolbarColorScheme(
                 appConfig.userBackgroundStyle.textColor == .white ? .dark : .light,
                 for: .navigationBar
-            )            .toolbar {
+            )
+             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     toolbarButtons
                 }
@@ -253,7 +254,6 @@ struct DownloadsView: View {
                         .foregroundColor(.primary)
                 }
             }
-            
             Button(action: {
                 NotificationCenter.default.post(name: .init("ShowSettings"), object: nil)
             }) {
@@ -292,29 +292,6 @@ struct DownloadsView: View {
                     )
                 } header: {
                     Label("Storage Overview", systemImage: "chart.pie.fill")
-                }
-                
-                // Storage tips section
-                Section {
-                    TipRow(
-                        icon: "lightbulb.fill",
-                        title: "Manage Storage",
-                        description: "Delete books you've finished to free up space"
-                    )
-                    
-                    TipRow(
-                        icon: "wifi",
-                        title: "Stream Instead",
-                        description: "Use streaming when online to save storage"
-                    )
-                    
-                    TipRow(
-                        icon: "arrow.down.circle",
-                        title: "Selective Downloads",
-                        description: "Only download books you plan to listen to offline"
-                    )
-                } header: {
-                    Label("Storage Tips", systemImage: "info.circle")
                 }
                 
                 // Per-book storage section
@@ -356,6 +333,29 @@ struct DownloadsView: View {
                     } header: {
                         Label("Downloaded Books", systemImage: "arrow.down.circle.fill")
                     }
+                }
+                
+                // Storage tips section
+                Section {
+                    TipRow(
+                        icon: "lightbulb.fill",
+                        title: "Manage Storage",
+                        description: "Delete books you've finished to free up space"
+                    )
+                    
+                    TipRow(
+                        icon: "wifi",
+                        title: "Stream Instead",
+                        description: "Use streaming when online to save storage"
+                    )
+                    
+                    TipRow(
+                        icon: "arrow.down.circle",
+                        title: "Selective Downloads",
+                        description: "Only download books you plan to listen to offline"
+                    )
+                } header: {
+                    Label("Storage Tips", systemImage: "info.circle")
                 }
                 
                 // Danger zone section

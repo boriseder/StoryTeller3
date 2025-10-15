@@ -224,17 +224,6 @@ struct ContentView: View {
                     onBookSelected: { openFullscreenPlayer() }
                 )
                 .environmentObject(appState)
-                .toolbar {
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        Button(action: {
-                            appState.showingSettings = true
-                        }) {
-                            Image(systemName: "gearshape.fill")
-                                .font(.system(size: 18))
-                                .foregroundColor(.primary)
-                        }
-                    }
-                }
             } else {
                 DownloadsView(
                     downloadManager: downloadManager,

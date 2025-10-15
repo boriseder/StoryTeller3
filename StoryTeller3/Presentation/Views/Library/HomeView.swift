@@ -49,7 +49,7 @@ struct HomeView: View {
         .refreshable {
             await viewModel.loadPersonalizedSections()
         }
-        .toolbar {
+         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 settingsButton
             }
