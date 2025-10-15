@@ -1,2 +1,0 @@
-Target dependency graph (1 target)
-Target 'StoryTeller3' in project 'StoryTeller3' (no dependencies)

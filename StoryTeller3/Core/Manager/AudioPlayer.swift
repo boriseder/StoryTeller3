@@ -27,6 +27,10 @@ class AudioPlayer: NSObject, ObservableObject {
     private var isOfflineMode: Bool = false
     private var targetSeekTime: Double?
     private var observers: [NSObjectProtocol] = []
+    
+    private static var observerContext = 0
+    private var currentObservedItem: AVPlayerItem?
+    private var hasAddedKVOObservers = false
 
     var currentChapter: Chapter? {
         guard let book = book, currentChapterIndex < book.chapters.count else { return nil }
@@ -68,54 +72,7 @@ class AudioPlayer: NSObject, ObservableObject {
         
         updateAudioRoutes()
     }
-    // MARK: - FIXED: Enhanced Audio Session Configuration
-/*
-    private func configureAudioSession() {
-        do {
-            let audioSession = AVAudioSession.sharedInstance()
-            
-            // Set category and mode first
-            try audioSession.setCategory(
-                .playback,
-                mode: .spokenAudio,
-                options: [
-                    .allowAirPlay,
-                    .allowBluetoothA2DP,
-                    .duckOthers
-                ]
-            )
-            
-            // Set preferred properties BEFORE activation
-            try audioSession.setPreferredSampleRate(44100.0)
-            try audioSession.setPreferredIOBufferDuration(0.005)
-            
-            // Activate LAST
-            try audioSession.setActive(true)
-            
-            // Setup remote controls and observers after activation
-            setupRemoteCommandCenter()
-            
-            NotificationCenter.default.addObserver(
-                self,
-                selector: #selector(audioRouteChanged),
-                name: AVAudioSession.routeChangeNotification,
-                object: nil
-            )
-            
-            NotificationCenter.default.addObserver(
-                self,
-                selector: #selector(handleInterruption),
-                name: AVAudioSession.interruptionNotification,
-                object: nil
-            )
-            
-            updateAudioRoutes()
-        } catch {
-            errorMessage = "Audio session configuration failed: \(error.localizedDescription)"
-            AppLogger.debug.debug("[AudioPlayer] ❌ Audio session error: \(error)")
-        }
-    }
-*/
+
     // MARK: - NEW: Interruption Handling
     @objc private func handleInterruption(notification: Notification) {
         guard let userInfo = notification.userInfo,
@@ -385,7 +342,8 @@ class AudioPlayer: NSObject, ObservableObject {
                 AppLogger.debug.debug("[AudioPlayer] File exists: \(FileManager.default.fileExists(atPath: localURL.path))")
                 
                 let playerItem = AVPlayerItem(url: localURL)
-                self.setupOfflinePlayer(playerItem: playerItem, duration: chapter.end ?? 3600, shouldResumePlayback: shouldResumePlayback)
+                let chapterDuration = (chapter.end ?? 0) - (chapter.start ?? 0)
+                self.setupOfflinePlayer(playerItem: playerItem, duration: chapterDuration, shouldResumePlayback: shouldResumePlayback)
             } else {
                 self.errorMessage = "Offline-Audiodatei nicht gefunden"
             }
@@ -407,11 +365,13 @@ class AudioPlayer: NSObject, ObservableObject {
         
         // Handle delayed seek for restored state
         if let seekTime = targetSeekTime {
-            AppLogger.debug.debug("[AudioPlayer] Delayed seek to restored position: \(seekTime)s")
+            let timeToSeek = seekTime
+            self.targetSeekTime = nil
+            
+            AppLogger.debug.debug("[AudioPlayer] Delayed seek to restored position: \(timeToSeek)s")
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
                 guard let self = self else { return }
-                self.seek(to: seekTime)
-                self.targetSeekTime = nil
+                self.seek(to: timeToSeek)
                 
                 if shouldResumePlayback {
                     AppLogger.debug.debug("[AudioPlayer] Auto-resuming playback after restoration")
@@ -521,13 +481,14 @@ class AudioPlayer: NSObject, ObservableObject {
         // Update now playing info
         updateNowPlayingInfo()
         
-        // Handle delayed seek for restored state
         if let seekTime = targetSeekTime {
-            AppLogger.debug.debug("[AudioPlayer] Delayed seek to restored position: \(seekTime)s")
+            let timeToSeek = seekTime
+            self.targetSeekTime = nil
+            
+            AppLogger.debug.debug("[AudioPlayer] Delayed seek to restored position: \(timeToSeek)s")
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
                 guard let self = self else { return }
-                self.seek(to: seekTime)
-                self.targetSeekTime = nil
+                self.seek(to: timeToSeek)
                 
                 if shouldResumePlayback {
                     AppLogger.debug.debug("[AudioPlayer] Auto-resuming playback after restoration")
@@ -555,8 +516,21 @@ class AudioPlayer: NSObject, ObservableObject {
     
     // MARK: - Player Observer Management
     private func setupPlayerItemObservers(_ playerItem: AVPlayerItem) {
-        playerItem.addObserver(self, forKeyPath: "status", options: [.new], context: nil)
-        playerItem.addObserver(self, forKeyPath: "loadedTimeRanges", options: [.new], context: nil)
+        if let previousItem = currentObservedItem {
+            NotificationCenter.default.removeObserver(
+                self,
+                name: .AVPlayerItemDidPlayToEndTime,
+                object: previousItem
+            )
+            if hasAddedKVOObservers {
+                previousItem.removeObserver(self, forKeyPath: "status", context: &AudioPlayer.observerContext)
+                previousItem.removeObserver(self, forKeyPath: "loadedTimeRanges", context: &AudioPlayer.observerContext)
+            }
+        }
+        
+        playerItem.addObserver(self, forKeyPath: "status", options: [.new], context: &AudioPlayer.observerContext)
+        playerItem.addObserver(self, forKeyPath: "loadedTimeRanges", options: [.new], context: &AudioPlayer.observerContext)
+        hasAddedKVOObservers = true
         
         NotificationCenter.default.addObserver(
             self,
@@ -564,6 +538,8 @@ class AudioPlayer: NSObject, ObservableObject {
             name: .AVPlayerItemDidPlayToEndTime,
             object: playerItem
         )
+        
+        currentObservedItem = playerItem
     }
     
     private func cleanupPlayer() {
@@ -572,12 +548,20 @@ class AudioPlayer: NSObject, ObservableObject {
             timeObserver = nil
         }
         
-        NotificationCenter.default.removeObserver(self, name: .AVPlayerItemDidPlayToEndTime, object: nil)
-        
-        if let currentItem = player?.currentItem {
-            currentItem.removeObserver(self, forKeyPath: "status", context: nil)
-            currentItem.removeObserver(self, forKeyPath: "loadedTimeRanges", context: nil)
+        if let observedItem = currentObservedItem {
+            NotificationCenter.default.removeObserver(
+                self,
+                name: .AVPlayerItemDidPlayToEndTime,
+                object: observedItem
+            )
+            
+            if hasAddedKVOObservers {
+                observedItem.removeObserver(self, forKeyPath: "status", context: &AudioPlayer.observerContext)
+                observedItem.removeObserver(self, forKeyPath: "loadedTimeRanges", context: &AudioPlayer.observerContext)
+                hasAddedKVOObservers = false
+            }
         }
+        currentObservedItem = nil
         
         player?.pause()
         player = nil
@@ -609,11 +593,16 @@ class AudioPlayer: NSObject, ObservableObject {
             errorMessage = "Playback failed: \(error)"
             AppLogger.debug.debug("[AudioPlayer] Playback failed: \(error)")
         case .unknown:
-            player.play()
-            player.rate = self.playbackRate
-            isPlaying = true
-            updateNowPlayingInfo()
-            AppLogger.debug.debug("[AudioPlayer] Playback started (unknown status)")
+            AppLogger.debug.debug("[AudioPlayer] Player status unknown - waiting for ready state")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                guard let self = self,
+                      let currentItem = self.player?.currentItem,
+                      currentItem.status == .readyToPlay else {
+                    self?.errorMessage = "Player nicht bereit"
+                    return
+                }
+                self.play()
+            }
         @unknown default:
             player.play()
             player.rate = self.playbackRate
@@ -682,6 +671,11 @@ class AudioPlayer: NSObject, ObservableObject {
         let time = CMTime(seconds: seconds, preferredTimescale: 1)
         AppLogger.debug.debug("[AudioPlayer] Seeking to: \(seconds)s")
         player?.seek(to: time)
+        
+        if isPlaying {
+            player?.rate = playbackRate
+        }
+        
         updateNowPlayingInfo()
         saveCurrentPlaybackState()
     }
@@ -783,6 +777,11 @@ class AudioPlayer: NSObject, ObservableObject {
     
     // MARK: - Observer
     override func observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSKeyValueChangeKey : Any]?, context: UnsafeMutableRawPointer?) {
+        guard context == &AudioPlayer.observerContext else {
+            super.observeValue(forKeyPath: keyPath, of: object, change: change, context: context)
+            return
+        }
+        
         guard let keyPath = keyPath, let playerItem = object as? AVPlayerItem else { return }
         
         DispatchQueue.main.async { [weak self] in
@@ -822,9 +821,9 @@ class AudioPlayer: NSObject, ObservableObject {
         
         NotificationCenter.default.removeObserver(self)
         
-        if let currentItem = player?.currentItem {
-            currentItem.removeObserver(self, forKeyPath: "status", context: nil)
-            currentItem.removeObserver(self, forKeyPath: "loadedTimeRanges", context: nil)
+        if let observedItem = currentObservedItem, hasAddedKVOObservers {
+            observedItem.removeObserver(self, forKeyPath: "status", context: &AudioPlayer.observerContext)
+            observedItem.removeObserver(self, forKeyPath: "loadedTimeRanges", context: &AudioPlayer.observerContext)
         }
         
         player?.pause()

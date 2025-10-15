@@ -22,6 +22,7 @@ class PlaybackPersistenceManager: ObservableObject {
     private let userDefaults = UserDefaults.standard
     private let autoSaveInterval: TimeInterval = 30.0
     private var autoSaveTimer: Timer?
+    private let queue = DispatchQueue(label: "com.storyteller.playback.persistence", attributes: .concurrent)
     
     private init() {
         startAutoSave()
@@ -29,31 +30,61 @@ class PlaybackPersistenceManager: ObservableObject {
     
     // MARK: - Save Playback State
     func savePlaybackState(_ state: PlaybackState) {
-        let key = "playback_\(state.bookId)"
-        let data: [String: Any] = [
-            "chapterIndex": state.chapterIndex,
-            "currentTime": state.currentTime,
-            "duration": state.duration,
-            "lastPlayed": state.lastPlayed.timeIntervalSince1970,
-            "isFinished": state.isFinished
-        ]
-        
-        userDefaults.set(data, forKey: key)
-        
-        // Also maintain a list of all book IDs
-        var allBookIds = userDefaults.stringArray(forKey: "all_playback_books") ?? []
-        if !allBookIds.contains(state.bookId) {
-            allBookIds.append(state.bookId)
-            userDefaults.set(allBookIds, forKey: "all_playback_books")
+        queue.async(flags: .barrier) {
+            let key = "playback_\(state.bookId)"
+            let data: [String: Any] = [
+                "chapterIndex": state.chapterIndex,
+                "currentTime": state.currentTime,
+                "duration": state.duration,
+                "lastPlayed": state.lastPlayed.timeIntervalSince1970,
+                "isFinished": state.isFinished
+            ]
+            
+            self.userDefaults.set(data, forKey: key)
+            
+            var allBookIds = self.userDefaults.stringArray(forKey: "all_playback_books") ?? []
+            if !allBookIds.contains(state.bookId) {
+                allBookIds.append(state.bookId)
+                self.userDefaults.set(allBookIds, forKey: "all_playback_books")
+            }
+            
+            AppLogger.debug.debug("[PlaybackPersistence] Saved state for book: \(state.bookId)")
         }
-        
-        AppLogger.debug.debug("[PlaybackPersistence] Saved state for book: \(state.bookId)")
     }
     
     // MARK: - Load Playback State
     func loadPlaybackState(for bookId: String) -> PlaybackState? {
+        return queue.sync {
+            let key = "playback_\(bookId)"
+            guard let data = self.userDefaults.dictionary(forKey: key) else { return nil }
+            
+            return PlaybackState(
+                bookId: bookId,
+                chapterIndex: data["chapterIndex"] as? Int ?? 0,
+                currentTime: data["currentTime"] as? Double ?? 0,
+                duration: data["duration"] as? Double ?? 0,
+                lastPlayed: Date(timeIntervalSince1970: data["lastPlayed"] as? TimeInterval ?? 0),
+                isFinished: data["isFinished"] as? Bool ?? false
+            )
+        }
+    }
+    
+    // MARK: - Get All Progress
+    func getAllPlaybackStates() -> [PlaybackState] {
+        return queue.sync {
+            guard let allBookIds = self.userDefaults.stringArray(forKey: "all_playback_books") else {
+                return []
+            }
+            
+            return allBookIds.compactMap { bookId in
+                self.loadPlaybackStateInternal(for: bookId)
+            }
+        }
+    }
+    
+    private func loadPlaybackStateInternal(for bookId: String) -> PlaybackState? {
         let key = "playback_\(bookId)"
-        guard let data = userDefaults.dictionary(forKey: key) else { return nil }
+        guard let data = self.userDefaults.dictionary(forKey: key) else { return nil }
         
         return PlaybackState(
             bookId: bookId,
@@ -65,17 +96,6 @@ class PlaybackPersistenceManager: ObservableObject {
         )
     }
     
-    // MARK: - Get All Progress
-    func getAllPlaybackStates() -> [PlaybackState] {
-        guard let allBookIds = userDefaults.stringArray(forKey: "all_playback_books") else {
-            return []
-        }
-        
-        return allBookIds.compactMap { bookId in
-            loadPlaybackState(for: bookId)
-        }
-    }
-    
     // MARK: - Recently Played
     func getRecentlyPlayed(limit: Int = 10) -> [PlaybackState] {
         let allStates = getAllPlaybackStates()
@@ -85,31 +105,34 @@ class PlaybackPersistenceManager: ObservableObject {
     
     // MARK: - Delete State
     func deletePlaybackState(for bookId: String) {
-        let key = "playback_\(bookId)"
-        userDefaults.removeObject(forKey: key)
-        
-        // Remove from list
-        var allBookIds = userDefaults.stringArray(forKey: "all_playback_books") ?? []
-        allBookIds.removeAll { $0 == bookId }
-        userDefaults.set(allBookIds, forKey: "all_playback_books")
-        
-        AppLogger.debug.debug("[PlaybackPersistence] Deleted state for book: \(bookId)")
+        queue.async(flags: .barrier) {
+            let key = "playback_\(bookId)"
+            self.userDefaults.removeObject(forKey: key)
+            
+            var allBookIds = self.userDefaults.stringArray(forKey: "all_playback_books") ?? []
+            allBookIds.removeAll { $0 == bookId }
+            self.userDefaults.set(allBookIds, forKey: "all_playback_books")
+            
+            AppLogger.debug.debug("[PlaybackPersistence] Deleted state for book: \(bookId)")
+        }
     }
     
     // MARK: - Clear All
     func clearAllPlaybackStates() {
-        guard let allBookIds = userDefaults.stringArray(forKey: "all_playback_books") else {
-            return
+        queue.async(flags: .barrier) {
+            guard let allBookIds = self.userDefaults.stringArray(forKey: "all_playback_books") else {
+                return
+            }
+            
+            for bookId in allBookIds {
+                let key = "playback_\(bookId)"
+                self.userDefaults.removeObject(forKey: key)
+            }
+            
+            self.userDefaults.removeObject(forKey: "all_playback_books")
+            
+            AppLogger.debug.debug("[PlaybackPersistence] Cleared all playback states")
         }
-        
-        for bookId in allBookIds {
-            let key = "playback_\(bookId)"
-            userDefaults.removeObject(forKey: key)
-        }
-        
-        userDefaults.removeObject(forKey: "all_playback_books")
-        
-        AppLogger.debug.debug("[PlaybackPersistence] Cleared all playback states")
     }
     
     // MARK: - Auto-Save

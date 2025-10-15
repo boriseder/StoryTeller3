@@ -121,7 +121,7 @@ struct PlayerView: View {
                     HStack {
                         Image(systemName: "list.bullet")
                             .font(.caption)
-                        Text(chapter.title)
+                        Text(truncateChapterTitle(chapter.title))
                             .font(.caption)
                             .lineLimit(1)
                     }
@@ -129,6 +129,22 @@ struct PlayerView: View {
                 }
             }
         }
+    }
+    
+    private func truncateChapterTitle(_ title: String) -> String {
+        let maxLength = 40
+        
+        guard title.count > maxLength else {
+            return title
+        }
+        
+        let headLength = maxLength / 2 - 2
+        let tailLength = maxLength / 2 - 2
+        
+        let head = String(title.prefix(headLength))
+        let tail = String(title.suffix(tailLength))
+        
+        return "\(head)...\(tail)"
     }
     
     private var progressSection: some View {
