@@ -8,7 +8,7 @@ struct LibraryView: View {
     @State private var selectedSeries: Book?
     
     init(player: AudioPlayer, api: AudiobookshelfAPI, downloadManager: DownloadManager, onBookSelected: @escaping () -> Void) {
-        self._viewModel = StateObject(wrappedValue: LibraryViewModel(
+        self._viewModel = StateObject(wrappedValue: LibraryViewModelFactory.create(
             api: api,
             player: player,
             downloadManager: downloadManager,
@@ -46,7 +46,7 @@ struct LibraryView: View {
             for: .navigationBar
         )
         .searchable(
-            text: $viewModel.searchText,
+            text: $viewModel.filterState.searchText,
             placement: .automatic,
             prompt: "Search books...")
         .refreshable {
@@ -94,12 +94,12 @@ struct LibraryView: View {
             
             VStack(spacing: 0) {
                 // Filter-Status-Banner (wenn Download-Filter aktiv)
-                if viewModel.showDownloadedOnly {
+                if viewModel.filterState.showDownloadedOnly {
                     filterStatusBanner
                 }
                 
                 // Series-Status-Banner (wenn Series-Modus aktiv)
-                if viewModel.showSeriesGrouped {
+                if viewModel.filterState.showSeriesGrouped {
                     seriesStatusBanner
                 }
                 
@@ -222,11 +222,11 @@ struct LibraryView: View {
                 ForEach(LibrarySortOption.allCases, id: \.self) { option in
                     Button(action: {
                         withAnimation(.easeInOut(duration: 0.2)) {
-                            viewModel.selectedSortOption = option
+                            viewModel.filterState.selectedSortOption = option
                         }
                     }) {
                         Label(option.rawValue, systemImage: option.systemImage)
-                        if viewModel.selectedSortOption == option {
+                        if viewModel.filterState.selectedSortOption == option {
                             Image(systemName: "checkmark")
                         }
                     }
@@ -241,7 +241,7 @@ struct LibraryView: View {
                     viewModel.toggleDownloadFilter()
                 }) {
                     Label("Only downloaded", systemImage: "arrow.down.circle")
-                    if viewModel.showDownloadedOnly {
+                    if viewModel.filterState.showDownloadedOnly {
                         Image(systemName: "checkmark")
                     }
                 }
@@ -261,7 +261,7 @@ struct LibraryView: View {
                     viewModel.toggleSeriesMode()
                 }) {
                     Label("Bundled series", systemImage: "rectangle.stack")
-                    if viewModel.showSeriesGrouped {
+                    if viewModel.filterState.showSeriesGrouped {
                         Image(systemName: "checkmark")
                     }
                 }
@@ -269,7 +269,7 @@ struct LibraryView: View {
             
             // Statistik Section
             Section("Library") {
-                if viewModel.showSeriesGrouped {
+                if viewModel.filterState.showSeriesGrouped {
                     let seriesCount = viewModel.filteredAndSortedBooks.filter { $0.isCollapsedSeries }.count
                     let booksCount = viewModel.filteredAndSortedBooks.filter { !$0.isCollapsedSeries }.count
                     
@@ -290,7 +290,7 @@ struct LibraryView: View {
             }
             
             // Reset Section (nur wenn Filter aktiv)
-            if viewModel.showDownloadedOnly || viewModel.showSeriesGrouped || !viewModel.searchText.isEmpty {
+            if viewModel.filterState.showDownloadedOnly || viewModel.filterState.showSeriesGrouped || !viewModel.filterState.searchText.isEmpty {
                 Divider()
                 
                 Section {
@@ -309,7 +309,7 @@ struct LibraryView: View {
                     .foregroundColor(.primary)
                 
                 // Badge wenn Filter aktiv
-                if viewModel.showDownloadedOnly || viewModel.showSeriesGrouped {
+                if viewModel.filterState.showDownloadedOnly || viewModel.filterState.showSeriesGrouped {
                     Circle()
                         .fill(.orange)
                         .frame(width: 8, height: 8)

@@ -1,10 +1,3 @@
-//
-//  SeriesViewModel.swift
-//  StoryTeller3
-//
-//  Created by Boris Eder on 09.09.25.
-//
-
 import SwiftUI
 
 class SeriesViewModel: BaseViewModel {
@@ -13,9 +6,13 @@ class SeriesViewModel: BaseViewModel {
     @Published var selectedSortOption: SeriesSortOption = .name
     @Published var libraryName: String = "Serien"
     
+    // Dependencies
+    private let fetchSeriesUseCase: FetchSeriesUseCaseProtocol
+    private let downloadRepository: DownloadRepositoryProtocol
+    private let libraryRepository: LibraryRepositoryProtocol
     let api: AudiobookshelfAPI
-    let player: AudioPlayer
     let downloadManager: DownloadManager
+    let player: AudioPlayer
     private let onBookSelected: () -> Void
     
     var filteredAndSortedSeries: [Series] {
@@ -38,10 +35,45 @@ class SeriesViewModel: BaseViewModel {
         }
     }
     
-    init(api: AudiobookshelfAPI, player: AudioPlayer, downloadManager: DownloadManager, onBookSelected: @escaping () -> Void) {
+    // MARK: - Convenience initializer for backward compatibility
+    convenience init(
+        api: AudiobookshelfAPI,
+        player: AudioPlayer,
+        downloadManager: DownloadManager,
+        onBookSelected: @escaping () -> Void
+    ) {
+        let bookRepository = BookRepository(api: api, cache: BookCache())
+        let fetchSeriesUseCase = FetchSeriesUseCase(bookRepository: bookRepository)
+        let downloadRepository = DownloadRepository(downloadManager: downloadManager)
+        let libraryRepository = LibraryRepository(api: api)
+        
+        self.init(
+            fetchSeriesUseCase: fetchSeriesUseCase,
+            downloadRepository: downloadRepository,
+            libraryRepository: libraryRepository,
+            api: api,
+            downloadManager: downloadManager,
+            player: player,
+            onBookSelected: onBookSelected
+        )
+    }
+    
+    // MARK: - Main initializer with use cases
+    init(
+        fetchSeriesUseCase: FetchSeriesUseCaseProtocol,
+        downloadRepository: DownloadRepositoryProtocol,
+        libraryRepository: LibraryRepositoryProtocol,
+        api: AudiobookshelfAPI,
+        downloadManager: DownloadManager,
+        player: AudioPlayer,
+        onBookSelected: @escaping () -> Void
+    ) {
+        self.fetchSeriesUseCase = fetchSeriesUseCase
+        self.downloadRepository = downloadRepository
+        self.libraryRepository = libraryRepository
         self.api = api
-        self.player = player
         self.downloadManager = downloadManager
+        self.player = player
         self.onBookSelected = onBookSelected
         super.init()
     }
@@ -58,17 +90,7 @@ class SeriesViewModel: BaseViewModel {
         resetError()
         
         do {
-            let libraries = try await api.fetchLibraries()
-            let selectedLibrary: Library
-
-            if let savedId = LibraryHelpers.getCurrentLibraryId(),
-               let found = libraries.first(where: { $0.id == savedId }) {
-                selectedLibrary = found
-            } else if let first = libraries.first {
-                selectedLibrary = first
-                LibraryHelpers.saveLibrarySelection(first.id)
-            } else {
-                // keine Bibliothek vorhanden
+            guard let selectedLibrary = try await libraryRepository.getSelectedLibrary() else {
                 libraryName = "Serien"
                 series = []
                 isLoading = false
@@ -76,16 +98,19 @@ class SeriesViewModel: BaseViewModel {
             }
 
             libraryName = "\(selectedLibrary.name) - Serien"
-            let fetchedSeries = try await api.fetchSeries(from: selectedLibrary.id)
             
-            // Update series with animation
+            let fetchedSeries = try await fetchSeriesUseCase.execute(
+                libraryId: selectedLibrary.id
+            )
+            
             withAnimation(.easeInOut) {
                 series = fetchedSeries
             }
             
+        } catch let error as RepositoryError {
+            handleRepositoryError(error)
         } catch {
             handleError(error)
-            AppLogger.debug.debug("Fehler beim Laden der Serien: \(error)")
         }
         
         isLoading = false
@@ -107,6 +132,12 @@ class SeriesViewModel: BaseViewModel {
     func convertLibraryItemToBook(_ item: LibraryItem) -> Book? {
         return api.convertLibraryItemToBook(item)
     }
-
+    
+    // MARK: - Error Handling
+    
+    private func handleRepositoryError(_ error: RepositoryError) {
+        errorMessage = error.localizedDescription
+        showingErrorAlert = true
+        AppLogger.debug.debug("[SeriesViewModel] Repository error: \(error)")
+    }
 }
-

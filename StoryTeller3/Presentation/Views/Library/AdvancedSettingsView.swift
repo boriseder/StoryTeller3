@@ -21,10 +21,6 @@ struct AdvancedSettingsView: View {
             networkSection
             cacheSection
             debugSection
-            
-            #if DEBUG
-            developerSection
-            #endif
         }
         .navigationTitle("Advanced Settings")
         .navigationBarTitleDisplayMode(.inline)
@@ -134,36 +130,4 @@ struct AdvancedSettingsView: View {
                 .font(.caption)
         }
     }
-    
-    // MARK: - Developer Section (DEBUG only)
-    
-    #if DEBUG
-    private var developerSection: some View {
-        Section {
-            Button("Trigger Memory Warning") {
-                CoverCacheManager.shared.triggerCriticalCleanup()
-            }
-            
-            Button("Clear All UserDefaults") {
-                viewModel.clearAllUserDefaults()
-            }
-            .foregroundColor(.red)
-            
-            Button("Simulate Network Error") {
-                viewModel.simulateNetworkError()
-            }
-            
-            Button("Reset All Settings") {
-                viewModel.resetAllSettings()
-            }
-            .foregroundColor(.red)
-        } header: {
-            Label("Developer Tools", systemImage: "hammer.fill")
-        } footer: {
-            Text("These options are only available in debug builds and may cause unexpected behavior.")
-                .font(.caption)
-                .foregroundColor(.orange)
-        }
-    }
-    #endif
 }

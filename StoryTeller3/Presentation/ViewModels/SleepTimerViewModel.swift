@@ -18,7 +18,6 @@ enum SleepTimerMode: Equatable, CustomStringConvertible {
         }
     }
     
-    // MARK: - CustomStringConvertible
     var description: String {
         switch self {
         case .duration(let minutes):
@@ -31,8 +30,8 @@ enum SleepTimerMode: Equatable, CustomStringConvertible {
     }
 }
 
-// MARK: - Timer State (for persistence)
-private struct TimerState: Codable {
+// MARK: - Sleep Timer Persistence State
+private struct SleepTimerPersistenceState: Codable {
     let endDate: Date
     let mode: String
     
@@ -48,17 +47,23 @@ class SleepTimerViewModel: BaseViewModel {
     @Published var remainingTime: TimeInterval = 0
     @Published var currentMode: SleepTimerMode?
     
-    private var timer: DispatchSourceTimer?
-    private let timerQueue = DispatchQueue(label: "com.storyteller3.sleeptimer", qos: .utility)
     let player: AudioPlayer
     private let timerOptions = [5, 10, 15, 30, 45, 60, 90, 120]
     
+    // Dependencies
+    private let timerService: TimerManaging
     private var observers: [NSObjectProtocol] = []
     
-    init(player: AudioPlayer) {
+    init(
+        player: AudioPlayer,
+        timerService: TimerManaging = TimerService()
+    ) {
         self.player = player
+        self.timerService = timerService
+        
         super.init()
         
+        setupTimerDelegate()
         setupNotifications()
         restoreTimerState()
     }
@@ -98,8 +103,7 @@ class SleepTimerViewModel: BaseViewModel {
     }
     
     func cancelTimer() {
-        timer?.cancel()
-        timer = nil
+        timerService.cancel()
         
         isTimerActive = false
         remainingTime = 0
@@ -116,25 +120,7 @@ class SleepTimerViewModel: BaseViewModel {
     private func startTimerWithDuration(_ duration: TimeInterval, mode: SleepTimerMode) {
         let endDate = Date().addingTimeInterval(duration)
         
-        let timer = DispatchSource.makeTimerSource(queue: timerQueue)
-        timer.schedule(deadline: .now(), repeating: .seconds(1), leeway: .milliseconds(100))
-        
-        timer.setEventHandler { [weak self] in
-            guard let self = self else { return }
-            
-            let remaining = endDate.timeIntervalSinceNow
-            
-            Task { @MainActor in
-                self.remainingTime = max(0, remaining)
-                
-                if remaining <= 0 {
-                    self.finishTimer()
-                }
-            }
-        }
-        
-        self.timer = timer
-        timer.resume()
+        timerService.start(duration: duration)
         
         isTimerActive = true
         remainingTime = duration
@@ -146,19 +132,10 @@ class SleepTimerViewModel: BaseViewModel {
         AppLogger.debug.debug("[SleepTimer] Timer started - duration: \(duration)s, mode: \(mode)")
     }
     
-    private func finishTimer() {
-        AppLogger.debug.debug("[SleepTimer] Timer finished - pausing playback")
-        
-        player.pause()
-        
-        cancelTimer()
-        
-        #if !targetEnvironment(simulator)
-        let impactFeedback = UIImpactFeedbackGenerator(style: .light)
-        impactFeedback.impactOccurred()
-        #endif
-        
-        AppLogger.debug.debug("[SleepTimer] Sleep timer completed successfully")
+    private func setupTimerDelegate() {
+        if let timer = timerService as? TimerService {
+            timer.delegate = self
+        }
     }
     
     // MARK: - Persistence
@@ -174,7 +151,7 @@ class SleepTimerViewModel: BaseViewModel {
             modeString = "endOfBook"
         }
         
-        let state = TimerState(endDate: endDate, mode: modeString)
+        let state = SleepTimerPersistenceState(endDate: endDate, mode: modeString)
         
         if let data = try? JSONEncoder().encode(state) {
             UserDefaults.standard.set(data, forKey: "sleep_timer_state")
@@ -183,7 +160,7 @@ class SleepTimerViewModel: BaseViewModel {
     
     private func restoreTimerState() {
         guard let data = UserDefaults.standard.data(forKey: "sleep_timer_state"),
-              let state = try? JSONDecoder().decode(TimerState.self, from: data) else {
+              let state = try? JSONDecoder().decode(SleepTimerPersistenceState.self, from: data) else {
             return
         }
         
@@ -285,11 +262,37 @@ class SleepTimerViewModel: BaseViewModel {
     // MARK: - Cleanup
     
     deinit {
-        timer?.cancel()
+        timerService.cancel()
         observers.forEach { observer in
             NotificationCenter.default.removeObserver(observer)
         }
         observers.removeAll()
         AppLogger.debug.debug("[SleepTimer] ViewModel deinitialized")
+    }
+}
+
+// MARK: - Timer Delegate
+extension SleepTimerViewModel: TimerDelegate {
+    func timerDidTick(remainingTime: TimeInterval) {
+        self.remainingTime = remainingTime
+    }
+    
+    func timerDidComplete() {
+        AppLogger.debug.debug("[SleepTimer] Timer finished - pausing playback")
+        
+        player.pause()
+        
+        isTimerActive = false
+        remainingTime = 0
+        currentMode = nil
+        
+        clearTimerState()
+        
+        #if !targetEnvironment(simulator)
+        let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+        impactFeedback.impactOccurred()
+        #endif
+        
+        AppLogger.debug.debug("[SleepTimer] Sleep timer completed successfully")
     }
 }

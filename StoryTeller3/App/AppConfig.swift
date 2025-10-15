@@ -8,8 +8,6 @@
 import SwiftUI
 
 class AppConfig: ObservableObject {
-    static let shared = AppConfig()
-    
     @Published var userBackgroundStyle: UserBackgroundStyle {
         didSet {
             UserDefaults.standard.set(userBackgroundStyle.rawValue, forKey: "userBackgroundStyle")
@@ -23,7 +21,7 @@ class AppConfig: ObservableObject {
     }
     
 
-    private init() {
+    init() {
         // Stored property initialisieren
         let raw = UserDefaults.standard.string(forKey: "userBackgroundStyle") ?? UserBackgroundStyle.dynamic.rawValue
         self.userBackgroundStyle = UserBackgroundStyle(rawValue: raw) ?? .dynamic

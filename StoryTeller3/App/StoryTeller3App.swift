@@ -5,7 +5,7 @@ struct StoryTeller3App: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     
     @StateObject private var appState = AppStateManager()
-    @StateObject private var appConfig = AppConfig.shared 
+    @StateObject private var appConfig = AppConfig() 
     @State private var terminationObserver: NSObjectProtocol?
 
     var body: some Scene {

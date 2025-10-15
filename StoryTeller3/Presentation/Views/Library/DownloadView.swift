@@ -7,7 +7,7 @@ struct DownloadsView: View {
     @State private var showingStorageInfo = false
     
     init(downloadManager: DownloadManager, player: AudioPlayer, api: AudiobookshelfAPI?, onBookSelected: @escaping () -> Void) {
-        self._viewModel = StateObject(wrappedValue: DownloadsViewModel(
+        self._viewModel = StateObject(wrappedValue: DownloadsViewModelFactory.create(
             downloadManager: downloadManager,
             player: player,
             onBookSelected: onBookSelected

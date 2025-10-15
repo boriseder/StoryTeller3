@@ -1,5 +1,4 @@
 import SwiftUI
-import Network
 
 // MARK: - App Loading States
 
@@ -111,15 +110,20 @@ class AppStateManager: ObservableObject {
     @Published var isDeviceOnline: Bool = true
     @Published var isServerReachable: Bool = true
     
-    // MARK: - Private Properties
-    private let networkMonitor = NWPathMonitor()
-    private let monitorQueue = DispatchQueue(label: "com.storyteller3.networkmonitor")
-    private var lastKnownNetworkStatus: NWPath.Status = .satisfied
+    // MARK: - Dependencies
+    private let networkMonitor: NetworkMonitor
+    private let connectionHealthChecker: ConnectionHealthChecking
     
     // MARK: - Initialization
-    init() {
+    init(
+        networkMonitor: NetworkMonitor = NetworkMonitor(),
+        connectionHealthChecker: ConnectionHealthChecking = ConnectionHealthChecker()
+    ) {
+        self.networkMonitor = networkMonitor
+        self.connectionHealthChecker = connectionHealthChecker
+        
         checkFirstLaunch()
-        startNetworkMonitoring()
+        setupNetworkMonitoring()
     }
     
     // MARK: - Public Methods
@@ -145,77 +149,48 @@ class AppStateManager: ObservableObject {
             return
         }
         
-        let isHealthy = await api.checkConnectionHealth()
+        let health = await connectionHealthChecker.checkHealth(
+            baseURL: api.baseURLString,
+            token: api.authToken
+        )
         
         await MainActor.run {
-            isServerReachable = isHealthy
+            isServerReachable = health != .unavailable
         }
     }
     
     // MARK: - Private Methods
     
     private func checkFirstLaunch() {
-        // Setup is considered complete when credentials are saved
-        // This naturally handles:
-        // - First launch: no credentials → show welcome
-        // - Incomplete setup: no credentials → show welcome again
-        // - Complete setup: credentials exist → skip welcome
         let hasStoredCredentials = UserDefaults.standard.string(forKey: "stored_username") != nil
         isFirstLaunch = !hasStoredCredentials
         
-        // Only setup defaults on true first launch
         if isFirstLaunch && !UserDefaults.standard.bool(forKey: "defaults_configured") {
-            setupDefaultCacheSettings()
             UserDefaults.standard.set(true, forKey: "defaults_configured")
         }
     }
-
     
-
-    private func setupDefaultCacheSettings() {
-        let defaults = UserDefaults.standard
-        
-        if defaults.coverCacheLimit == 0 {
-            defaults.coverCacheLimit = 100
-        }
-        
-        if defaults.memoryCacheSize == 0 {
-            defaults.memoryCacheSize = 50
-        }
-        
-        defaults.cacheOptimizationEnabled = true
-        defaults.autoCacheCleanup = true
-        
-        AppLogger.debug.debug("[App] Default cache settings applied")
-    }
-    
-    private func startNetworkMonitoring() {
-        networkMonitor.pathUpdateHandler = { [weak self] path in
-            guard let self = self else { return }
-            
-            let wasOnline = self.lastKnownNetworkStatus == .satisfied
-            let isOnline = path.status == .satisfied
-            
-            self.lastKnownNetworkStatus = path.status
-            
-            Task { @MainActor in
+    private func setupNetworkMonitoring() {
+        networkMonitor.onStatusChange { [weak self] (status: NetworkStatus) in
+            Task { @MainActor [weak self] in
+                guard let self = self else { return }
+                
+                let isOnline = status == .online
+                let wasOnline = self.isDeviceOnline
+                
                 self.isDeviceOnline = isOnline
                 
                 if !isOnline {
                     self.isServerReachable = false
-                    AppLogger.debug.debug("[Network] Device went offline")
+                    AppLogger.debug.debug("[AppState] Device went offline")
                 } else if !wasOnline && isOnline {
-                    AppLogger.debug.debug("[Network] Device came online")
+                    AppLogger.debug.debug("[AppState] Device came online")
                     await self.checkServerReachability()
                 }
             }
         }
         
-        networkMonitor.start(queue: monitorQueue)
-        AppLogger.debug.debug("[Network] Monitoring started")
-    }
-    
-    deinit {
-        networkMonitor.cancel()
+        networkMonitor.startMonitoring()
+        AppLogger.debug.debug("[AppState] Network monitoring started")
     }
 }

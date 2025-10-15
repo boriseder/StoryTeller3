@@ -7,24 +7,6 @@ import Foundation
 
 extension AudiobookshelfAPI {
     
-    /// Fetch personalized book recommendations from a library (DEPRECATED - use fetchPersonalizedSections)
-    func fetchPersonalizedBooks(from libraryId: String) async throws -> [Book] {
-        let sections = try await fetchPersonalizedSections(from: libraryId)
-        
-        // Extract all books from book-type sections
-        var allBooks: [Book] = []
-        
-        for section in sections where section.type == "book" {
-            let sectionBooks = section.entities
-                .compactMap { $0.asLibraryItem }
-                .compactMap { convertLibraryItemToBook($0) }
-            
-            allBooks.append(contentsOf: sectionBooks)
-        }
-        
-        return allBooks
-    }
-    
     /// Fetch all personalized sections with detailed breakdown
     func fetchPersonalizedSections(from libraryId: String) async throws -> [PersonalizedSection] {
         var components = URLComponents(string: "\(baseURLString)/api/libraries/\(libraryId)/personalized")!
@@ -62,80 +44,5 @@ extension AudiobookshelfAPI {
             throw error
         }
     }
-    
-    /// Fetch specific section type from personalized endpoint
-    func fetchPersonalizedSection(
-        from libraryId: String,
-        sectionType: PersonalizedSectionType,
-        limit: Int = 10
-    ) async throws -> PersonalizedSection? {
-        let allSections = try await fetchPersonalizedSections(from: libraryId)
-        return allSections.first { $0.id == sectionType.rawValue }
-    }
-    
-    /// Get books to continue listening
-    func fetchContinueListening(from libraryId: String) async throws -> [Book] {
-        guard let section = try await fetchPersonalizedSection(
-            from: libraryId,
-            sectionType: .continueListening
-        ) else {
-            return []
-        }
-        
-        return section.entities
-            .compactMap { $0.asLibraryItem }
-            .compactMap { convertLibraryItemToBook($0) }
-    }
-    
-    /// Get recently added books
-    func fetchRecentlyAdded(from libraryId: String) async throws -> [Book] {
-        guard let section = try await fetchPersonalizedSection(
-            from: libraryId,
-            sectionType: .recentlyAdded
-        ) else {
-            return []
-        }
-        
-        return section.entities
-            .compactMap { $0.asLibraryItem }
-            .compactMap { convertLibraryItemToBook($0) }
-    }
-    
-    /// Get recent series
-    func fetchRecentSeries(from libraryId: String) async throws -> [Series] {
-        guard let section = try await fetchPersonalizedSection(
-            from: libraryId,
-            sectionType: .recentSeries
-        ) else {
-            return []
-        }
-        
-        return section.entities.compactMap { $0.asSeries }
-    }
-    
-    /// Get newest authors
-    func fetchNewestAuthors(from libraryId: String) async throws -> [Author] {
-        guard let section = try await fetchPersonalizedSection(
-            from: libraryId,
-            sectionType: .newestAuthors
-        ) else {
-            return []
-        }
-        
-        return section.entities.compactMap { $0.asAuthor }
-    }
-    
-    /// Get discovery recommendations
-    func fetchDiscoverBooks(from libraryId: String) async throws -> [Book] {
-        guard let section = try await fetchPersonalizedSection(
-            from: libraryId,
-            sectionType: .discover
-        ) else {
-            return []
-        }
-        
-        return section.entities
-            .compactMap { $0.asLibraryItem }
-            .compactMap { convertLibraryItemToBook($0) }
-    }
+
 }

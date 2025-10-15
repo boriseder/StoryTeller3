@@ -15,7 +15,7 @@ struct HomeView: View {
     @State private var selectedAuthor: IdentifiableString?
     
     init(player: AudioPlayer, api: AudiobookshelfAPI, downloadManager: DownloadManager, onBookSelected: @escaping () -> Void) {
-        self._viewModel = StateObject(wrappedValue: HomeViewModel(
+        self._viewModel = StateObject(wrappedValue: HomeViewModelFactory.create(
             api: api,
             player: player,
             downloadManager: downloadManager,

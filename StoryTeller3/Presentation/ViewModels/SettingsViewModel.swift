@@ -37,6 +37,8 @@ class SettingsViewModel: ObservableObject {
     @Published var testResultMessage: String = ""
     @Published var cacheOperationInProgress = false
     @Published var lastCacheCleanupDate: Date?
+    @Published var showingShareSheet = false
+    @Published var shareURL: URL?
     
     // MARK: - Dependencies
     private var apiClient: AudiobookshelfAPI?
@@ -44,6 +46,11 @@ class SettingsViewModel: ObservableObject {
     private let keychainService = KeychainService.shared
     let downloadManager = DownloadManager()
     let coverCacheManager = CoverCacheManager.shared
+    
+    private let serverValidator: ServerConfigValidating
+    private let storageMonitor: StorageMonitoring
+    private let connectionHealthChecker: ConnectionHealthChecking
+    private let diagnosticsService: DiagnosticsCollecting
     
     // MARK: - Computed Properties
     
@@ -66,7 +73,17 @@ class SettingsViewModel: ObservableObject {
     
     // MARK: - Initialization
     
-    init() {
+    init(
+        serverValidator: ServerConfigValidating = ServerConfigValidator(),
+        storageMonitor: StorageMonitoring = StorageMonitor(),
+        connectionHealthChecker: ConnectionHealthChecking = ConnectionHealthChecker(),
+        diagnosticsService: DiagnosticsCollecting = DiagnosticsService()
+    ) {
+        self.serverValidator = serverValidator
+        self.storageMonitor = storageMonitor
+        self.connectionHealthChecker = connectionHealthChecker
+        self.diagnosticsService = diagnosticsService
+        
         loadSavedSettings()
         loadAdvancedSettings()
     }
@@ -106,14 +123,14 @@ class SettingsViewModel: ObservableObject {
     func testConnection() {
         guard canTestConnection else { return }
         
-        guard validateHost() else {
-            connectionState = .failed("Invalid host address")
-            return
-        }
+        let config = ServerConfig(scheme: scheme, host: host, port: port)
         
-        if !port.isEmpty && !validatePort() {
-            connectionState = .failed("Invalid port number (1-65535)")
+        switch serverValidator.validateServerConfig(config) {
+        case .failure(let error):
+            connectionState = .failed(error.localizedDescription)
             return
+        case .success:
+            break
         }
         
         isTestingConnection = true
@@ -122,40 +139,22 @@ class SettingsViewModel: ObservableObject {
         let baseURL = fullServerURL
         
         Task {
-            do {
-                guard let url = URL(string: "\(baseURL)/ping") else {
-                    await MainActor.run {
-                        self.connectionState = .failed("Invalid URL format")
-                        self.isTestingConnection = false
-                    }
-                    return
-                }
+            let canPing = await connectionHealthChecker.ping(baseURL: baseURL)
+            
+            await MainActor.run {
+                self.isTestingConnection = false
                 
-                let startTime = Date()
-                let (_, response) = try await URLSession.shared.data(from: url)
-                let responseTime = Int(Date().timeIntervalSince(startTime) * 1000)
-                
-                await MainActor.run {
-                    self.isTestingConnection = false
+                if canPing {
+                    self.connectionState = .serverFound
+                    self.testResultMessage = """
+                    Server Status: Online
+                    URL: \(baseURL)
                     
-                    if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 {
-                        self.connectionState = .serverFound
-                        self.testResultMessage = """
-                        Server Status: Online
-                        Response Time: \(responseTime)ms
-                        URL: \(baseURL)
-                        
-                        Please enter credentials to login.
-                        """
-                        self.showingTestResults = true
-                    } else {
-                        self.connectionState = .failed("Server unreachable")
-                    }
-                }
-            } catch {
-                await MainActor.run {
-                    self.isTestingConnection = false
-                    self.connectionState = .failed("Connection failed: \(error.localizedDescription)")
+                    Please enter credentials to login.
+                    """
+                    self.showingTestResults = true
+                } else {
+                    self.connectionState = .failed("Server unreachable")
                 }
             }
         }
@@ -163,37 +162,8 @@ class SettingsViewModel: ObservableObject {
     
     // MARK: - Input Validation
     
-    private func validateHost() -> Bool {
-        let trimmed = host.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return false }
-        guard trimmed.rangeOfCharacter(from: .whitespacesAndNewlines) == nil else { return false }
-        
-        let hostPattern = "^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$"
-        let ipPattern = "^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
-        
-        if trimmed.range(of: hostPattern, options: .regularExpression) != nil { return true }
-        if trimmed.range(of: ipPattern, options: .regularExpression) != nil { return true }
-        if trimmed == "localhost" { return true }
-        
-        return false
-    }
-    
-    private func validatePort() -> Bool {
-        guard !port.isEmpty else { return true }
-        guard let portNumber = Int(port) else { return false }
-        return portNumber > 0 && portNumber <= 65535
-    }
-    
     func sanitizeHost() {
-        let cleaned = host
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .replacingOccurrences(of: "http://", with: "")
-            .replacingOccurrences(of: "https://", with: "")
-            .replacingOccurrences(of: "/", with: "")
-        
-        if cleaned != host {
-            host = cleaned
-        }
+        host = serverValidator.sanitizeHost(host)
     }
     
     // MARK: - Authentication
@@ -296,8 +266,8 @@ class SettingsViewModel: ObservableObject {
     
     private func calculateTotalCacheSize() async -> String {
         let cacheURL = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
-        let totalSize = folderSize(at: cacheURL)
-        return formatBytes(totalSize)
+        let totalSize = storageMonitor.calculateDirectorySize(at: cacheURL)
+        return storageMonitor.formatBytes(totalSize)
     }
     
     func clearAllCache() async {
@@ -390,117 +360,18 @@ class SettingsViewModel: ObservableObject {
         lastDebugExport = Date()
         UserDefaults.standard.set(lastDebugExport?.timeIntervalSince1970, forKey: "last_debug_export")
         
-        Task { @MainActor in
-            guard let logData = collectDebugLogs() else {
-                AppLogger.debug.debug("Failed to collect debug logs")
+        diagnosticsService.exportLogs { [weak self] url in
+            guard let url = url else {
+                AppLogger.debug.debug("[Settings] Failed to export logs")
                 return
             }
             
-            let fileName = "StoryTeller-Debug-\(Date().ISO8601Format()).txt"
-            let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
-            
-            do {
-                try logData.write(to: tempURL, atomically: true, encoding: .utf8)
-                
-                let activityVC = UIActivityViewController(
-                    activityItems: [tempURL],
-                    applicationActivities: nil
-                )
-                
-                if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-                   let window = windowScene.windows.first,
-                   let rootVC = window.rootViewController {
-                    
-                    if let popover = activityVC.popoverPresentationController {
-                        popover.sourceView = rootVC.view
-                        popover.sourceRect = CGRect(x: rootVC.view.bounds.midX, y: rootVC.view.bounds.midY, width: 0, height: 0)
-                        popover.permittedArrowDirections = []
-                    }
-                    
-                    rootVC.present(activityVC, animated: true)
-                }
-                
-            } catch {
-                AppLogger.debug.debug("Failed to export debug logs: \(error)")
+            Task { @MainActor in
+                self?.shareURL = url
+                self?.showingShareSheet = true
             }
         }
     }
-    
-    private func collectDebugLogs() -> String? {
-        var logContent = """
-        StoryTeller Debug Logs
-        Generated: \(Date().ISO8601Format())
-        
-        === System Information ===
-        App Version: \(getAppVersion())
-        Build: \(getBuildNumber())
-        iOS Version: \(UIDevice.current.systemVersion)
-        Device: \(UIDevice.current.model)
-        
-        === Server Configuration ===
-        Server URL: \(fullServerURL)
-        Logged In: \(isLoggedIn)
-        Connection State: \(connectionState.statusText)
-        Libraries: \(libraries.count)
-        Selected Library: \(selectedLibraryId ?? "None")
-        
-        === Storage Information ===
-        Cache Size: \(totalCacheSize)
-        Downloaded Books: \(downloadedBooksCount)
-        Download Size: \(totalDownloadSize)
-        
-        === Advanced Settings ===
-        Connection Timeout: \(connectionTimeout)s
-        Max Concurrent Downloads: \(maxConcurrentDownloads)
-        Cover Cache Limit: \(coverCacheLimit)
-        Memory Cache Size: \(memoryCacheSize) MB
-        Debug Logging: \(enableDebugLogging)
-        
-        === Recent Activity ===
-        """
-        
-        if let lastCleanup = lastCacheCleanupDate {
-            logContent += "\nLast Cache Cleanup: \(lastCleanup.ISO8601Format())"
-        }
-        
-        if let lastExport = lastDebugExport {
-            logContent += "\nLast Debug Export: \(lastExport.ISO8601Format())"
-        }
-        
-        logContent += "\n\n=== End of Debug Log ===\n"
-        
-        return logContent
-    }
-    
-    private func getAppVersion() -> String {
-        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
-    }
-    
-    private func getBuildNumber() -> String {
-        Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "Unknown"
-    }
-    
-    // MARK: - Developer Tools (DEBUG only)
-    
-    #if DEBUG
-    func clearAllUserDefaults() {
-        if let bundleID = Bundle.main.bundleIdentifier {
-            UserDefaults.standard.removePersistentDomain(forName: bundleID)
-            AppLogger.debug.debug("Cleared all UserDefaults")
-        }
-    }
-    
-    func simulateNetworkError() {
-        connectionState = .failed("Simulated network error for testing")
-        AppLogger.debug.debug("Simulated network error")
-    }
-    
-    func resetAllSettings() {
-        clearAllUserDefaults()
-        loadSavedSettings()
-        loadAdvancedSettings()
-    }
-    #endif
     
     // MARK: - Private Helpers
     
@@ -559,12 +430,11 @@ class SettingsViewModel: ObservableObject {
             AppLogger.debug.debug("Credentials stored successfully")
             
         } catch {
-            AppLogger.debug.debug("❌ Failed to store credentials: \(error)")
+            AppLogger.debug.debug("Failed to store credentials: \(error)")
             connectionState = .failed("Failed to save credentials")
             
-            // Show error to user
             testResultMessage = """
-            ⚠️ Failed to Save Credentials
+            Failed to Save Credentials
             
             Error: \(error.localizedDescription)
             
@@ -572,9 +442,6 @@ class SettingsViewModel: ObservableObject {
             Please try logging in again.
             """
             showingTestResults = true
-            
-            // Don't post notification if storage failed!
-            return
         }
     }
    
@@ -637,28 +504,7 @@ class SettingsViewModel: ObservableObject {
     private func calculateDownloadSize() -> String {
         let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         let downloadsURL = documentsURL.appendingPathComponent("Downloads")
-        return formatBytes(folderSize(at: downloadsURL))
-    }
-    
-    private func folderSize(at url: URL) -> Int64 {
-        let fm = FileManager.default
-        guard let enumerator = fm.enumerator(at: url, includingPropertiesForKeys: [.fileSizeKey, .isRegularFileKey]) else { return 0 }
-        var total: Int64 = 0
-        for case let fileURL as URL in enumerator {
-            do {
-                let values = try fileURL.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey])
-                if values.isRegularFile == true, let fileSize = values.fileSize {
-                    total += Int64(fileSize)
-                }
-            } catch {}
-        }
-        return total
-    }
-    
-    private func formatBytes(_ size: Int64) -> String {
-        let formatter = ByteCountFormatter()
-        formatter.allowedUnits = [.useKB, .useMB, .useGB]
-        formatter.countStyle = .file
-        return formatter.string(fromByteCount: size)
+        let size = storageMonitor.calculateDirectorySize(at: downloadsURL)
+        return storageMonitor.formatBytes(size)
     }
 }

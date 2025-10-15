@@ -15,8 +15,6 @@ class AudioPlayer: NSObject, ObservableObject {
     @Published var isLoading = false
     @Published var errorMessage: String?
     @Published var playbackRate: Float = 1.0
-    @Published var availableAudioRoutes: [AVAudioSessionPortDescription] = []
-    @Published var currentAudioRoute: String = "iPhone"
 
     private var player: AVPlayer?
     private var timeObserver: Any?
@@ -55,22 +53,13 @@ class AudioPlayer: NSObject, ObservableObject {
         
         // Setup player-specific features
         setupRemoteCommandCenter()
-        
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(audioRouteChanged),
-            name: AVAudioSession.routeChangeNotification,
-            object: nil
-        )
-        
+                
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(handleInterruption),
             name: AVAudioSession.interruptionNotification,
             object: nil
         )
-        
-        updateAudioRoutes()
     }
 
     // MARK: - NEW: Interruption Handling
@@ -214,19 +203,7 @@ class AudioPlayer: NSObject, ObservableObject {
         }
     }
     
-    @objc private func audioRouteChanged(notification: Notification) {
-        updateAudioRoutes()
-    }
     
-    private func updateAudioRoutes() {
-        let session = AVAudioSession.sharedInstance()
-        availableAudioRoutes = session.currentRoute.outputs
-        
-        if let output = session.currentRoute.outputs.first {
-            currentAudioRoute = output.portName
-        }
-    }
-
     // MARK: - Book Loading
 
     func load(book: Book, isOffline: Bool = false, restoreState: Bool = true) {
