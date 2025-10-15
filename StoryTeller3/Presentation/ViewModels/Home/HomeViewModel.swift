@@ -5,6 +5,7 @@ class HomeViewModel: ObservableObject {
     // MARK: - Published UI State
     @Published var personalizedSections: [PersonalizedSection] = []
     @Published var libraryName: String = "Personalized"
+    @Published var totalBooksInLibrary: Int = 0
     @Published var isLoading = false
     @Published var errorMessage: String?
     @Published var showingErrorAlert = false
@@ -22,9 +23,7 @@ class HomeViewModel: ObservableObject {
     
     // MARK: - Computed Properties for UI
     var totalItemsCount: Int {
-        personalizedSections.reduce(0) { total, section in
-            total + section.entities.count
-        }
+        totalBooksInLibrary
     }
     
     var downloadedCount: Int {
@@ -79,18 +78,24 @@ class HomeViewModel: ObservableObject {
             guard let selectedLibrary = try await libraryRepository.getSelectedLibrary() else {
                 libraryName = "Personalized"
                 personalizedSections = []
+                totalBooksInLibrary = 0
                 isLoading = false
                 return
             }
 
             libraryName = "\(selectedLibrary.name) - Home"
             
-            let fetchedSections = try await fetchPersonalizedSectionsUseCase.execute(
+            // Fetch sections and stats in parallel
+            async let sectionsTask = fetchPersonalizedSectionsUseCase.execute(
                 libraryId: selectedLibrary.id
             )
+            async let statsTask = api.fetchLibraryStats(libraryId: selectedLibrary.id)
+            
+            let (fetchedSections, totalBooks) = try await (sectionsTask, statsTask)
             
             withAnimation(.easeInOut) {
                 personalizedSections = fetchedSections
+                totalBooksInLibrary = totalBooks
             }
             
             CoverPreloadHelpers.preloadIfNeeded(

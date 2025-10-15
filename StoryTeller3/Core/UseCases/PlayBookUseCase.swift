@@ -50,11 +50,28 @@ class PlayBookUseCase: PlayBookUseCaseProtocol {
         restoreState: Bool = true
     ) async throws {
         
+        let isDownloaded = downloadManager.isBookDownloaded(book.id)
+        
         let fullBook: Book
-        do {
-            fullBook = try await api.fetchBookDetails(bookId: book.id)
-        } catch {
-            throw PlayBookError.fetchFailed(error)
+        
+        if isDownloaded {
+            do {
+                fullBook = try loadLocalMetadata(bookId: book.id, downloadManager: downloadManager)
+                AppLogger.debug.debug("[PlayBookUseCase] Loaded book from local metadata: \(fullBook.title)")
+            } catch {
+                AppLogger.debug.debug("[PlayBookUseCase] Failed to load local metadata, trying online: \(error)")
+                do {
+                    fullBook = try await api.fetchBookDetails(bookId: book.id)
+                } catch {
+                    throw PlayBookError.fetchFailed(error)
+                }
+            }
+        } else {
+            do {
+                fullBook = try await api.fetchBookDetails(bookId: book.id)
+            } catch {
+                throw PlayBookError.fetchFailed(error)
+            }
         }
         
         player.configure(
@@ -100,5 +117,23 @@ class PlayBookUseCase: PlayBookUseCaseProtocol {
         }
         
         return .unavailable
+    }
+    
+    private func loadLocalMetadata(bookId: String, downloadManager: DownloadManager) throws -> Book {
+        let bookDir = downloadManager.bookDirectory(for: bookId)
+        let metadataURL = bookDir.appendingPathComponent("metadata.json")
+        
+        guard FileManager.default.fileExists(atPath: metadataURL.path) else {
+            throw PlayBookError.fetchFailed(NSError(
+                domain: "PlayBookUseCase",
+                code: -1,
+                userInfo: [NSLocalizedDescriptionKey: "Local metadata not found"]
+            ))
+        }
+        
+        let data = try Data(contentsOf: metadataURL)
+        let book = try JSONDecoder().decode(Book.self, from: data)
+        
+        return book
     }
 }

@@ -3,13 +3,16 @@ import SwiftUI
 struct DownloadsView: View {
     @StateObject private var viewModel: DownloadsViewModel
     @EnvironmentObject private var appConfig: AppConfig
+    @EnvironmentObject private var appState: AppStateManager
     
     @State private var showingStorageInfo = false
     
-    init(downloadManager: DownloadManager, player: AudioPlayer, api: AudiobookshelfAPI?, onBookSelected: @escaping () -> Void) {
+    init(downloadManager: DownloadManager, player: AudioPlayer, api: AudiobookshelfAPI, appState: AppStateManager, onBookSelected: @escaping () -> Void) {
         self._viewModel = StateObject(wrappedValue: DownloadsViewModelFactory.create(
             downloadManager: downloadManager,
             player: player,
+            api: api,
+            appState: appState,
             onBookSelected: onBookSelected
         ))
     }
@@ -19,9 +22,6 @@ struct DownloadsView: View {
     ]
     
     var body: some View {
-        ZStack {
-            DynamicBackground()
-            
             Group {
                 if viewModel.downloadedBooks.isEmpty {
                     emptyStateView
@@ -56,7 +56,12 @@ struct DownloadsView: View {
             .sheet(isPresented: $showingStorageInfo) {
                 storageInfoSheet
             }
-        }
+            .alert("Error", isPresented: $viewModel.showingErrorAlert) {
+                Button("OK") { }
+            } message: {
+                Text(viewModel.errorMessage ?? "Unknown error")
+            }
+        
     }
     
     // MARK: - Empty State
@@ -105,7 +110,9 @@ struct DownloadsView: View {
     
     // MARK: - Content View
     private var contentView: some View {
-        VStack(spacing: 0) {
+        ZStack {
+            DynamicBackground()
+            
             // Storage info banner
             if viewModel.showStorageWarning {
                 storageWarningBanner
@@ -113,7 +120,7 @@ struct DownloadsView: View {
             
             // Downloads grid
             ScrollView {
-                LazyVStack(spacing: 16) {
+                LazyVStack(spacing: DSLayout.contentGap) {
                     // Statistics card
                     downloadStatsCard
                     
@@ -123,21 +130,23 @@ struct DownloadsView: View {
                             BookCardView(
                                 book: book,
                                 player: viewModel.player,
-                                api: nil,
+                                api: viewModel.api,
                                 downloadManager: viewModel.downloadManager,
                                 style: .library,
                                 onTap: {
-                                    viewModel.playBook(book)
+                                    Task {
+                                        await viewModel.playBook(book)
+                                    }
                                 }
                             )
                         }
                     }
-                    .padding(.horizontal, 8)
                     
-                    Spacer(minLength: 100)
+                    Spacer()
+                        .frame(height: DSLayout.miniPlayerHeight)
                 }
-                .padding(.vertical, 8)
             }
+            .padding(.horizontal, DSLayout.screenPadding)
         }
     }
     
@@ -182,9 +191,9 @@ struct DownloadsView: View {
     
     // MARK: - Download Stats Card
     private var downloadStatsCard: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: DSLayout.elementGap) {
             HStack {
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: DSLayout.tightGap) {
                     Text("Downloaded Books")
                         .font(.headline)
                         .foregroundColor(.primary)
@@ -207,7 +216,7 @@ struct DownloadsView: View {
             
             Divider()
             
-            HStack(spacing: 20) {
+            HStack(spacing: DSLayout.contentGap) {
                 StatItem(
                     icon: "externaldrive.fill",
                     title: "Storage Used",
@@ -226,11 +235,10 @@ struct DownloadsView: View {
                 )
             }
         }
-        .padding(16)
+        .padding(DSLayout.contentGap)
         .background(.regularMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
-        .padding(.horizontal, 16)
     }
     
     // MARK: - Toolbar Buttons
@@ -391,15 +399,15 @@ struct StatItem: View {
     let color: Color
     
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: DSLayout.elementGap) {
             Image(systemName: icon)
-                .font(.system(size: 20))
+                .font(.system(size: DSLayout.icon))
                 .foregroundColor(color)
-                .frame(width: 32, height: 32)
+                .frame(width: DSLayout.largeIcon, height: DSLayout.largeIcon)
                 .background(color.opacity(0.1))
                 .clipShape(Circle())
             
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: DSLayout.tightGap) {
                 Text(title)
                     .font(.caption)
                     .foregroundColor(.secondary)

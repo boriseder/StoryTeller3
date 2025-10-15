@@ -23,9 +23,9 @@ enum LibrarySortOption: String, CaseIterable, SortOptionProtocol {
 // MARK: - Series Sort Options
 enum SeriesSortOption: String, CaseIterable, SortOptionProtocol {
     case name = "Name"
-    case recent = "Zuletzt hinzugefügt"
-    case bookCount = "Anzahl Bücher"
-    case duration = "Gesamtdauer"
+    case recent = "Added recently"
+    case bookCount = "Number of books"
+    case duration = "Duration"
     
     var systemImage: String {
         switch self {

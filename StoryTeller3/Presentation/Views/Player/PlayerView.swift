@@ -101,7 +101,7 @@ struct PlayerView: View {
     
     private var trackInfoSection: some View {
         VStack(spacing: 8) {
-            Text(viewModel.player.book?.title ?? "Kein Buch ausgewählt")
+            Text(viewModel.player.book?.title ?? "No book selected")
                 .font(.title2)
                 .fontWeight(.semibold)
                 .multilineTextAlignment(.center)

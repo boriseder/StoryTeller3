@@ -80,14 +80,6 @@ class ViewModelFactory {
         )
     }
     
-    func makeDownloadsViewModel(onBookSelected: @escaping () -> Void) -> DownloadsViewModel {
-        DownloadsViewModel(
-            downloadManager: downloadManager,
-            player: player,
-            onBookSelected: onBookSelected
-        )
-    }
-    
     func makePlayerViewModel() -> PlayerViewModel {
         PlayerViewModel(
             player: player,

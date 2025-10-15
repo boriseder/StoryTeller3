@@ -65,7 +65,7 @@ struct SeriesSectionView: View {
                 Spacer()
                 
                 VStack(alignment: .trailing, spacing: 2) {
-                    Text("\(viewModel.series.bookCount) Bücher")
+                    Text("\(viewModel.series.bookCount) books")
                         .font(.caption)
                         .foregroundColor(.secondary)
                     

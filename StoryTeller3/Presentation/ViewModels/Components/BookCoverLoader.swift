@@ -117,18 +117,9 @@ class BookCoverLoader: ObservableObject {
     }
     
     private func generateCacheKey() -> String {
-        // Create unique cache key based on book ID and potential sources
-        var components = [book.id]
-        
-        if downloadManager?.isBookDownloaded(book.id) == true {
-            components.append("local")
-        }
-        
-        if let coverPath = book.coverPath {
-            components.append(coverPath.hashValue.description)
-        }
-        
-        return components.joined(separator: "_")
+        // Use consistent key regardless of download status
+        // This ensures cache hits whether book is online or offline
+        return book.id
     }
     
     // MARK: - Local Cover Loading
@@ -147,11 +138,13 @@ class BookCoverLoader: ObservableObject {
         guard let downloadManager = downloadManager else { return nil }
         
         let bookDir = downloadManager.bookDirectory(for: book.id)
-        guard FileManager.default.fileExists(atPath: bookDir.path) else { return nil }
+        let audioDir = bookDir.appendingPathComponent("audio")
+        
+        guard FileManager.default.fileExists(atPath: audioDir.path) else { return nil }
         
         do {
             let contents = try FileManager.default.contentsOfDirectory(
-                at: bookDir,
+                at: audioDir,
                 includingPropertiesForKeys: nil
             )
             
@@ -165,7 +158,7 @@ class BookCoverLoader: ObservableObject {
                 }
             }
         } catch {
-            // AppLogger.debug.debug("[BookCoverLoader] Error reading directory: \(error)")
+            // Silent fail
         }
         
         return nil

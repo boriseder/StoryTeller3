@@ -179,7 +179,7 @@ struct LibraryView: View {
                 .foregroundColor(.blue)
             
             if seriesCount > 0 && booksCount > 0 {
-                Text("Show \(seriesCount) Series • \(booksCount) Bücher")
+                Text("Show \(seriesCount) Series • \(booksCount) Books")
                     .font(.subheadline)
                     .foregroundColor(.primary)
             } else if seriesCount > 0 {

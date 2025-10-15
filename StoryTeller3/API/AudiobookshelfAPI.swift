@@ -89,8 +89,8 @@ class AudiobookshelfAPI {
             throw AudiobookshelfError.invalidURL("\(baseURLString)/api/libraries/\(libraryId)/items")
         }
 
-        AppLogger.debug.debug("URL \(url)")
-        AppLogger.debug.debug("collapsesseries  \(collapseSeries)")
+        AppLogger.debug.debug("[AudiobookshelfAPI] URL \(url)")
+        AppLogger.debug.debug("[AudiobookshelfAPI] collapsesseries  \(collapseSeries)")
 
         let request = networkService.createAuthenticatedRequest(url: url, authToken: authToken)
         let response: LibraryItemsResponse = try await networkService.performRequest(request, responseType: LibraryItemsResponse.self)
@@ -125,7 +125,7 @@ class AudiobookshelfAPI {
                     // Exponential backoff
                     let delay = pow(2.0, Double(attempt)) * 0.5
                     try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
-                    AppLogger.debug.debug("Retrying fetchBookDetails, attempt \(attempt + 2)/\(retryCount)")
+                    AppLogger.debug.debug("[AudiobookshelfAPI] Retrying fetchBookDetails, attempt \(attempt + 2)/\(retryCount)")
                     continue
                 }
             } catch {
@@ -134,6 +134,24 @@ class AudiobookshelfAPI {
         }
         
         throw lastError ?? AudiobookshelfError.networkError(URLError(.timedOut))
+    }
+    
+    // MARK: - Library Statistics
+    
+    func fetchLibraryStats(libraryId: String) async throws -> Int {
+        guard let url = URL(string: "\(baseURLString)/api/libraries/\(libraryId)/items?limit=1") else {
+            throw AudiobookshelfError.invalidURL("\(baseURLString)/api/libraries/\(libraryId)/items")
+        }
+        
+        let request = networkService.createAuthenticatedRequest(url: url, authToken: authToken)
+        let response: LibraryItemsResponse = try await networkService.performRequest(
+            request,
+            responseType: LibraryItemsResponse.self
+        )
+        
+        AppLogger.debug.debug("[AudiobookshelfAPI] Library \(libraryId) has \(response.total ?? 0) total books")
+        
+        return response.total ?? 0
     }
     // MARK: - Progress Sync
     

@@ -17,11 +17,11 @@ struct NoDownloadsView: View {
                     .frame(width: 80, height: 80)
                 
                 VStack(spacing: 8) {
-                    Text("Keine Downloads gefunden")
+                    Text("No downloaded books found")
                         .font(.title2)
                         .fontWeight(.semibold)
                     
-                    Text("Du hast noch keine Bücher heruntergeladen. Lade Bücher herunter, um sie offline zu hören.")
+                    Text("You haven't downloaded any books. Download books to enjoy them offline.")
                         .font(.body)
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)

@@ -4,14 +4,19 @@ import SwiftUI
 class DownloadsViewModel: ObservableObject {
     // MARK: - Published UI State
     @Published var progressState = DownloadProgressState()
+    @Published var errorMessage: String?
+    @Published var showingErrorAlert = false
     
     // MARK: - Dependencies
     private let downloadUseCase: DownloadBookUseCase
+    private let playBookUseCase: PlayBookUseCase
     private let storageMonitor: StorageMonitor
     private var storageUpdateTimer: Timer?
     
     let downloadManager: DownloadManager
     let player: AudioPlayer
+    let api: AudiobookshelfAPI
+    let appState: AppStateManager
     let onBookSelected: () -> Void
     
     // MARK: - Computed Properties for UI
@@ -54,13 +59,18 @@ class DownloadsViewModel: ObservableObject {
     init(
         downloadManager: DownloadManager,
         player: AudioPlayer,
+        api: AudiobookshelfAPI,
+        appState: AppStateManager,
         storageMonitor: StorageMonitor = StorageMonitor(),
         onBookSelected: @escaping () -> Void
     ) {
         self.downloadManager = downloadManager
         self.player = player
+        self.api = api
+        self.appState = appState
         self.storageMonitor = storageMonitor
         self.downloadUseCase = DownloadBookUseCase(downloadManager: downloadManager)
+        self.playBookUseCase = PlayBookUseCase()
         self.onBookSelected = onBookSelected
         
         updateStorageInfo()
@@ -84,7 +94,7 @@ class DownloadsViewModel: ObservableObject {
     }
     
     private func setupStorageMonitoring() {
-        storageUpdateTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
+        storageUpdateTimer = Timer.scheduledTimer(withTimeInterval: 300.0, repeats: true) { [weak self] _ in
             self?.updateStorageInfo()
         }
     }
@@ -99,10 +109,28 @@ class DownloadsViewModel: ObservableObject {
     }
     
     // MARK: - Playback
-    func playBook(_ book: Book) {
-        let isOffline = downloadManager.isBookDownloaded(book.id)
-        player.load(book: book, isOffline: isOffline, restoreState: true)
-        onBookSelected()
+    func playBook(_ book: Book) async {
+        guard downloadManager.isBookDownloaded(book.id) else {
+            errorMessage = "Book is not downloaded"
+            showingErrorAlert = true
+            return
+        }
+        
+        do {
+            try await playBookUseCase.execute(
+                book: book,
+                api: api,
+                player: player,
+                downloadManager: downloadManager,
+                appState: appState,
+                restoreState: true
+            )
+            onBookSelected()
+        } catch {
+            errorMessage = error.localizedDescription
+            showingErrorAlert = true
+            AppLogger.debug.debug("[DownloadsViewModel] Playback error: \(error)")
+        }
     }
     
     // MARK: - Delete Operations

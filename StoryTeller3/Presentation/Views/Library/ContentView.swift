@@ -215,23 +215,35 @@ struct ContentView: View {
     
     private var downloadsTab: some View {
         NavigationStack {
-            DownloadsView(
-                downloadManager: downloadManager,
-                player: player,
-                api: appState.apiClient,
-                onBookSelected: { openFullscreenPlayer() }
-            )
-            .environmentObject(appState)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: {
-                        appState.showingSettings = true
-                    }) {
-                        Image(systemName: "gearshape.fill")
-                            .font(.system(size: 18))
-                            .foregroundColor(.primary)
+            if let api = appState.apiClient {
+                DownloadsView(
+                    downloadManager: downloadManager,
+                    player: player,
+                    api: api,
+                    appState: appState,
+                    onBookSelected: { openFullscreenPlayer() }
+                )
+                .environmentObject(appState)
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button(action: {
+                            appState.showingSettings = true
+                        }) {
+                            Image(systemName: "gearshape.fill")
+                                .font(.system(size: 18))
+                                .foregroundColor(.primary)
+                        }
                     }
                 }
+            } else {
+                DownloadsView(
+                    downloadManager: downloadManager,
+                    player: player,
+                    api: AudiobookshelfAPI(baseURL: "", apiKey: ""),
+                    appState: appState,
+                    onBookSelected: { openFullscreenPlayer() }
+                )
+                .environmentObject(appState)
             }
         }
         .tabItem {

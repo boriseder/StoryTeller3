@@ -98,7 +98,7 @@ struct HomeView: View {
             DynamicBackground()
             
             ScrollView {
-                LazyVStack(alignment: .leading) {
+                LazyVStack(spacing: DSLayout.contentGap) {
                     homeHeaderView
                     
                     ForEach(viewModel.personalizedSections) { section in
@@ -121,9 +121,9 @@ struct HomeView: View {
                         )
                         .environmentObject(appState)
                     }
-                    
+
                     Spacer()
-                        .frame(height: 100)
+                        .frame(height: DSLayout.miniPlayerHeight)
                 }
             }
             .padding(.horizontal, DSLayout.screenPadding)
@@ -131,14 +131,18 @@ struct HomeView: View {
     }
     
     private var homeHeaderView: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 16) {
+        VStack(spacing: DSLayout.elementGap) {
+            
+            HStack(spacing: DSLayout.contentGap) {
                 HomeStatCard(
                     icon: "books.vertical.fill",
-                    title: "Total Items",
+                    title: "Books in library",
                     value: "\(viewModel.totalItemsCount)",
                     color: .blue
                 )
+                
+                Divider()
+                    .frame(height: 40)
                 
                 HomeStatCard(
                     icon: "arrow.down.circle.fill",
@@ -148,8 +152,10 @@ struct HomeView: View {
                 )
             }
         }
+        .padding(DSLayout.contentGap)
         .background(.regularMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 16))
+        .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
     }
     
     private var settingsButton: some View {
@@ -513,32 +519,27 @@ struct HomeStatCard: View {
     let color: Color
     
     var body: some View {
-        HStack(spacing: 12) {
-            Circle()
-                .fill(color.opacity(0.2))
-                .frame(width: 40, height: 40)
-                .overlay(
-                    Image(systemName: icon)
-                        .font(.system(size: 16))
-                        .foregroundColor(color)
-                )
+        HStack(spacing: DSLayout.elementGap) {
+            Image(systemName: icon)
+                .font(.system(size: DSLayout.icon))
+                .foregroundColor(color)
+                .frame(width: DSLayout.largeIcon, height: DSLayout.largeIcon)
+                .background(color.opacity(0.1))
+                .clipShape(Circle())
             
-            VStack(alignment: .leading, spacing: 2) {
-                Text(value)
-                    .font(.headline)
-                    .fontWeight(.semibold)
-                
+            VStack(alignment: .leading, spacing: DSLayout.tightGap) {
                 Text(title)
                     .font(.caption)
                     .foregroundColor(.secondary)
+                
+                Text(value)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.primary)
             }
             
             Spacer()
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(color.opacity(0.05))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }
 

@@ -95,12 +95,12 @@ struct SeriesQuickAccessView: View {
                 
                 if !viewModel.seriesBooks.isEmpty {
                     HStack(spacing: 12) {
-                        Text("\(viewModel.seriesBooks.count) Bücher")
+                        Text("\(viewModel.seriesBooks.count) Books")
                             .font(.caption)
                             .foregroundColor(.secondary)
                         
                         if viewModel.downloadedCount > 0 {
-                            Text("• \(viewModel.downloadedCount) heruntergeladen")
+                            Text("• \(viewModel.downloadedCount) downloaded")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
@@ -115,7 +115,7 @@ struct SeriesQuickAccessView: View {
     private var booksScrollView: some View {
         VStack(spacing: 0) {
             HStack {
-                Text("Bücher der Serie")
+                Text("Books of the series")
                     .font(.headline)
                     .fontWeight(.semibold)
                 
