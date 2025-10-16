@@ -128,17 +128,29 @@ struct DownloadsView: View {
                     // Books grid
                     LazyVGrid(columns: columns, spacing: 12) {
                         ForEach(viewModel.downloadedBooks) { book in
-                            BookCardView(
+                            let bookVM = BookCardStateViewModel(
                                 book: book,
                                 player: viewModel.player,
+                                downloadManager: viewModel.downloadManager
+                            )
+                            
+                            BookCardView(
+                                viewModel: bookVM,
                                 api: viewModel.api,
-                                downloadManager: viewModel.downloadManager,
-                                style: .library,
                                 onTap: {
                                     Task {
                                         await viewModel.playBook(book)
                                     }
-                                }
+                                },
+                                onDownload: {
+                                    Task {
+                                        await viewModel.downloadManager.downloadBook(book, api: viewModel.api)
+                                    }
+                                },
+                                onDelete: {
+                                    viewModel.requestDeleteBook(book)
+                                },
+                                style: .library
                             )
                         }
                     }

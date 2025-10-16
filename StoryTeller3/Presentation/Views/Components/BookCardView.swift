@@ -63,54 +63,22 @@ enum BookCardStyle {
     }
 }
 
+
+// MARK: - Book Card View
 struct BookCardView: View {
-    // MARK: - Properties
-    let book: Book
-    @ObservedObject var player: AudioPlayer
+    let viewModel: BookCardStateViewModel
     let api: AudiobookshelfAPI?
-    @ObservedObject var downloadManager: DownloadManager
     let onTap: () -> Void
+    let onDownload: () -> Void
+    let onDelete: () -> Void
     let style: BookCardStyle
     
-    // MARK: - State
     @State private var isPressed = false
-    @State private var showingDownloadProgress = false
-    
-    // MARK: - Computed Properties
-    private var isCurrentBook: Bool {
-        player.book?.id == book.id
-    }
-        
-    private var isDownloaded: Bool {
-        downloadManager.isBookDownloaded(book.id)
-    }
-    
-    private var isDownloading: Bool {
-        downloadManager.isDownloadingBook(book.id)
-    }
     
     private var dimensions: (width: CGFloat, height: CGFloat, infoHeight: CGFloat) {
         style.dimensions
     }
     
-    // MARK: - Initializers
-    init(
-        book: Book,
-        player: AudioPlayer,
-        api: AudiobookshelfAPI?,
-        downloadManager: DownloadManager,
-        style: BookCardStyle = .library,
-        onTap: @escaping () -> Void
-    ) {
-        self.book = book
-        self.player = player
-        self.api = api
-        self.downloadManager = downloadManager
-        self.style = style
-        self.onTap = onTap
-    }
-    
-    // MARK: - Body
     var body: some View {
         Button(action: onTap) {
             VStack(alignment: .leading, spacing: 0) {
@@ -142,13 +110,13 @@ struct BookCardView: View {
             .overlay {
                 RoundedRectangle(cornerRadius: style.cornerRadius)
                     .stroke(
-                        isCurrentBook ? Color.accentColor : Color.clear,
+                        viewModel.isCurrentBook ? Color.accentColor : Color.clear,
                         lineWidth: 2
                     )
             }
             .scaleEffect(isPressed ? 0.95 : 1.0)
             .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isPressed)
-            .animation(.easeInOut(duration: 0.2), value: isCurrentBook)
+            .animation(.easeInOut(duration: 0.2), value: viewModel.isCurrentBook)
         }
         .buttonStyle(.plain)
         .contextMenu {
@@ -171,25 +139,22 @@ struct BookCardView: View {
     private var bookCoverSection: some View {
         ZStack {
             BookCoverView.square(
-                book: book,
+                book: viewModel.book,
                 size: style.coverSize,
                 api: api,
-                downloadManager: downloadManager,
-                showProgress: true
+                downloadManager: nil,
+                showProgress: false
             )
             .clipShape(RoundedRectangle(cornerRadius: style.cornerRadius))
             
-            // Overlays
             VStack {
                 HStack {
-                    // ← NEU: Series Badge (top-left)
-                    if book.isCollapsedSeries && style == .library {
+                    if viewModel.book.isCollapsedSeries && style == .library {
                         seriesBadge
                     }
                     
                     Spacer()
                     
-                    // Download Status (top-right)
                     if style == .library {
                         downloadStatusOverlay
                     }
@@ -199,7 +164,7 @@ struct BookCardView: View {
                 
                 Spacer()
                 
-                if isCurrentBook && style == .library {
+                if viewModel.isCurrentBook && style == .library {
                     currentBookStatusOverlay
                         .padding(.bottom, 8)
                 }
@@ -208,12 +173,11 @@ struct BookCardView: View {
         .frame(width: style.coverSize, height: style.coverSize)
     }
     
-    // MARK: - ← NEU: Series Badge
     private var seriesBadge: some View {
         HStack(spacing: 4) {
             Image(systemName: "books.vertical.fill")
                 .font(.system(size: 10))
-            Text("\(book.seriesBookCount)")
+            Text("\(viewModel.book.seriesBookCount)")
                 .font(.system(size: 10, weight: .bold))
         }
         .foregroundColor(.white)
@@ -226,174 +190,139 @@ struct BookCardView: View {
         .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
     }
     
-    // MARK: - Download Status Overlay
     private var downloadStatusOverlay: some View {
         Group {
-            if isDownloading {
-                // Downloading State - Detailed Progress
-                ZStack {
-                    // Background blur
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(.ultraThinMaterial)
-                        .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
-                    
-                    VStack(spacing: 8) {
-                        // Progress Ring with Stage Icon
-                        ZStack {
-                            // Background circle
-                            Circle()
-                                .stroke(Color.white.opacity(0.3), lineWidth: 3)
-                                .frame(width: 44, height: 44)
-                            
-                            // Progress circle
-                            Circle()
-                                .trim(from: 0, to: downloadProgress)
-                                .stroke(
-                                    LinearGradient(
-                                        colors: [.accentColor, .accentColor.opacity(0.7)],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    ),
-                                    style: StrokeStyle(lineWidth: 3, lineCap: .round)
-                                )
-                                .frame(width: 44, height: 44)
-                                .rotationEffect(.degrees(-90))
-                                .animation(.linear(duration: 0.3), value: downloadProgress)
-                            
-                            // Stage Icon (center of ring)
-                            if let stage = downloadManager.downloadStage[book.id] {
-                                Image(systemName: stage.icon)
-                                    .font(.system(size: 16, weight: .semibold))
-                                    .foregroundColor(.white)
-                                    .symbolEffect(.pulse, value: stage)
-                            } else {
-                                // Fallback to percentage
-                                Text("\(Int(downloadProgress * 100))")
-                                    .font(.system(size: 12, weight: .bold))
-                                    .foregroundColor(.white)
-                            }
-                        }
-                        
-                        // Status Text
-                        VStack(spacing: 2) {
-                            // Percentage
-                            Text("\(Int(downloadProgress * 100))%")
-                                .font(.caption)
-                                .fontWeight(.bold)
-                                .foregroundColor(.white)
-                            
-                            // Detailed Status Message
-                            if let status = downloadManager.downloadStatus[book.id] {
-                                Text(status)
-                                    .font(.caption2)
-                                    .foregroundColor(.white.opacity(0.9))
-                                    .lineLimit(2)
-                                    .multilineTextAlignment(.center)
-                                    .fixedSize(horizontal: false, vertical: true)
-                            } else {
-                                Text("Downloading...")
-                                    .font(.caption2)
-                                    .foregroundColor(.white.opacity(0.9))
-                            }
-                        }
-                        .frame(maxWidth: style.coverSize - 20)
-                        
-                        // Cancel Button
-                        Button(action: {
-                            cancelDownload()
-                        }) {
-                            HStack(spacing: 4) {
-                                Image(systemName: "xmark.circle.fill")
-                                    .font(.system(size: 10))
-                                Text("Cancel")
-                                    .font(.caption2)
-                                    .fontWeight(.medium)
-                            }
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 4)
-                            .background(Color.red.opacity(0.8))
-                            .clipShape(Capsule())
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    .padding(12)
-                }
-                .frame(width: style.coverSize, height: style.coverSize)
-                .transition(.scale.combined(with: .opacity))
-                
-            } else if isDownloaded {
-                // Downloaded State - Success Badge
-                VStack {
-                    HStack {
-                        Spacer()
-                        
-                        ZStack {
-                            Circle()
-                                .fill(.green)
-                                .frame(width: 32, height: 32)
-                            
-                            Image(systemName: "checkmark")
-                                .font(.system(size: 14, weight: .bold))
-                                .foregroundColor(.white)
-                        }
-                        .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
-                        .padding(8)
-                    }
-                    
-                    Spacer()
-                }
-                .transition(.scale.combined(with: .opacity))
-                
+            if viewModel.isDownloading {
+                downloadingOverlay
+            } else if viewModel.isDownloaded {
+                downloadedBadge
             } else if api != nil {
-                // Not Downloaded State - Download Button
-                VStack {
-                    HStack {
-                        Spacer()
-                        
-                        Button(action: startDownload) {
-                            ZStack {
-                                Circle()
-                                    .fill(.regularMaterial)
-                                    .frame(width: 36, height: 36)
-                                
-                                Image(systemName: "arrow.down.circle.fill")
-                                    .font(.system(size: 20))
-                                    .foregroundColor(.accentColor)
-                                    .symbolEffect(.bounce, value: isPressed)
-                            }
-                            .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
-                        }
-                        .buttonStyle(.plain)
-                        .padding(8)
-                    }
-                    
-                    Spacer()
-                }
-                .transition(.scale.combined(with: .opacity))
+                downloadButton
             }
         }
     }
-
-    // MARK: - Helper Methods for Download Status
-
-    private var downloadProgress: Double {
-        downloadManager.downloadProgress[book.id] ?? 0.0
+    
+    private var downloadingOverlay: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 8)
+                .fill(.ultraThinMaterial)
+                .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
+            
+            VStack(spacing: 8) {
+                ZStack {
+                    Circle()
+                        .stroke(Color.white.opacity(0.3), lineWidth: 3)
+                        .frame(width: 44, height: 44)
+                    
+                    Circle()
+                        .trim(from: 0, to: viewModel.downloadProgress)
+                        .stroke(
+                            LinearGradient(
+                                colors: [.accentColor, .accentColor.opacity(0.7)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            style: StrokeStyle(lineWidth: 3, lineCap: .round)
+                        )
+                        .frame(width: 44, height: 44)
+                        .rotationEffect(.degrees(-90))
+                    
+                    Text("\(Int(viewModel.downloadProgress * 100))")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(.white)
+                }
+                
+                VStack(spacing: 2) {
+                    Text("\(Int(viewModel.downloadProgress * 100))%")
+                        .font(.caption)
+                        .fontWeight(.bold)
+                        .foregroundColor(.white)
+                    
+                    if let status = viewModel.downloadStatus {
+                        Text(status)
+                            .font(.caption2)
+                            .foregroundColor(.white.opacity(0.9))
+                            .lineLimit(2)
+                            .multilineTextAlignment(.center)
+                    }
+                }
+                .frame(maxWidth: style.coverSize - 20)
+                
+                Button(action: onDelete) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 10))
+                        Text("Cancel")
+                            .font(.caption2)
+                            .fontWeight(.medium)
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(Color.red.opacity(0.8))
+                    .clipShape(Capsule())
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(12)
+        }
+        .frame(width: style.coverSize, height: style.coverSize)
     }
-
-    private func cancelDownload() {
-        AppLogger.general.debug("[BookCard] Cancel download requested for: \(book.title)")
-        downloadManager.cancelDownload(for: book.id)
+    
+    private var downloadedBadge: some View {
+        VStack {
+            HStack {
+                Spacer()
+                
+                ZStack {
+                    Circle()
+                        .fill(.green)
+                        .frame(width: 32, height: 32)
+                    
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundColor(.white)
+                }
+                .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
+                .padding(8)
+            }
+            
+            Spacer()
+        }
     }
-
-    // MARK: - Current Book Status Overlay
+    
+    private var downloadButton: some View {
+        VStack {
+            HStack {
+                Spacer()
+                
+                Button(action: onDownload) {
+                    ZStack {
+                        Circle()
+                            .fill(.regularMaterial)
+                            .frame(width: 36, height: 36)
+                        
+                        Image(systemName: "arrow.down.circle.fill")
+                            .font(.system(size: 20))
+                            .foregroundColor(.accentColor)
+                    }
+                    .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
+                }
+                .buttonStyle(.plain)
+                .padding(8)
+            }
+            
+            Spacer()
+        }
+    }
+    
     private var currentBookStatusOverlay: some View {
         HStack(spacing: 6) {
-            Image(systemName: player.isPlaying ? "speaker.wave.2.fill" : "pause.circle.fill")
+            Image(systemName: viewModel.isPlaying ? "speaker.wave.2.fill" : "pause.circle.fill")
                 .font(.system(size: 12, weight: .medium))
                 .foregroundColor(.white)
             
-            Text(player.isPlaying ? "Spielt" : "Pausiert")
+            Text(viewModel.isPlaying ? "Spielt" : "Pausiert")
                 .font(.caption2)
                 .fontWeight(.medium)
                 .foregroundColor(.white)
@@ -407,11 +336,9 @@ struct BookCardView: View {
         .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
     }
     
-    // MARK: - Book Info Section
     private var bookInfoSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Titel immer mit Platz für 2 Zeilen
-            Text(book.displayTitle)
+            Text(viewModel.book.displayTitle)
                 .font(style.titleFont)
                 .foregroundColor(.primary)
                 .lineLimit(2)
@@ -421,12 +348,12 @@ struct BookCardView: View {
             Spacer()
 
             VStack(alignment: .leading, spacing: style == .compact ? 2 : 4) {
-                Text(book.author ?? "Unbekannter Autor")
+                Text(viewModel.book.author ?? "Unbekannter Autor")
                     .font(style.authorFont)
                     .foregroundColor(.secondary)
                     .lineLimit(1)
 
-                if isCurrentBook && player.duration > 0 && style == .library {
+                if viewModel.isCurrentBook && viewModel.duration > 0 && style == .library {
                     bookProgressIndicator
                 }
             }
@@ -434,149 +361,46 @@ struct BookCardView: View {
         .padding(.horizontal, style.textPadding)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
-    // MARK: - Book Progress Indicator
+    
     private var bookProgressIndicator: some View {
         VStack(spacing: 4) {
-            ProgressView(value: player.currentTime, total: player.duration)
+            ProgressView(value: viewModel.currentProgress)
                 .progressViewStyle(LinearProgressViewStyle(tint: .accentColor))
                 .scaleEffect(x: 1, y: 0.5)
             
             HStack {
-                Text(TimeFormatter.formatTime(player.currentTime))
+                Text(TimeFormatter.formatTime(viewModel.currentTime))
                 Spacer()
-                Text(TimeFormatter.formatDuration(player.duration))
+                Text(TimeFormatter.formatDuration(viewModel.duration))
             }
             .font(.caption2)
             .foregroundColor(.secondary)
         }
     }
     
-    // MARK: - Context Menu
     private var contextMenuItems: some View {
         Group {
             Button(action: onTap) {
-                if book.isCollapsedSeries {
+                if viewModel.book.isCollapsedSeries {
                     Label("Serie anzeigen", systemImage: "books.vertical.fill")
                 } else {
                     Label("Abspielen", systemImage: "play.fill")
                 }
             }
             
-            if !isDownloaded && style == .library && api != nil {
-                Button(action: startDownload) {
-                    if book.isCollapsedSeries {
+            if !viewModel.isDownloaded && style == .library && api != nil {
+                Button(action: onDownload) {
+                    if viewModel.book.isCollapsedSeries {
                         Label("Serie herunterladen", systemImage: "arrow.down.circle")
                     } else {
                         Label("Herunterladen", systemImage: "arrow.down.circle")
                     }
                 }
-            } else if isDownloaded && style == .library {
-                Button(role: .destructive, action: deleteDownload) {
+            } else if viewModel.isDownloaded && style == .library {
+                Button(role: .destructive, action: onDelete) {
                     Label("Download löschen", systemImage: "trash")
                 }
             }
-        }
-    }
-
-    // MARK: - Actions
-    
-    private func startDownload() {
-        guard let api = api else {
-            AppLogger.general.debug("[BookCard] Cannot download: API not available")
-            return
-        }
-        
-        Task {
-            await downloadManager.downloadBook(book, api: api)
-        }
-    }
-
-    private func deleteDownload() {
-        downloadManager.deleteBook(book.id)
-    }
-    
-    private func shareBook() {
-        AppLogger.general.debug("[BookCard] Sharing book: \(book.title)")
-    }
-}
-
-// MARK: - Convenience Extensions
-extension BookCardView {
-    // Convenience initializers für verschiedene Styles
-    static func library(
-        book: Book,
-        player: AudioPlayer,
-        api: AudiobookshelfAPI?,
-        downloadManager: DownloadManager,
-        onTap: @escaping () -> Void
-    ) -> BookCardView {
-        BookCardView(
-            book: book,
-            player: player,
-            api: api,
-            downloadManager: downloadManager,
-            style: .library,
-            onTap: onTap
-        )
-    }
-    
-    static func series(
-        book: Book,
-        player: AudioPlayer,
-        api: AudiobookshelfAPI?,
-        downloadManager: DownloadManager,
-        onTap: @escaping () -> Void
-    ) -> BookCardView {
-        BookCardView(
-            book: book,
-            player: player,
-            api: api,
-            downloadManager: downloadManager,
-            style: .series,
-            onTap: onTap
-        )
-    }
-    
-    static func compact(
-        book: Book,
-        player: AudioPlayer,
-        api: AudiobookshelfAPI?,
-        downloadManager: DownloadManager,
-        onTap: @escaping () -> Void
-    ) -> BookCardView {
-        BookCardView(
-            book: book,
-            player: player,
-            api: api,
-            downloadManager: downloadManager,
-            style: .compact,
-            onTap: onTap
-        )
-    }
-}
-
-// MARK: - Circular Progress View
-struct CircularProgressView: View {
-    let progress: Double
-    let lineWidth: CGFloat
-    let color: Color
-    
-    var body: some View {
-        ZStack {
-            Circle()
-                .stroke(color.opacity(0.2), lineWidth: lineWidth)
-            
-            Circle()
-                .trim(from: 0, to: progress)
-                .stroke(
-                    color,
-                    style: StrokeStyle(
-                        lineWidth: lineWidth,
-                        lineCap: .round
-                    )
-                )
-                .rotationEffect(.degrees(-90))
-                .animation(.easeInOut(duration: 0.3), value: progress)
         }
     }
 }

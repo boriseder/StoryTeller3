@@ -222,17 +222,29 @@ struct SeriesDetailSheet: View {
         return ScrollView {
             LazyVGrid(columns: columns, spacing: 12) {
                 ForEach(seriesBooks) { book in
-                    BookCardView(
+                    let viewModel = BookCardStateViewModel(
                         book: book,
                         player: player,
+                        downloadManager: downloadManager
+                    )
+                    
+                    BookCardView(
+                        viewModel: viewModel,
                         api: api,
-                        downloadManager: downloadManager,
-                        style: .series,
                         onTap: {
                             Task {
                                 await playBook(book)
                             }
-                        }
+                        },
+                        onDownload: {
+                            Task {
+                                await downloadManager.downloadBook(book, api: api)
+                            }
+                        },
+                        onDelete: {
+                            downloadManager.deleteBook(book.id)
+                        },
+                        style: .series
                     )
                 }
             }

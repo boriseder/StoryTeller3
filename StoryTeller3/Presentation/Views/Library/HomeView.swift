@@ -250,7 +250,7 @@ struct PersonalizedSectionView: View {
             return api.convertLibraryItemToBook(libraryItem)
         }
         
-        return OptimizedHorizontalBookScrollView(
+        return HorizontalBookScrollView(
             books: books,
             player: player,
             api: api,

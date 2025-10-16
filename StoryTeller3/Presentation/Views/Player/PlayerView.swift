@@ -34,7 +34,7 @@ struct PlayerView: View {
                 }
             }
             .sheet(isPresented: $viewModel.showingChaptersList) {
-                OptimizedChaptersListView(player: viewModel.player)
+                ChaptersListView(player: viewModel.player)
             }
             .sheet(isPresented: $viewModel.showingSleepTimer) {
                 SleepTimerView(player: viewModel.player)

@@ -1,13 +1,12 @@
 import SwiftUI
 
-struct OptimizedLibraryView: View {
+struct LibraryView: View {
     @StateObject var viewModel: LibraryViewModel
     @EnvironmentObject var appState: AppStateManager
     @EnvironmentObject var appConfig: AppConfig
 
     @State private var selectedSeries: Book?
     @State private var bookCardVMs: [BookCardStateViewModel] = []
-    @State private var updateTimer: Timer?
     
     init(player: AudioPlayer, api: AudiobookshelfAPI, downloadManager: DownloadManager, onBookSelected: @escaping () -> Void) {
         self._viewModel = StateObject(wrappedValue: LibraryViewModelFactory.create(
@@ -74,6 +73,7 @@ struct OptimizedLibraryView: View {
         }
         .task {
             await viewModel.loadBooksIfNeeded()
+            updateBookCardViewModels()
         }
         .sheet(item: $selectedSeries) { series in
             SeriesQuickAccessView(
@@ -87,34 +87,41 @@ struct OptimizedLibraryView: View {
             .presentationDetents([.medium])
             .presentationDragIndicator(.visible)
         }
-        .onAppear {
-            startPeriodicUpdates()
-        }
-        .onDisappear {
-            stopPeriodicUpdates()
-        }
-        .onChange(of: viewModel.filteredAndSortedBooks) { _ in
+        .onChange(of: viewModel.filteredAndSortedBooks.count) { _ in
             updateBookCardViewModels()
+        }
+        .onReceive(viewModel.player.$currentTime.throttle(for: .seconds(2), scheduler: RunLoop.main, latest: true)) { _ in
+            updateCurrentBookOnly()
+        }
+        .onReceive(viewModel.downloadManager.$downloadProgress.throttle(for: .milliseconds(500), scheduler: RunLoop.main, latest: true)) { _ in
+            updateDownloadingBooksOnly()
         }
     }
     
     private var contentView: some View {
         ZStack {
             DynamicBackground()
-            
+
             VStack(spacing: 0) {
                 if viewModel.filterState.showDownloadedOnly {
-                    filterStatusBanner
+                    FilterStatusBannerView(
+                        count: viewModel.filteredAndSortedBooks.count,
+                        totalDownloaded: viewModel.downloadedBooksCount,
+                        onDismiss: { viewModel.toggleDownloadFilter() }
+                    )
                 }
                 
                 if viewModel.filterState.showSeriesGrouped {
-                    seriesStatusBanner
+                    SeriesStatusBannerView(
+                        books: viewModel.filteredAndSortedBooks,
+                        onDismiss: { viewModel.toggleSeriesMode() }
+                    )
                 }
                 
                 ScrollView {
                     LazyVGrid(columns: columns, spacing: 12) {
                         ForEach(bookCardVMs) { bookVM in
-                            OptimizedBookCardView(
+                            BookCardView(
                                 viewModel: bookVM,
                                 api: viewModel.api,
                                 onTap: {
@@ -133,37 +140,66 @@ struct OptimizedLibraryView: View {
                     .padding(.horizontal, 8)
                     .padding(.vertical, 8)
                 }
+                .scrollIndicators(.hidden)
             }
         }
     }
     
-    // MARK: - Update Logic
+    // MARK: - Ultra-Optimized Update Logic
     
     private func updateBookCardViewModels() {
-        let newVMs = viewModel.filteredAndSortedBooks.map { book in
-            BookCardStateViewModel(
-                book: book,
-                player: viewModel.player,
-                downloadManager: viewModel.downloadManager
-            )
-        }
+        let books = viewModel.filteredAndSortedBooks
+        let player = viewModel.player
+        let downloadManager = viewModel.downloadManager
         
-        if bookCardVMs != newVMs {
-            bookCardVMs = newVMs
+        Task.detached(priority: .userInitiated) {
+            let newVMs = books.map { book in
+                BookCardStateViewModel(
+                    book: book,
+                    player: player,
+                    downloadManager: downloadManager
+                )
+            }
+            
+            await MainActor.run {
+                self.bookCardVMs = newVMs
+            }
         }
     }
     
-    private func startPeriodicUpdates() {
-        updateBookCardViewModels()
+    private func updateCurrentBookOnly() {
+        guard let currentBookId = viewModel.player.book?.id,
+              let index = bookCardVMs.firstIndex(where: { $0.id == currentBookId }) else {
+            return
+        }
         
-        updateTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
-            updateBookCardViewModels()
+        let updatedVM = BookCardStateViewModel(
+            book: bookCardVMs[index].book,
+            player: viewModel.player,
+            downloadManager: viewModel.downloadManager
+        )
+        
+        if bookCardVMs[index] != updatedVM {
+            bookCardVMs[index] = updatedVM
         }
     }
     
-    private func stopPeriodicUpdates() {
-        updateTimer?.invalidate()
-        updateTimer = nil
+    private func updateDownloadingBooksOnly() {
+        let downloadingIds = Set(viewModel.downloadManager.downloadProgress.keys)
+        
+        for (index, vm) in bookCardVMs.enumerated() {
+            if downloadingIds.contains(vm.id) {
+                let updatedVM = BookCardStateViewModel(
+                    book: vm.book,
+                    player: viewModel.player,
+                    downloadManager: viewModel.downloadManager
+                )
+                
+                if bookCardVMs[index] != updatedVM {
+                    bookCardVMs[index] = updatedVM
+                }
+            }
+        }
     }
     
     // MARK: - Actions
@@ -188,83 +224,6 @@ struct OptimizedLibraryView: View {
         viewModel.downloadManager.deleteBook(book.id)
     }
 
-    // MARK: - Status Banners
-    
-    private var filterStatusBanner: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "arrow.down.circle.fill")
-                .font(.system(size: 16))
-                .foregroundColor(.orange)
-            
-            Text("Show \(viewModel.filteredAndSortedBooks.count) von \(viewModel.downloadedBooksCount) downloaded books")
-                .font(.subheadline)
-                .foregroundColor(.primary)
-            
-            Spacer()
-            
-            Button(action: {
-                viewModel.toggleDownloadFilter()
-            }) {
-                Image(systemName: "xmark")
-                    .font(.system(size: 14))
-                    .foregroundColor(.secondary)
-            }
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 8)
-        .background(.regularMaterial)
-        .overlay(
-            Rectangle()
-                .frame(height: 1)
-                .foregroundColor(Color(.separator)),
-            alignment: .bottom
-        )
-    }
-    
-    private var seriesStatusBanner: some View {
-        let seriesCount = viewModel.filteredAndSortedBooks.filter { $0.isCollapsedSeries }.count
-        let booksCount = viewModel.filteredAndSortedBooks.filter { !$0.isCollapsedSeries }.count
-        
-        return HStack(spacing: 12) {
-            Image(systemName: "rectangle.stack.fill")
-                .font(.system(size: 16))
-                .foregroundColor(.blue)
-            
-            if seriesCount > 0 && booksCount > 0 {
-                Text("Show \(seriesCount) Series • \(booksCount) Books")
-                    .font(.subheadline)
-                    .foregroundColor(.primary)
-            } else if seriesCount > 0 {
-                Text("Show \(seriesCount) Series")
-                    .font(.subheadline)
-                    .foregroundColor(.primary)
-            } else {
-                Text("Show \(booksCount) books")
-                    .font(.subheadline)
-                    .foregroundColor(.primary)
-            }
-            
-            Spacer()
-            
-            Button(action: {
-                viewModel.toggleSeriesMode()
-            }) {
-                Image(systemName: "xmark")
-                    .font(.system(size: 14))
-                    .foregroundColor(.secondary)
-            }
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 8)
-        .background(.regularMaterial)
-        .overlay(
-            Rectangle()
-                .frame(height: 1)
-                .foregroundColor(Color(.separator)),
-            alignment: .bottom
-        )
-    }
-
     // MARK: - Toolbar Components
     
     private var filterAndSortMenu: some View {
@@ -272,9 +231,7 @@ struct OptimizedLibraryView: View {
             Section("Sort to") {
                 ForEach(LibrarySortOption.allCases, id: \.self) { option in
                     Button(action: {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            viewModel.filterState.selectedSortOption = option
-                        }
+                        viewModel.filterState.selectedSortOption = option
                     }) {
                         Label(option.rawValue, systemImage: option.systemImage)
                         if viewModel.filterState.selectedSortOption == option {
@@ -317,24 +274,10 @@ struct OptimizedLibraryView: View {
             }
             
             Section("Library") {
-                if viewModel.filterState.showSeriesGrouped {
-                    let seriesCount = viewModel.filteredAndSortedBooks.filter { $0.isCollapsedSeries }.count
-                    let booksCount = viewModel.filteredAndSortedBooks.filter { !$0.isCollapsedSeries }.count
-                    
-                    HStack {
-                        Text("Total: \(seriesCount) Series • \(booksCount) Books")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        Spacer()
-                    }
-                } else {
-                    HStack {
-                        Text("Total: \(viewModel.totalBooksCount) Books")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        Spacer()
-                    }
-                }
+                LibraryStatsView(
+                    viewModel: viewModel,
+                    isSeriesMode: viewModel.filterState.showSeriesGrouped
+                )
             }
             
             if viewModel.filterState.showDownloadedOnly || viewModel.filterState.showSeriesGrouped || !viewModel.filterState.searchText.isEmpty {
@@ -362,6 +305,124 @@ struct OptimizedLibraryView: View {
                         .offset(x: 8, y: -8)
                 }
             }
+        }
+    }
+}
+
+// MARK: - Filter Status Banner Component
+struct FilterStatusBannerView: View {
+    let count: Int
+    let totalDownloaded: Int
+    let onDismiss: () -> Void
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "arrow.down.circle.fill")
+                .font(.system(size: 16))
+                .foregroundColor(.orange)
+            
+            Text("Show \(count) von \(totalDownloaded) downloaded books")
+                .font(.subheadline)
+                .foregroundColor(.primary)
+            
+            Spacer()
+            
+            Button(action: onDismiss) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 14))
+                    .foregroundColor(.secondary)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .background(.regularMaterial)
+        .overlay(
+            Rectangle()
+                .frame(height: 1)
+                .foregroundColor(Color(.separator)),
+            alignment: .bottom
+        )
+    }
+}
+
+// MARK: - Series Status Banner Component
+struct SeriesStatusBannerView: View {
+    let books: [Book]
+    let onDismiss: () -> Void
+    
+    private var seriesCount: Int {
+        books.lazy.filter { $0.isCollapsedSeries }.count
+    }
+    
+    private var booksCount: Int {
+        books.count - seriesCount
+    }
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "rectangle.stack.fill")
+                .font(.system(size: 16))
+                .foregroundColor(.blue)
+            
+            if seriesCount > 0 && booksCount > 0 {
+                Text("Show \(seriesCount) Series • \(booksCount) Books")
+                    .font(.subheadline)
+                    .foregroundColor(.primary)
+            } else if seriesCount > 0 {
+                Text("Show \(seriesCount) Series")
+                    .font(.subheadline)
+                    .foregroundColor(.primary)
+            } else {
+                Text("Show \(booksCount) books")
+                    .font(.subheadline)
+                    .foregroundColor(.primary)
+            }
+            
+            Spacer()
+            
+            Button(action: onDismiss) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 14))
+                    .foregroundColor(.secondary)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .background(.regularMaterial)
+        .overlay(
+            Rectangle()
+                .frame(height: 1)
+                .foregroundColor(Color(.separator)),
+            alignment: .bottom
+        )
+    }
+}
+
+// MARK: - Library Stats Component
+struct LibraryStatsView: View {
+    let viewModel: LibraryViewModel
+    let isSeriesMode: Bool
+    
+    private var seriesCount: Int {
+        viewModel.filteredAndSortedBooks.lazy.filter { $0.isCollapsedSeries }.count
+    }
+    
+    private var booksCount: Int {
+        viewModel.filteredAndSortedBooks.count - seriesCount
+    }
+    
+    var body: some View {
+        HStack {
+            if isSeriesMode {
+                Text("Total: \(seriesCount) Series • \(booksCount) Books")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            } else {
+                Text("Total: \(viewModel.totalBooksCount) Books")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            Spacer()
         }
     }
 }

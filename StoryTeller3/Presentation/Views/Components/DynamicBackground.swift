@@ -19,7 +19,7 @@ struct DynamicBackground: View {
         ZStack {
             switch appConfig.userBackgroundStyle {
             case .dynamic:
-                LinearGradientBackgground()
+                StaticLinearGradientBackground()
             case .light:
                 Color.white.ignoresSafeArea()
             case .dark:
@@ -29,12 +29,7 @@ struct DynamicBackground: View {
     }
 }
 
-struct LinearGradientBackgground: View {
-    @State private var rotation = 0.0
-    @State private var scale = 1.0
-    @State private var animationPhase = 0.0
-    
-    // Ruhigere Farbpalette
+struct StaticLinearGradientBackground: View {
     let colors: [Color] = [
         Color.blue.opacity(0.3),
         Color.teal.opacity(0.3),
@@ -44,7 +39,6 @@ struct LinearGradientBackgground: View {
     
     var body: some View {
         ZStack {
-            // Weicher Hintergrund
             LinearGradient(
                 colors: [
                     Color.indigo.opacity(0.35),
@@ -56,46 +50,25 @@ struct LinearGradientBackgground: View {
             )
             .ignoresSafeArea()
             
-            // Ruhigere Blobs (gleiches Layout wie vorher)
+            // Statische Blobs
             ForEach(0..<6, id: \.self) { index in
-                MusicBlobView(
-                    index: index,
-                    colors: colors,
-                    rotation: rotation,
-                    scale: scale,
-                    animationPhase: animationPhase
-                )
-            }
-        }
-        .onAppear {
-            withAnimation(.linear(duration: 40).repeatForever(autoreverses: false)) {
-                rotation = 360
-            }
-            withAnimation(.easeInOut(duration: 18).repeatForever(autoreverses: true)) {
-                scale = 1.1
-            }
-            withAnimation(.linear(duration: 30).repeatForever(autoreverses: false)) {
-                animationPhase = .pi * 2
+                StaticBlobView(index: index, colors: colors)
             }
         }
     }
 }
 
-// MARK: - Music Blob View (unverändert, nur wirkt durch neue Farben ruhiger)
-struct MusicBlobView: View {
+struct StaticBlobView: View {
     let index: Int
     let colors: [Color]
-    let rotation: Double
-    let scale: Double
-    let animationPhase: Double
     
     var body: some View {
         let baseColor = colors[index % colors.count]
         let size = 220 + Double(index) * 40
-        let offsetX = cos(animationPhase + Double(index) * 0.7) * 120
-        let offsetY = sin(animationPhase + Double(index) * 0.9) * 100
-        let angle = rotation + Double(index) * 45
-        let scaleAmount = scale + sin(animationPhase + Double(index)) * 0.12
+        let offsetX = cos(Double(index) * 0.7) * 120
+        let offsetY = sin(Double(index) * 0.9) * 100
+        let angle = Double(index) * 45
+        let scaleAmount = 1.0 + sin(Double(index)) * 0.12
         
         Circle()
             .fill(

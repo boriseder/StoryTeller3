@@ -2,7 +2,7 @@ import SwiftUI
 import AVKit
 
 // MARK: - Optimized Chapters List View
-struct OptimizedChaptersListView: View {
+struct ChaptersListView: View {
     let player: AudioPlayer
     @Environment(\.dismiss) private var dismiss
     
@@ -27,7 +27,7 @@ struct OptimizedChaptersListView: View {
                                 
                                 LazyVStack(spacing: 12) {
                                     ForEach(chapterVMs) { chapterVM in
-                                        OptimizedChapterCardView(
+                                        ChapterCardView(
                                             viewModel: chapterVM,
                                             onTap: {
                                                 handleChapterTap(index: chapterVM.id)
@@ -190,7 +190,7 @@ struct OptimizedChaptersListView: View {
 }
 
 // MARK: - Optimized Chapter Card View
-struct OptimizedChapterCardView: View {
+struct ChapterCardView: View {
     let viewModel: ChapterStateViewModel
     let onTap: () -> Void
     

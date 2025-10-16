@@ -13,10 +13,14 @@ struct AVRoutePickerViewWrapper: UIViewRepresentable {
     func updateUIView(_ uiView: AVRoutePickerView, context: Context) {}
 }
 
+/*
 // MARK: - Chapters List View
 struct ChaptersListView: View {
     let player: AudioPlayer
     @Environment(\.dismiss) private var dismiss
+    
+    @State private var chapterVMs: [ChapterStateViewModel] = []
+    @State private var updateTimer: Timer?
     @State private var scrollTarget: Int?
     
     var body: some View {
@@ -29,26 +33,20 @@ struct ChaptersListView: View {
                     ScrollView {
                         if let book = player.book {
                             VStack(spacing: 0) {
-                                // Header Section
                                 headerSection(book: book)
                                     .padding(.horizontal, 20)
                                     .padding(.top, 8)
                                     .padding(.bottom, 16)
                                 
-                                // Chapters List
                                 LazyVStack(spacing: 12) {
-                                    ForEach(Array(book.chapters.enumerated()), id: \.offset) { index, chapter in
+                                    ForEach(chapterVMs) { chapterVM in
                                         ChapterCardView(
-                                            chapter: chapter,
-                                            chapterIndex: index,
-                                            currentChapterIndex: player.currentChapterIndex,
-                                            isPlaying: player.isPlaying,
-                                            currentTime: player.currentTime,
+                                            viewModel: chapterVM,
                                             onTap: {
-                                                handleChapterTap(index: index)
+                                                handleChapterTap(index: chapterVM.id)
                                             }
                                         )
-                                        .id(index)
+                                        .id(chapterVM.id)
                                     }
                                 }
                                 .padding(.horizontal, 16)
@@ -76,12 +74,17 @@ struct ChaptersListView: View {
                     }
                 }
                 .onAppear {
+                    updateChapterViewModels()
+                    startPeriodicUpdates()
                     scrollTarget = player.currentChapterIndex
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                         withAnimation(.easeInOut(duration: 0.3)) {
                             proxy.scrollTo(player.currentChapterIndex, anchor: .center)
                         }
                     }
+                }
+                .onDisappear {
+                    stopPeriodicUpdates()
                 }
             }
         }
@@ -154,6 +157,33 @@ struct ChaptersListView: View {
         }
     }
     
+    private func updateChapterViewModels() {
+        guard let book = player.book else { return }
+        
+        let newVMs = book.chapters.enumerated().map { index, chapter in
+            ChapterStateViewModel(
+                index: index,
+                chapter: chapter,
+                player: player
+            )
+        }
+        
+        if chapterVMs != newVMs {
+            chapterVMs = newVMs
+        }
+    }
+    
+    private func startPeriodicUpdates() {
+        updateTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
+            updateChapterViewModels()
+        }
+    }
+    
+    private func stopPeriodicUpdates() {
+        updateTimer?.invalidate()
+        updateTimer = nil
+    }
+    
     private func handleChapterTap(index: Int) {
         AppLogger.general.debug("[ChaptersList] Chapter \(index) selected")
         
@@ -177,43 +207,34 @@ struct ChaptersListView: View {
 
 // MARK: - Chapter Card View
 struct ChapterCardView: View {
-    let chapter: Chapter
-    let chapterIndex: Int
-    let currentChapterIndex: Int
-    let isPlaying: Bool
-    let currentTime: Double
+    let viewModel: ChapterStateViewModel
     let onTap: () -> Void
     
     @State private var isPressed = false
     
-    private var isCurrentChapter: Bool {
-        chapterIndex == currentChapterIndex
-    }
-    
     private var chapterProgress: Double {
-        guard isCurrentChapter,
-              let start = chapter.start,
-              let end = chapter.end,
+        guard viewModel.isCurrent,
+              let start = viewModel.chapter.start,
+              let end = viewModel.chapter.end,
               end > start else {
             return 0
         }
         
         let chapterDuration = end - start
-        let chapterCurrentTime = max(0, min(currentTime - start, chapterDuration))
+        let chapterCurrentTime = max(0, min(viewModel.currentTime - start, chapterDuration))
         return chapterCurrentTime / chapterDuration
     }
     
     var body: some View {
         Button(action: {
-            AppLogger.general.debug("[ChapterCard] Chapter \(chapterIndex) tapped: \(chapter.title)")
+            AppLogger.general.debug("[ChapterCard] Chapter \(viewModel.id) tapped: \(viewModel.chapter.title)")
             onTap()
         }) {
             HStack(spacing: 16) {
-                // Chapter Number Circle
                 ZStack {
                     Circle()
                         .fill(
-                            isCurrentChapter ?
+                            viewModel.isCurrent ?
                             LinearGradient(
                                 colors: [Color.accentColor, Color.accentColor.opacity(0.7)],
                                 startPoint: .topLeading,
@@ -227,29 +248,28 @@ struct ChapterCardView: View {
                         )
                         .frame(width: 48, height: 48)
                     
-                    if isCurrentChapter && isPlaying {
+                    if viewModel.isCurrent && viewModel.isPlaying {
                         Image(systemName: "waveform")
                             .font(.system(size: 18, weight: .semibold))
                             .foregroundColor(.white)
-                            .symbolEffect(.variableColor.iterative, options: .repeating, value: isPlaying)
+                            .symbolEffect(.variableColor.iterative, options: .repeating, value: viewModel.isPlaying)
                     } else {
-                        Text("\(chapterIndex + 1)")
+                        Text("\(viewModel.id + 1)")
                             .font(.system(size: 16, weight: .bold, design: .rounded))
-                            .foregroundColor(isCurrentChapter ? .white : .secondary)
+                            .foregroundColor(viewModel.isCurrent ? .white : .secondary)
                     }
                 }
                 
-                // Chapter Info
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(chapter.title)
+                    Text(viewModel.chapter.title)
                         .font(.subheadline)
-                        .fontWeight(isCurrentChapter ? .semibold : .regular)
-                        .foregroundColor(isCurrentChapter ? .primary : .primary)
+                        .fontWeight(viewModel.isCurrent ? .semibold : .regular)
+                        .foregroundColor(viewModel.isCurrent ? .primary : .primary)
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
                     
                     HStack(spacing: 12) {
-                        if let start = chapter.start {
+                        if let start = viewModel.chapter.start {
                             HStack(spacing: 4) {
                                 Image(systemName: "clock")
                                     .font(.caption2)
@@ -260,7 +280,7 @@ struct ChapterCardView: View {
                             .foregroundColor(.secondary)
                         }
                         
-                        if let start = chapter.start, let end = chapter.end {
+                        if let start = viewModel.chapter.start, let end = viewModel.chapter.end {
                             HStack(spacing: 4) {
                                 Image(systemName: "timer")
                                     .font(.caption2)
@@ -272,8 +292,7 @@ struct ChapterCardView: View {
                         }
                     }
                     
-                    // Progress bar for current chapter
-                    if isCurrentChapter && chapterProgress > 0 {
+                    if viewModel.isCurrent && chapterProgress > 0 {
                         ProgressView(value: chapterProgress)
                             .progressViewStyle(LinearProgressViewStyle(tint: .accentColor))
                             .scaleEffect(x: 1, y: 0.6)
@@ -282,18 +301,17 @@ struct ChapterCardView: View {
                 
                 Spacer()
                 
-                // Status Indicator
                 VStack {
-                    if isCurrentChapter {
+                    if viewModel.isCurrent {
                         ZStack {
                             Circle()
                                 .fill(Color.accentColor.opacity(0.15))
                                 .frame(width: 32, height: 32)
                             
-                            Image(systemName: isPlaying ? "speaker.wave.2.fill" : "pause.fill")
+                            Image(systemName: viewModel.isPlaying ? "speaker.wave.2.fill" : "pause.fill")
                                 .font(.system(size: 14))
                                 .foregroundColor(.accentColor)
-                                .symbolEffect(.pulse, options: .repeating, value: isPlaying)
+                                .symbolEffect(.pulse, options: .repeating, value: viewModel.isPlaying)
                         }
                     } else {
                         Image(systemName: "chevron.right")
@@ -305,16 +323,16 @@ struct ChapterCardView: View {
             .padding(16)
             .background(
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(isCurrentChapter ? Color.accentColor.opacity(0.08) : Color(.secondarySystemGroupedBackground))
+                    .fill(viewModel.isCurrent ? Color.accentColor.opacity(0.08) : Color(.secondarySystemGroupedBackground))
                     .overlay(
                         RoundedRectangle(cornerRadius: 12)
                             .stroke(
-                                isCurrentChapter ? Color.accentColor.opacity(0.3) : Color.clear,
+                                viewModel.isCurrent ? Color.accentColor.opacity(0.3) : Color.clear,
                                 lineWidth: 1.5
                             )
                     )
                     .shadow(
-                        color: isCurrentChapter ? Color.accentColor.opacity(0.1) : Color.black.opacity(0.05),
+                        color: viewModel.isCurrent ? Color.accentColor.opacity(0.1) : Color.black.opacity(0.05),
                         radius: isPressed ? 4 : 8,
                         x: 0,
                         y: isPressed ? 2 : 4
@@ -336,6 +354,8 @@ struct ChapterCardView: View {
         )
     }
 }
+
+ */
 
 // MARK: - Chapter Row View (Legacy - keeping for compatibility)
 struct ChapterRowView: View {

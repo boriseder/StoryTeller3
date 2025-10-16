@@ -1,14 +1,16 @@
 import SwiftUI
 
-// MARK: - Reusable HorizontalBookScrollView Component
-
+// MARK: - Horizontal Book Scroll View
 struct HorizontalBookScrollView: View {
     let books: [Book]
-    @ObservedObject var player: AudioPlayer
+    let player: AudioPlayer
     let api: AudiobookshelfAPI
-    @ObservedObject var downloadManager: DownloadManager
+    let downloadManager: DownloadManager
     let onBookSelected: (Book) -> Void
     let cardStyle: BookCardStyle
+    
+    @State private var bookCardVMs: [BookCardStateViewModel] = []
+    @State private var updateTimer: Timer?
     
     init(
         books: [Book],
@@ -29,19 +31,57 @@ struct HorizontalBookScrollView: View {
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 4) {
-                ForEach(books) { book in
+                ForEach(bookCardVMs) { bookVM in
                     BookCardView(
-                        book: book,
-                        player: player,
+                        viewModel: bookVM,
                         api: api,
-                        downloadManager: downloadManager,
-                        style: cardStyle,
                         onTap: {
-                            onBookSelected(book)
-                        }
+                            onBookSelected(bookVM.book)
+                        },
+                        onDownload: {
+                            Task {
+                                await downloadManager.downloadBook(bookVM.book, api: api)
+                            }
+                        },
+                        onDelete: {
+                            downloadManager.deleteBook(bookVM.book.id)
+                        },
+                        style: cardStyle
                     )
                 }
             }
         }
+        .onAppear {
+            updateBookCardViewModels()
+            startPeriodicUpdates()
+        }
+        .onDisappear {
+            stopPeriodicUpdates()
+        }
+    }
+    
+    private func updateBookCardViewModels() {
+        let newVMs = books.map { book in
+            BookCardStateViewModel(
+                book: book,
+                player: player,
+                downloadManager: downloadManager
+            )
+        }
+        
+        if bookCardVMs != newVMs {
+            bookCardVMs = newVMs
+        }
+    }
+    
+    private func startPeriodicUpdates() {
+        updateTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
+            updateBookCardViewModels()
+        }
+    }
+    
+    private func stopPeriodicUpdates() {
+        updateTimer?.invalidate()
+        updateTimer = nil
     }
 }
