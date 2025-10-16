@@ -176,9 +176,21 @@ class AudioPlayer: NSObject, ObservableObject {
             return
         }
         
+        let trackNumber = max(currentChapterIndex + 1, 1)
+        let trackCount = max(book.chapters.count, 2) // mind. 2 für Prev/Next
+        
+        AppLogger.debug.debug("[AudioPlayer] trackNumber: \(trackNumber)")
+        AppLogger.debug.debug("[AudioPlayer] trackCount: \(trackCount)")
+        
+        let trackName = "Unknown Title"
+        AppLogger.debug.debug("[AudioPlayer] trackName: \(trackName)")
+
         var nowPlayingInfo: [String: Any] = [
-            MPMediaItemPropertyTitle: book.title,
+            MPMediaItemPropertyTitle: currentChapter?.title ?? "Kapitel",
             MPMediaItemPropertyArtist: book.author ?? "Unknown Author",
+            MPMediaItemPropertyAlbumTitle: book.title,
+            MPMediaItemPropertyAlbumTrackNumber: trackNumber,
+            MPMediaItemPropertyAlbumTrackCount: trackCount,
             MPMediaItemPropertyPlaybackDuration: duration,
             MPNowPlayingInfoPropertyElapsedPlaybackTime: currentTime,
             MPNowPlayingInfoPropertyPlaybackRate: isPlaying ? Double(playbackRate) : 0.0
@@ -188,6 +200,8 @@ class AudioPlayer: NSObject, ObservableObject {
         if let chapter = currentChapter {
             nowPlayingInfo[MPMediaItemPropertyAlbumTitle] = chapter.title
         }
+        
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
         
         // Add artwork if available
         Task { @MainActor in
@@ -206,6 +220,7 @@ class AudioPlayer: NSObject, ObservableObject {
     
     // MARK: - Book Loading
 
+    @MainActor
     func load(book: Book, isOffline: Bool = false, restoreState: Bool = true) {
         self.book = book
         self.isOfflineMode = isOffline

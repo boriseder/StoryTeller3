@@ -86,16 +86,22 @@ class PlayBookUseCase: PlayBookUseCaseProtocol {
             appState: appState
         )
         
-        switch playbackMode {
-        case .online:
-            player.load(book: fullBook, isOffline: false, restoreState: restoreState)
-            AppLogger.debug.debug("[PlayBookUseCase] Loaded book: \(fullBook.title) (mode: online)")
-            
-        case .offline:
-            player.load(book: fullBook, isOffline: true, restoreState: restoreState)
-            AppLogger.debug.debug("[PlayBookUseCase] Loaded book: \(fullBook.title) (mode: offline)")
-            
-        case .unavailable:
+        await MainActor.run {
+            switch playbackMode {
+            case .online:
+                player.load(book: fullBook, isOffline: false, restoreState: restoreState)
+                AppLogger.debug.debug("[PlayBookUseCase] Loaded book: \(fullBook.title) (mode: online)")
+                
+            case .offline:
+                player.load(book: fullBook, isOffline: true, restoreState: restoreState)
+                AppLogger.debug.debug("[PlayBookUseCase] Loaded book: \(fullBook.title) (mode: offline)")
+                
+            case .unavailable:
+                break
+            }
+        }
+
+        if playbackMode == .unavailable {
             throw PlayBookError.notAvailableOffline(book.title)
         }
     }
