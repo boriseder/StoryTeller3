@@ -12,7 +12,7 @@ struct StateContainer<Content: View>: View {
     let backgroundColor: Color
     
     init(
-        backgroundColor: Color = Color(.systemBackground),
+        backgroundColor: Color = Color(.accent),
         @ViewBuilder content: () -> Content
     ) {
         self.backgroundColor = backgroundColor
@@ -22,11 +22,13 @@ struct StateContainer<Content: View>: View {
     var body: some View {
         ZStack {
             backgroundColor
-                .ignoresSafeArea()
-            
-            content
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            VStack {
+                Spacer()
+                content
+                Spacer()
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .ignoresSafeArea()
     }
 }

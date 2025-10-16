@@ -1,10 +1,3 @@
-//
-//  AppConfig.swift
-//  StoryTeller3
-//
-//  Created by Boris Eder on 03.10.25.
-//
-
 import SwiftUI
 
 class AppConfig: ObservableObject {
@@ -16,19 +9,16 @@ class AppConfig: ObservableObject {
     
     @Published var userAccentColor: UserAccentColor = .blue {
         didSet {
-        UserDefaults.standard.set(userAccentColor.rawValue, forKey: "userAccentColor")
+            UserDefaults.standard.set(userAccentColor.rawValue, forKey: "userAccentColor")
         }
     }
     
-
     init() {
-        // Stored property initialisieren
-        let raw = UserDefaults.standard.string(forKey: "userBackgroundStyle") ?? UserBackgroundStyle.dynamic.rawValue
-        self.userBackgroundStyle = UserBackgroundStyle(rawValue: raw) ?? .dynamic
-        if let saved = UserDefaults.standard.string(forKey: "userAccentColor"),
-           let color = UserAccentColor(rawValue: saved) {
-            self.userAccentColor = color
-        }
+        let cachedStyle = UserDefaults.standard.string(forKey: "userBackgroundStyle")
+        let cachedColor = UserDefaults.standard.string(forKey: "userAccentColor")
+        
+        self.userBackgroundStyle = cachedStyle.flatMap(UserBackgroundStyle.init) ?? .dynamic
+        self.userAccentColor = cachedColor.flatMap(UserAccentColor.init) ?? .blue
     }
 }
 

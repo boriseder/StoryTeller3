@@ -1,20 +1,22 @@
 import SwiftUI
 
 struct LoadingView: View {
-    var message: String = "Loading..."
+    @State var message: String = "Initializing & loading data..."
     
     var body: some View {
         StateContainer {
             VStack(spacing: 20) {
                 ProgressView()
+                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
                     .scaleEffect(1.5)
-                    .frame(width: 60, height: 60) // Fixed size prevents jumping
+                    .frame(width: 60, height: 60, alignment: .center)
                 
                 Text(message)
-                    .font(.title3)
-                    .fontWeight(.medium)
-                    .foregroundColor(.secondary)
+                    .font(DSText.body)
+                    .foregroundStyle(DSColor.onDark)
+                    .frame(height: 24)
             }
+            .frame(minWidth: 100, minHeight: 120)
         }
     }
 }

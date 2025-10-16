@@ -19,66 +19,65 @@ struct ContentView: View {
         case home, library, series, downloads
     }
 
+    
     var body: some View {
-        Group {
-            switch appState.loadingState {
-            case .initial, .loadingCredentials, .credentialsFoundValidating:
-                LoadingView()
-                    .transition(.opacity) // Smooth fade transition
-                
-            case .noCredentialsSaved:
-                Color.clear
-                    .onAppear {
-                        // Check if credentials were just saved
-                        if UserDefaults.standard.string(forKey: "stored_username") != nil {
-                            // Credentials exist, trigger setup
+            
+            Group {
+                switch appState.loadingState {
+                case .initial, .loadingCredentials, .credentialsFoundValidating:
+                    LoadingView()
+                        .transition(.opacity)
+                    
+                case .noCredentialsSaved:
+                    Color.clear
+                        .onAppear {
+                            if UserDefaults.standard.string(forKey: "stored_username") != nil {
+                                Task {
+                                    await setupApp()
+                                }
+                            } else if appState.isFirstLaunch {
+                                appState.showingWelcome = true
+                            } else {
+                                appState.showingSettings = true
+                            }
+                        }
+                    
+                case .networkError(let issueType):
+                    NetworkErrorView(
+                        issueType: issueType,
+                        downloadedBooksCount: downloadManager.downloadedBooks.count,
+                        onRetry: {
                             Task {
                                 await setupApp()
                             }
-                        } else if appState.isFirstLaunch {
-                            appState.showingWelcome = true
-                        } else {
+                        },
+                        onViewDownloads: {
+                            selectedTab = .downloads
+                            appState.loadingState = .ready
+                        },
+                        onSettings: {
                             appState.showingSettings = true
                         }
-
-                    }
-                
-            case .networkError(let issueType):
-                NetworkErrorView(
-                    issueType: issueType,
-                    downloadedBooksCount: downloadManager.downloadedBooks.count,
-                    onRetry: {
-                        Task {
-                            await setupApp()
+                    )
+                    .transition(.opacity)
+                    
+                case .authenticationError:
+                    AuthErrorView(
+                        onReLogin: {
+                            appState.showingSettings = true
                         }
-                    },
-                    onViewDownloads: {
-                        selectedTab = .downloads
-                        appState.loadingState = .ready
-                    },
-                    onSettings: {
-                        appState.showingSettings = true
-                    }
-                )
-                .transition(.opacity)
-                
-            case .authenticationError:
-                AuthErrorView(
-                    onReLogin: {
-                        appState.showingSettings = true
-                    }
-                )
-                .transition(.opacity)
-                
-            case .loadingData:
-                LoadingView(message: "Loading data...")
+                    )
                     .transition(.opacity)
-                
-            case .ready:
-                mainContent
-                    .transition(.opacity)
+                    
+                case .loadingData:
+                    LoadingView()
+                        .transition(.opacity)
+                    
+                case .ready:
+                    mainContent
+                        .transition(.opacity)
+                }
             }
-        }
         .animation(.easeInOut(duration: 0.25), value: appState.loadingState)
         .onAppear(perform: setupApp)
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)) { _ in
@@ -89,8 +88,6 @@ struct ContentView: View {
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .init("ServerSettingsChanged"))) { _ in
-            // Don't auto-dismiss settings anymore
-            // appState.showingSettings = false
             appState.clearConnectionIssue()
             Task {
                 await setupApp()
@@ -136,7 +133,7 @@ struct ContentView: View {
             .ignoresSafeArea()
         }
     }
-    
+
     // MARK: - Main Content
     private var mainContent: some View {
         FullscreenPlayerContainer(
