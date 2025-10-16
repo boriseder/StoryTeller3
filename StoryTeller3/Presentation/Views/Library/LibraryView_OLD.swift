@@ -1,13 +1,11 @@
 import SwiftUI
 
-struct OptimizedLibraryView: View {
+struct LibraryView: View {
     @StateObject var viewModel: LibraryViewModel
     @EnvironmentObject var appState: AppStateManager
     @EnvironmentObject var appConfig: AppConfig
 
     @State private var selectedSeries: Book?
-    @State private var bookCardVMs: [BookCardStateViewModel] = []
-    @State private var updateTimer: Timer?
     
     init(player: AudioPlayer, api: AudiobookshelfAPI, downloadManager: DownloadManager, onBookSelected: @escaping () -> Void) {
         self._viewModel = StateObject(wrappedValue: LibraryViewModelFactory.create(
@@ -87,46 +85,35 @@ struct OptimizedLibraryView: View {
             .presentationDetents([.medium])
             .presentationDragIndicator(.visible)
         }
-        .onAppear {
-            startPeriodicUpdates()
-        }
-        .onDisappear {
-            stopPeriodicUpdates()
-        }
-        .onChange(of: viewModel.filteredAndSortedBooks) { _ in
-            updateBookCardViewModels()
-        }
     }
+    
     
     private var contentView: some View {
         ZStack {
             DynamicBackground()
             
             VStack(spacing: 0) {
+                // Filter-Status-Banner (wenn Download-Filter aktiv)
                 if viewModel.filterState.showDownloadedOnly {
                     filterStatusBanner
                 }
                 
+                // Series-Status-Banner (wenn Series-Modus aktiv)
                 if viewModel.filterState.showSeriesGrouped {
                     seriesStatusBanner
                 }
                 
                 ScrollView {
                     LazyVGrid(columns: columns, spacing: 12) {
-                        ForEach(bookCardVMs) { bookVM in
-                            OptimizedBookCardView(
-                                viewModel: bookVM,
+                        ForEach(viewModel.filteredAndSortedBooks) { book in
+                            BookCardView.library(
+                                book: book,
+                                player: viewModel.player,
                                 api: viewModel.api,
+                                downloadManager: viewModel.downloadManager,
                                 onTap: {
-                                    handleBookTap(bookVM.book)
-                                },
-                                onDownload: {
-                                    startDownload(bookVM.book)
-                                },
-                                onDelete: {
-                                    deleteDownload(bookVM.book)
-                                },
-                                style: .library
+                                    handleBookTap(book)
+                                }
                             )
                         }
                     }
@@ -136,38 +123,8 @@ struct OptimizedLibraryView: View {
             }
         }
     }
-    
-    // MARK: - Update Logic
-    
-    private func updateBookCardViewModels() {
-        let newVMs = viewModel.filteredAndSortedBooks.map { book in
-            BookCardStateViewModel(
-                book: book,
-                player: viewModel.player,
-                downloadManager: viewModel.downloadManager
-            )
-        }
-        
-        if bookCardVMs != newVMs {
-            bookCardVMs = newVMs
-        }
-    }
-    
-    private func startPeriodicUpdates() {
-        updateBookCardViewModels()
-        
-        updateTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
-            updateBookCardViewModels()
-        }
-    }
-    
-    private func stopPeriodicUpdates() {
-        updateTimer?.invalidate()
-        updateTimer = nil
-    }
-    
-    // MARK: - Actions
-    
+    // MARK: - Subviews
+           
     private func handleBookTap(_ book: Book) {
         if book.isCollapsedSeries {
             selectedSeries = book
@@ -177,16 +134,7 @@ struct OptimizedLibraryView: View {
             }
         }
     }
-    
-    private func startDownload(_ book: Book) {
-        Task {
-            await viewModel.downloadManager.downloadBook(book, api: viewModel.api)
-        }
-    }
-    
-    private func deleteDownload(_ book: Book) {
-        viewModel.downloadManager.deleteBook(book.id)
-    }
+
 
     // MARK: - Status Banners
     
@@ -269,6 +217,7 @@ struct OptimizedLibraryView: View {
     
     private var filterAndSortMenu: some View {
         Menu {
+            // Sortierung Section
             Section("Sort to") {
                 ForEach(LibrarySortOption.allCases, id: \.self) { option in
                     Button(action: {
@@ -286,6 +235,7 @@ struct OptimizedLibraryView: View {
             
             Divider()
             
+            // Filter Section
             Section("Filter") {
                 Button(action: {
                     viewModel.toggleDownloadFilter()
@@ -305,6 +255,7 @@ struct OptimizedLibraryView: View {
             
             Divider()
             
+            // Darstellung Section
             Section("View") {
                 Button(action: {
                     viewModel.toggleSeriesMode()
@@ -316,6 +267,7 @@ struct OptimizedLibraryView: View {
                 }
             }
             
+            // Statistik Section
             Section("Library") {
                 if viewModel.filterState.showSeriesGrouped {
                     let seriesCount = viewModel.filteredAndSortedBooks.filter { $0.isCollapsedSeries }.count
@@ -337,6 +289,7 @@ struct OptimizedLibraryView: View {
                 }
             }
             
+            // Reset Section (nur wenn Filter aktiv)
             if viewModel.filterState.showDownloadedOnly || viewModel.filterState.showSeriesGrouped || !viewModel.filterState.searchText.isEmpty {
                 Divider()
                 
@@ -355,6 +308,7 @@ struct OptimizedLibraryView: View {
                     .font(.system(size: 16))
                     .foregroundColor(.primary)
                 
+                // Badge wenn Filter aktiv
                 if viewModel.filterState.showDownloadedOnly || viewModel.filterState.showSeriesGrouped {
                     Circle()
                         .fill(.orange)

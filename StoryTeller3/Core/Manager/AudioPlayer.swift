@@ -25,6 +25,7 @@ class AudioPlayer: NSObject, ObservableObject {
     private var isOfflineMode: Bool = false
     private var targetSeekTime: Double?
     private var observers: [NSObjectProtocol] = []
+    private var preloader = AudioTrackPreloader()
     
     private static var observerContext = 0
     private var currentObservedItem: AVPlayerItem?
@@ -225,6 +226,9 @@ class AudioPlayer: NSObject, ObservableObject {
         self.book = book
         self.isOfflineMode = isOffline
         
+        // Clear any existing preloaded tracks
+        preloader.clearAll()
+        
         // Restore saved state BEFORE loading chapter
         if restoreState {
             if let savedState = PlaybackPersistenceManager.shared.loadPlaybackState(for: book.id) {
@@ -255,6 +259,15 @@ class AudioPlayer: NSObject, ObservableObject {
         AppLogger.general.debug("[AudioPlayer] Offline mode: \(self.isOfflineMode)")
         AppLogger.general.debug("[AudioPlayer] Should resume playback: \(shouldResumePlayback)")
         AppLogger.general.debug("[AudioPlayer] Library item ID: \(chapter.libraryItemId ?? "nil")")
+
+        // Try to use preloaded item first
+        if let preloadedItem = preloader.getPreloadedItem(for: currentChapterIndex) {
+            AppLogger.general.debug("[AudioPlayer] Using preloaded item for chapter \(currentChapterIndex)")
+            let chapterDuration = (chapter.end ?? 0) - (chapter.start ?? 0)
+            setupPlayerWithPreloadedItem(preloadedItem, duration: chapterDuration, shouldResumePlayback: shouldResumePlayback)
+            startPreloadingNextChapter()
+            return
+        }
 
         isLoading = true
         errorMessage = nil
@@ -354,6 +367,9 @@ class AudioPlayer: NSObject, ObservableObject {
         
         // Update now playing info
         updateNowPlayingInfo()
+        
+        // Start preloading next chapter
+        startPreloadingNextChapter()
         
         // Handle delayed seek for restored state
         if let seekTime = targetSeekTime {
@@ -473,6 +489,9 @@ class AudioPlayer: NSObject, ObservableObject {
         // Update now playing info
         updateNowPlayingInfo()
         
+        // Start preloading next chapter
+        startPreloadingNextChapter()
+        
         if let seekTime = targetSeekTime {
             let timeToSeek = seekTime
             self.targetSeekTime = nil
@@ -504,6 +523,66 @@ class AudioPlayer: NSObject, ObservableObject {
         return AVURLAsset(url: url, options: [
             "AVURLAssetHTTPHeaderFieldsKey": headers
         ])
+    }
+    
+    // MARK: - Preloading Helper Methods
+    
+    private func startPreloadingNextChapter() {
+        guard let book = book else { return }
+        
+        preloader.preloadNext(
+            chapterIndex: currentChapterIndex,
+            book: book,
+            isOffline: isOfflineMode,
+            baseURL: baseURL,
+            authToken: authToken,
+            downloadManager: downloadManager
+        ) { success in
+            if success {
+                AppLogger.general.debug("[AudioPlayer] Next chapter preloaded successfully")
+            } else {
+                AppLogger.general.debug("[AudioPlayer] Failed to preload next chapter")
+            }
+        }
+    }
+    
+    private func setupPlayerWithPreloadedItem(_ playerItem: AVPlayerItem, duration: Double, shouldResumePlayback: Bool = false) {
+        cleanupPlayer()
+        
+        player = AVPlayer(playerItem: playerItem)
+        setupPlayerItemObservers(playerItem)
+        addTimeObserver()
+        self.duration = duration
+        
+        AppLogger.general.debug("[AudioPlayer] Player setup with preloaded item, duration: \(duration)")
+        
+        // Update now playing info
+        updateNowPlayingInfo()
+        
+        // Start preloading next chapter
+        startPreloadingNextChapter()
+        
+        // Handle delayed seek for restored state
+        if let seekTime = targetSeekTime {
+            let timeToSeek = seekTime
+            self.targetSeekTime = nil
+            
+            AppLogger.general.debug("[AudioPlayer] Delayed seek to restored position: \(timeToSeek)s")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
+                guard let self = self else { return }
+                self.seek(to: timeToSeek)
+                
+                if shouldResumePlayback {
+                    AppLogger.general.debug("[AudioPlayer] Auto-resuming playback after restoration")
+                    self.play()
+                }
+            }
+        } else if shouldResumePlayback {
+            AppLogger.general.debug("[AudioPlayer] Auto-resuming playback with preloaded item")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
+                self?.play()
+            }
+        }
     }
     
     // MARK: - Player Observer Management
@@ -820,6 +899,9 @@ class AudioPlayer: NSObject, ObservableObject {
         
         player?.pause()
         player = nil
+        
+        // Clear preloader
+        preloader.clearAll()
         
         // Remove all observers
         observers.forEach { observer in
