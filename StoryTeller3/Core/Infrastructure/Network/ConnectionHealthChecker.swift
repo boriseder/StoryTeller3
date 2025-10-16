@@ -47,7 +47,7 @@ class ConnectionHealthChecker: ConnectionHealthChecking {
             }
             
         } catch {
-            AppLogger.debug.debug("[ConnectionHealth] Check failed: \(error)")
+            AppLogger.general.debug("[ConnectionHealth] Check failed: \(error)")
             return .unavailable
         }
     }

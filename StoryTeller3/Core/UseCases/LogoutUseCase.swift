@@ -28,6 +28,6 @@ class LogoutUseCase: LogoutUseCaseProtocol {
         
         await CoverDownloadManager.shared.shutdown()
         
-        AppLogger.debug.debug("[LogoutUseCase] User logged out successfully")
+        AppLogger.general.debug("[LogoutUseCase] User logged out successfully")
     }
 }

@@ -27,7 +27,7 @@ class LibraryRepository: LibraryRepositoryProtocol {
     
     func getLibraries() async throws -> [Library] {
         if let cached = cachedLibraries, !cached.isEmpty {
-            AppLogger.debug.debug("[LibraryRepository] Returning \(cached.count) cached libraries")
+            AppLogger.general.debug("[LibraryRepository] Returning \(cached.count) cached libraries")
             return cached
         }
         
@@ -35,7 +35,7 @@ class LibraryRepository: LibraryRepositoryProtocol {
             let libraries = try await api.fetchLibraries()
             cachedLibraries = libraries
             
-            AppLogger.debug.debug("[LibraryRepository] Fetched \(libraries.count) libraries")
+            AppLogger.general.debug("[LibraryRepository] Fetched \(libraries.count) libraries")
             
             return libraries
             
@@ -50,25 +50,25 @@ class LibraryRepository: LibraryRepositoryProtocol {
     
     func getSelectedLibrary() async throws -> Library? {
         guard let selectedId = settingsRepository.getSelectedLibraryId() else {
-            AppLogger.debug.debug("[LibraryRepository] No library selected")
+            AppLogger.general.debug("[LibraryRepository] No library selected")
             return nil
         }
         
         let libraries = try await getLibraries()
         
         if let selected = libraries.first(where: { $0.id == selectedId }) {
-            AppLogger.debug.debug("[LibraryRepository] Found selected library: \(selected.name)")
+            AppLogger.general.debug("[LibraryRepository] Found selected library: \(selected.name)")
             return selected
         }
         
         if let defaultLibrary = libraries.first(where: { $0.name.lowercased().contains("default") }) {
-            AppLogger.debug.debug("[LibraryRepository] No match, using default library: \(defaultLibrary.name)")
+            AppLogger.general.debug("[LibraryRepository] No match, using default library: \(defaultLibrary.name)")
             selectLibrary(defaultLibrary.id)
             return defaultLibrary
         }
         
         if let firstLibrary = libraries.first {
-            AppLogger.debug.debug("[LibraryRepository] No match, using first library: \(firstLibrary.name)")
+            AppLogger.general.debug("[LibraryRepository] No match, using first library: \(firstLibrary.name)")
             selectLibrary(firstLibrary.id)
             return firstLibrary
         }
@@ -78,16 +78,16 @@ class LibraryRepository: LibraryRepositoryProtocol {
     
     func selectLibrary(_ libraryId: String) {
         settingsRepository.saveSelectedLibraryId(libraryId)
-        AppLogger.debug.debug("[LibraryRepository] Selected library: \(libraryId)")
+        AppLogger.general.debug("[LibraryRepository] Selected library: \(libraryId)")
     }
     
     func clearSelection() {
         settingsRepository.saveSelectedLibraryId(nil)
-        AppLogger.debug.debug("[LibraryRepository] Cleared library selection")
+        AppLogger.general.debug("[LibraryRepository] Cleared library selection")
     }
     
     func clearCache() {
         cachedLibraries = nil
-        AppLogger.debug.debug("[LibraryRepository] Cleared library cache")
+        AppLogger.general.debug("[LibraryRepository] Cleared library cache")
     }
 }

@@ -113,7 +113,7 @@ class StorageMonitor: StorageMonitoring {
                     totalSize += Int64(fileSize)
                 }
             } catch {
-                AppLogger.debug.debug("[StorageMonitor] Error reading file size: \(error)")
+                AppLogger.general.debug("[StorageMonitor] Error reading file size: \(error)")
             }
         }
         

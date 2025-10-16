@@ -78,7 +78,7 @@ class SettingsRepository: SettingsRepositoryProtocol {
         userDefaults.set(config.port, forKey: "server_port")
         userDefaults.set(config.fullURL, forKey: "baseURL")
         
-        AppLogger.debug.debug("[SettingsRepository] Saved server config: \(config.fullURL)")
+        AppLogger.general.debug("[SettingsRepository] Saved server config: \(config.fullURL)")
     }
     
     func clearServerConfig() {
@@ -89,7 +89,7 @@ class SettingsRepository: SettingsRepositoryProtocol {
         userDefaults.removeObject(forKey: "baseURL")
         userDefaults.removeObject(forKey: "apiKey")
         
-        AppLogger.debug.debug("[SettingsRepository] Cleared server config")
+        AppLogger.general.debug("[SettingsRepository] Cleared server config")
     }
     
     // MARK: - Credentials Management
@@ -106,14 +106,14 @@ class SettingsRepository: SettingsRepositoryProtocol {
         
         userDefaults.set(username, forKey: "stored_username")
         
-        AppLogger.debug.debug("[SettingsRepository] Saved credentials for user: \(username)")
+        AppLogger.general.debug("[SettingsRepository] Saved credentials for user: \(username)")
     }
     
     func clearCredentials(for username: String) throws {
         try keychainService.clearAllCredentials()
         userDefaults.removeObject(forKey: "stored_username")
         
-        AppLogger.debug.debug("[SettingsRepository] Cleared credentials")
+        AppLogger.general.debug("[SettingsRepository] Cleared credentials")
     }
     
     // MARK: - App Settings
@@ -139,7 +139,7 @@ class SettingsRepository: SettingsRepositoryProtocol {
         userDefaults.set(settings.autoCacheCleanup, forKey: "auto_cache_cleanup")
         userDefaults.set(settings.cacheOptimizationEnabled, forKey: "cache_optimization_enabled")
         
-        AppLogger.debug.debug("[SettingsRepository] Saved app settings")
+        AppLogger.general.debug("[SettingsRepository] Saved app settings")
     }
     
     func resetToDefaults() {
@@ -155,7 +155,7 @@ class SettingsRepository: SettingsRepositoryProtocol {
         
         saveAppSettings(defaults)
         
-        AppLogger.debug.debug("[SettingsRepository] Reset to default settings")
+        AppLogger.general.debug("[SettingsRepository] Reset to default settings")
     }
     
     // MARK: - Library Selection
@@ -167,10 +167,10 @@ class SettingsRepository: SettingsRepositoryProtocol {
     func saveSelectedLibraryId(_ libraryId: String?) {
         if let id = libraryId {
             userDefaults.set(id, forKey: "selected_library_id")
-            AppLogger.debug.debug("[SettingsRepository] Saved library selection: \(id)")
+            AppLogger.general.debug("[SettingsRepository] Saved library selection: \(id)")
         } else {
             userDefaults.removeObject(forKey: "selected_library_id")
-            AppLogger.debug.debug("[SettingsRepository] Cleared library selection")
+            AppLogger.general.debug("[SettingsRepository] Cleared library selection")
         }
     }
 }

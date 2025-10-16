@@ -90,7 +90,7 @@ class DownloadsViewModel: ObservableObject {
             warningLevel: warningLevel
         )
         
-        AppLogger.debug.debug("[Downloads] Storage - Used: \(info.usedSpaceFormatted), Available: \(info.availableSpaceFormatted)")
+        AppLogger.general.debug("[Downloads] Storage - Used: \(info.usedSpaceFormatted), Available: \(info.availableSpaceFormatted)")
     }
     
     private func setupStorageMonitoring() {
@@ -129,7 +129,7 @@ class DownloadsViewModel: ObservableObject {
         } catch {
             errorMessage = error.localizedDescription
             showingErrorAlert = true
-            AppLogger.debug.debug("[DownloadsViewModel] Playback error: \(error)")
+            AppLogger.general.debug("[DownloadsViewModel] Playback error: \(error)")
         }
     }
     
@@ -141,7 +141,7 @@ class DownloadsViewModel: ObservableObject {
     func confirmDeleteBook() {
         guard let book = progressState.bookToDelete else { return }
         
-        AppLogger.debug.debug("[Downloads] Deleting book: \(book.title)")
+        AppLogger.general.debug("[Downloads] Deleting book: \(book.title)")
         downloadUseCase.delete(bookId: book.id)
         
         progressState.confirmDelete()
@@ -160,7 +160,7 @@ class DownloadsViewModel: ObservableObject {
     }
     
     func confirmDeleteAll() {
-        AppLogger.debug.debug("[Downloads] Deleting all downloads")
+        AppLogger.general.debug("[Downloads] Deleting all downloads")
         downloadManager.deleteAllBooks()
         
         progressState.confirmDeleteAll()

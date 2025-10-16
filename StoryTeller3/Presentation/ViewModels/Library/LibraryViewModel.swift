@@ -227,6 +227,6 @@ class LibraryViewModel: ObservableObject {
         }
         
         showingErrorAlert = true
-        AppLogger.debug.debug("[LibraryViewModel] Repository error: \(error)")
+        AppLogger.general.debug("[LibraryViewModel] Repository error: \(error)")
     }
 }

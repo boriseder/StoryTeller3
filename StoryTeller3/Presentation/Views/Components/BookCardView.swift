@@ -382,7 +382,7 @@ struct BookCardView: View {
     }
 
     private func cancelDownload() {
-        AppLogger.debug.debug("[BookCard] Cancel download requested for: \(book.title)")
+        AppLogger.general.debug("[BookCard] Cancel download requested for: \(book.title)")
         downloadManager.cancelDownload(for: book.id)
     }
 
@@ -482,7 +482,7 @@ struct BookCardView: View {
     
     private func startDownload() {
         guard let api = api else {
-            AppLogger.debug.debug("[BookCard] Cannot download: API not available")
+            AppLogger.general.debug("[BookCard] Cannot download: API not available")
             return
         }
         
@@ -496,7 +496,7 @@ struct BookCardView: View {
     }
     
     private func shareBook() {
-        AppLogger.debug.debug("[BookCard] Sharing book: \(book.title)")
+        AppLogger.general.debug("[BookCard] Sharing book: \(book.title)")
     }
 }
 

@@ -13,7 +13,7 @@ extension AudiobookshelfAPI {
             let response: SeriesResponse = try await networkService.performRequest(request, responseType: SeriesResponse.self)
             return response.results.map { $0.toSeries() }
         } catch {
-            AppLogger.debug.debug("fetchSeries error: \(error)")
+            AppLogger.general.debug("fetchSeries error: \(error)")
             throw error
         }
     }
@@ -41,7 +41,7 @@ extension AudiobookshelfAPI {
                 responseType: LibraryItemsResponse.self
             )
             
-            AppLogger.debug.debug("=== fetchSeriesSingle found \(response.results.count) books")
+            AppLogger.general.debug("=== fetchSeriesSingle found \(response.results.count) books")
             
             // Convert LibraryItems to Books
             let books = response.results.compactMap { convertLibraryItemToBook($0) }
@@ -50,7 +50,7 @@ extension AudiobookshelfAPI {
             return BookSortHelpers.sortByBookNumber(books)
             
         } catch {
-            AppLogger.debug.debug("❌ fetchSeriesSingle error: \(error)")
+            AppLogger.general.debug("❌ fetchSeriesSingle error: \(error)")
             throw error
         }
     }
@@ -59,7 +59,7 @@ extension AudiobookshelfAPI {
     
     private func encodeSeriesId(_ seriesId: String) -> String {
         guard let data = seriesId.data(using: .utf8) else {
-            AppLogger.debug.debug("⚠️ Failed to encode series ID to UTF-8: \(seriesId)")
+            AppLogger.general.debug("⚠️ Failed to encode series ID to UTF-8: \(seriesId)")
             return seriesId // Fallback
         }
         
@@ -72,7 +72,7 @@ extension AudiobookshelfAPI {
             .replacingOccurrences(of: "/", with: "_")
             .replacingOccurrences(of: "=", with: "") // Remove padding
         
-        AppLogger.debug.debug("🔄 Series ID encoding: '\(seriesId)' → '\(urlSafe)'")
+        AppLogger.general.debug("🔄 Series ID encoding: '\(seriesId)' → '\(urlSafe)'")
         
         return urlSafe
     }

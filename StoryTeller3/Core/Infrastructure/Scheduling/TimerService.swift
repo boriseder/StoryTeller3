@@ -45,7 +45,7 @@ class TimerService: TimerManaging {
         
         startTimer()
         
-        AppLogger.debug.debug("[TimerService] Started timer with duration: \(duration)s")
+        AppLogger.general.debug("[TimerService] Started timer with duration: \(duration)s")
     }
     
     func pause() {
@@ -55,7 +55,7 @@ class TimerService: TimerManaging {
         timer = nil
         state = .paused
         
-        AppLogger.debug.debug("[TimerService] Timer paused")
+        AppLogger.general.debug("[TimerService] Timer paused")
     }
     
     func resume() {
@@ -64,7 +64,7 @@ class TimerService: TimerManaging {
         state = .running
         startTimer()
         
-        AppLogger.debug.debug("[TimerService] Timer resumed")
+        AppLogger.general.debug("[TimerService] Timer resumed")
     }
     
     func cancel() {
@@ -75,7 +75,7 @@ class TimerService: TimerManaging {
         remainingTime = 0
         endDate = nil
         
-        AppLogger.debug.debug("[TimerService] Timer cancelled")
+        AppLogger.general.debug("[TimerService] Timer cancelled")
     }
     
     private func startTimer() {
@@ -110,7 +110,7 @@ class TimerService: TimerManaging {
             delegate?.timerDidComplete()
         }
         
-        AppLogger.debug.debug("[TimerService] Timer completed")
+        AppLogger.general.debug("[TimerService] Timer completed")
     }
     
     deinit {

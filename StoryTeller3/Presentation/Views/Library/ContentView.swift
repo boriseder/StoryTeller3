@@ -286,7 +286,7 @@ struct ContentView: View {
                 }
                 
             } catch {
-                AppLogger.debug.debug("Keychain error: \(error)")
+                AppLogger.general.debug("Keychain error: \(error)")
                 appState.loadingState = .authenticationError
             }
         }
@@ -299,7 +299,7 @@ struct ContentView: View {
                 LibraryHelpers.saveLibrarySelection(firstLibrary.id)
             }
         } catch {
-            AppLogger.debug.debug("Initial data load failed: \(error)")
+            AppLogger.general.debug("Initial data load failed: \(error)")
         }
     }
     

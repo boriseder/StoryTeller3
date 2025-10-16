@@ -35,6 +35,6 @@ class SaveCredentialsUseCase: SaveCredentialsUseCaseProtocol {
             NotificationCenter.default.post(name: .init("ServerSettingsChanged"), object: nil)
         }
         
-        AppLogger.debug.debug("[SaveCredentialsUseCase] Credentials stored successfully")
+        AppLogger.general.debug("[SaveCredentialsUseCase] Credentials stored successfully")
     }
 }

@@ -80,12 +80,12 @@ class DownloadRepository: DownloadRepositoryProtocol {
     
     func deleteDownload(for bookId: String) {
         downloadManager.deleteBook(bookId)
-        AppLogger.debug.debug("[DownloadRepository] Deleted download for book: \(bookId)")
+        AppLogger.general.debug("[DownloadRepository] Deleted download for book: \(bookId)")
     }
     
     func deleteAllDownloads() {
         downloadManager.deleteAllBooks()
-        AppLogger.debug.debug("[DownloadRepository] Deleted all downloads")
+        AppLogger.general.debug("[DownloadRepository] Deleted all downloads")
     }
     
     // MARK: - File Access

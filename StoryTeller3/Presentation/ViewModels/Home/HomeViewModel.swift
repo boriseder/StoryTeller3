@@ -108,7 +108,7 @@ class HomeViewModel: ObservableObject {
         } catch let error as RepositoryError {
             errorMessage = error.localizedDescription
             showingErrorAlert = true
-            AppLogger.debug.debug("[HomeViewModel] Repository error: \(error)")
+            AppLogger.general.debug("[HomeViewModel] Repository error: \(error)")
         } catch {
             errorMessage = error.localizedDescription
             showingErrorAlert = true
@@ -139,7 +139,7 @@ class HomeViewModel: ObservableObject {
     }
 
     func loadSeriesBooks(_ series: Series, appState: AppStateManager) async {
-        AppLogger.debug.debug("Loading series: \(series.name)")
+        AppLogger.general.debug("Loading series: \(series.name)")
         
         do {
             guard let library = try await libraryRepository.getSelectedLibrary() else {
@@ -161,12 +161,12 @@ class HomeViewModel: ObservableObject {
         } catch {
             errorMessage = "Could not load series '\(series.name)': \(error.localizedDescription)"
             showingErrorAlert = true
-            AppLogger.debug.debug("Error loading series: \(error)")
+            AppLogger.general.debug("Error loading series: \(error)")
         }
     }
     
     func searchBooksByAuthor(_ authorName: String, appState: AppStateManager) async {
-        AppLogger.debug.debug("Searching books by author: \(authorName)")
+        AppLogger.general.debug("Searching books by author: \(authorName)")
         
         do {
             guard let library = try await libraryRepository.getSelectedLibrary() else {
@@ -195,7 +195,7 @@ class HomeViewModel: ObservableObject {
         } catch {
             errorMessage = "Could not search books by '\(authorName)': \(error.localizedDescription)"
             showingErrorAlert = true
-            AppLogger.debug.debug("Error searching books by author: \(error)")
+            AppLogger.general.debug("Error searching books by author: \(error)")
         }
     }
     

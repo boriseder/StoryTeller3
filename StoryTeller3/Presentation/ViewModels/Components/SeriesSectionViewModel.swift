@@ -41,7 +41,7 @@ class SeriesSectionViewModel: ObservableObject {
             )
             onBookSelected()
         } catch {
-            AppLogger.debug.debug("[SeriesSectionViewModel] Failed to play book: \(error)")
+            AppLogger.general.debug("[SeriesSectionViewModel] Failed to play book: \(error)")
         }
     }
 }

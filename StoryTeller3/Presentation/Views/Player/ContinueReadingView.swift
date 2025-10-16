@@ -126,7 +126,7 @@ struct ContinueReadingSection: View {
             
             onBookSelected()
         } catch {
-            AppLogger.debug.debug("Failed to resume book: \(error)")
+            AppLogger.general.debug("Failed to resume book: \(error)")
         }
     }
 
@@ -245,7 +245,7 @@ struct ContinueReadingCard: View {
                 self.book = loadedBook
             }
         } catch {
-            AppLogger.debug.debug("Failed to load book info for continue reading: \(error)")
+            AppLogger.general.debug("Failed to load book info for continue reading: \(error)")
         }
     }
 }
@@ -390,6 +390,6 @@ struct ProgressSyncSettingsView: View {
     
     private func clearAllProgressData() {
         // Implementation would clear CoreData and UserDefaults
-        AppLogger.debug.debug("[ProgressSync] Clearing all progress data")
+        AppLogger.general.debug("[ProgressSync] Clearing all progress data")
     }
 }

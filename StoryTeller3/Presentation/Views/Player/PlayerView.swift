@@ -115,7 +115,7 @@ struct PlayerView: View {
             
             if let chapter = viewModel.player.currentChapter {
                 Button(action: {
-                    AppLogger.debug.debug("[PlayerView] Chapter button tapped - showing chapters list")
+                    AppLogger.general.debug("[PlayerView] Chapter button tapped - showing chapters list")
                     viewModel.showingChaptersList = true
                 }) {
                     HStack {
@@ -183,7 +183,7 @@ struct PlayerView: View {
         HStack(spacing: 32) {
             // Previous Chapter
             Button(action: {
-                AppLogger.debug.debug("[PlayerView] Previous chapter button tapped")
+                AppLogger.general.debug("[PlayerView] Previous chapter button tapped")
                 viewModel.player.previousChapter()
             }) {
                 Image(systemName: "backward.end.fill")
@@ -194,7 +194,7 @@ struct PlayerView: View {
             
             // Rewind 15s
             Button(action: {
-                AppLogger.debug.debug("[PlayerView] Rewind 15s button tapped")
+                AppLogger.general.debug("[PlayerView] Rewind 15s button tapped")
                 viewModel.player.seek15SecondsBack()
             }) {
                 Image(systemName: "gobackward.15")
@@ -204,7 +204,7 @@ struct PlayerView: View {
             
             // Play/Pause
             Button(action: {
-                AppLogger.debug.debug("[PlayerView] Play/pause button tapped - currently playing: \(viewModel.player.isPlaying)")
+                AppLogger.general.debug("[PlayerView] Play/pause button tapped - currently playing: \(viewModel.player.isPlaying)")
                 viewModel.player.togglePlayPause()
             }) {
                 ZStack {
@@ -220,7 +220,7 @@ struct PlayerView: View {
             
             // Fast Forward 15s
             Button(action: {
-                AppLogger.debug.debug("[PlayerView] Fast forward 15s button tapped")
+                AppLogger.general.debug("[PlayerView] Fast forward 15s button tapped")
                 viewModel.player.seek15SecondsForward()
             }) {
                 Image(systemName: "goforward.15")
@@ -230,7 +230,7 @@ struct PlayerView: View {
             
             // Next Chapter
             Button(action: {
-                AppLogger.debug.debug("[PlayerView] Next chapter button tapped")
+                AppLogger.general.debug("[PlayerView] Next chapter button tapped")
                 viewModel.player.nextChapter()
             }) {
                 Image(systemName: "forward.end.fill")
@@ -270,7 +270,7 @@ struct PlayerView: View {
     
     private var speedButton: some View {
         Button(action: {
-            AppLogger.debug.debug("[PlayerView] Speed button tapped - showing playback settings")
+            AppLogger.general.debug("[PlayerView] Speed button tapped - showing playback settings")
             viewModel.showingPlaybackSettings = true
         }) {
             VStack(spacing: 4) {
@@ -286,7 +286,7 @@ struct PlayerView: View {
     
     private var sleepTimerButton: some View {
         Button(action: {
-            AppLogger.debug.debug("[PlayerView] Sleep timer button tapped")
+            AppLogger.general.debug("[PlayerView] Sleep timer button tapped")
             viewModel.showingSleepTimer = true
         }) {
             VStack(spacing: 4) {
@@ -304,13 +304,13 @@ struct PlayerView: View {
         // Simulator: Mock button with debug menu
         Menu {
             Button("iPhone Speaker") {
-                AppLogger.debug.debug("[PlayerView] Selected: iPhone Speaker")
+                AppLogger.general.debug("[PlayerView] Selected: iPhone Speaker")
             }
             Button("Bluetooth Headphones (Simulator)") {
-                AppLogger.debug.debug("[PlayerView] Selected: Bluetooth Headphones")
+                AppLogger.general.debug("[PlayerView] Selected: Bluetooth Headphones")
             }
             Button("AirPlay Device (Simulator)") {
-                AppLogger.debug.debug("[PlayerView] Selected: AirPlay Device")
+                AppLogger.general.debug("[PlayerView] Selected: AirPlay Device")
             }
         } label: {
             VStack(spacing: 4) {
@@ -335,7 +335,7 @@ struct PlayerView: View {
     
     private var chaptersButton: some View {
         Button(action: {
-            AppLogger.debug.debug("[PlayerView] Chapters button tapped")
+            AppLogger.general.debug("[PlayerView] Chapters button tapped")
             viewModel.showingChaptersList = true
         }) {
             VStack(spacing: 4) {
@@ -352,21 +352,21 @@ struct PlayerView: View {
     private var moreButton: some View {
         Menu {
             Button(action: {
-                AppLogger.debug.debug("[PlayerView] More menu - playback settings")
+                AppLogger.general.debug("[PlayerView] More menu - playback settings")
                 viewModel.showingPlaybackSettings = true
             }) {
                 Label("Playback Settings", systemImage: "gearshape")
             }
             
             Button(action: {
-                AppLogger.debug.debug("[PlayerView] More menu - sleep timer")
+                AppLogger.general.debug("[PlayerView] More menu - sleep timer")
                 viewModel.showingSleepTimer = true
             }) {
                 Label("Sleep Timer", systemImage: "moon")
             }
             
             Button(action: {
-                AppLogger.debug.debug("[PlayerView] More menu - stop playback")
+                AppLogger.general.debug("[PlayerView] More menu - stop playback")
                 viewModel.player.pause()
             }) {
                 Label("Stop Playback", systemImage: "stop")

@@ -74,7 +74,7 @@ class DiagnosticsService: DiagnosticsCollecting {
             try logData.write(to: tempURL, atomically: true, encoding: .utf8)
             completion(tempURL)
         } catch {
-            AppLogger.debug.debug("[Diagnostics] Failed to export logs: \(error)")
+            AppLogger.general.debug("[Diagnostics] Failed to export logs: \(error)")
             completion(nil)
         }
     }

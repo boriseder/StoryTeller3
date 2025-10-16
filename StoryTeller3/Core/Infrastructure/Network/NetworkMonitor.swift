@@ -32,7 +32,7 @@ class NetworkMonitor: NetworkMonitoring {
         didSet {
             if currentStatus != oldValue {
                 statusHandler?(currentStatus)
-                AppLogger.debug.debug("[NetworkMonitor] Status changed: \(self.currentStatus)")
+                AppLogger.general.debug("[NetworkMonitor] Status changed: \(self.currentStatus)")
             }
         }
     }
@@ -53,12 +53,12 @@ class NetworkMonitor: NetworkMonitoring {
         }
         
         monitor.start(queue: queue)
-        AppLogger.debug.debug("[NetworkMonitor] Started monitoring")
+        AppLogger.general.debug("[NetworkMonitor] Started monitoring")
     }
     
     func stopMonitoring() {
         monitor.cancel()
-        AppLogger.debug.debug("[NetworkMonitor] Stopped monitoring")
+        AppLogger.general.debug("[NetworkMonitor] Stopped monitoring")
     }
     
     func onStatusChange(_ handler: @escaping (NetworkStatus) -> Void) {

@@ -94,7 +94,7 @@ class OfflineSyncManager: ObservableObject {
     // MARK: - Main Sync Method
     func performSync() async {
         guard !syncStatus.isActive else {
-            AppLogger.debug.debug("[OfflineSync] Sync already in progress")
+            AppLogger.general.debug("[OfflineSync] Sync already in progress")
             return
         }
         
@@ -117,13 +117,13 @@ class OfflineSyncManager: ObservableObject {
                 updatePendingCounts()
             }
             
-            AppLogger.debug.debug("[OfflineSync] Sync completed successfully")
+            AppLogger.general.debug("[OfflineSync] Sync completed successfully")
             
         } catch {
             await MainActor.run {
                 syncStatus = .failed(error)
             }
-            AppLogger.debug.debug("[OfflineSync] Sync failed: \(error)")
+            AppLogger.general.debug("[OfflineSync] Sync failed: \(error)")
         }
     }
     
@@ -132,7 +132,7 @@ class OfflineSyncManager: ObservableObject {
         let localStates = persistenceManager.getAllPlaybackStates()
         let pendingStates = localStates.filter { needsUpload($0) }
         
-        AppLogger.debug.debug("[OfflineSync] Uploading \(pendingStates.count) local changes")
+        AppLogger.general.debug("[OfflineSync] Uploading \(pendingStates.count) local changes")
         
         for state in pendingStates {
             try await uploadPlaybackState(state)
@@ -175,7 +175,7 @@ class OfflineSyncManager: ObservableObject {
             throw SyncError.uploadFailed
         }
         
-        AppLogger.debug.debug("[OfflineSync] Uploaded state for book: \(state.bookId)")
+        AppLogger.general.debug("[OfflineSync] Uploaded state for book: \(state.bookId)")
     }
     
     // MARK: - Download Server Changes
@@ -183,7 +183,7 @@ class OfflineSyncManager: ObservableObject {
         let lastSync = getLastSyncTime()
         let serverStates = try await fetchServerChanges(since: lastSync)
         
-        AppLogger.debug.debug("[OfflineSync] Downloaded \(serverStates.count) server changes")
+        AppLogger.general.debug("[OfflineSync] Downloaded \(serverStates.count) server changes")
         
         for serverState in serverStates {
             processServerState(serverState)
@@ -202,12 +202,12 @@ class OfflineSyncManager: ObservableObject {
             if state.lastPlayed > localState.lastPlayed {
                 // Server state is newer, update local
                 persistenceManager.savePlaybackState(state)
-                AppLogger.debug.debug("[OfflineSync] Updated local state for: \(state.bookId)")
+                AppLogger.general.debug("[OfflineSync] Updated local state for: \(state.bookId)")
             }
         } else {
             // No local state, save server state
             persistenceManager.savePlaybackState(state)
-            AppLogger.debug.debug("[OfflineSync] Saved new state from server: \(state.bookId)")
+            AppLogger.general.debug("[OfflineSync] Saved new state from server: \(state.bookId)")
         }
     }
     
@@ -243,18 +243,18 @@ class OfflineSyncManager: ObservableObject {
         switch resolution {
         case .useLocal:
             // Keep local state, upload to server
-            AppLogger.debug.debug("[OfflineSync] Resolving conflict: using local for \(conflict.bookId)")
+            AppLogger.general.debug("[OfflineSync] Resolving conflict: using local for \(conflict.bookId)")
             persistenceManager.savePlaybackState(conflict.localState)
         case .useRemote:
             // Use server state, update local
-            AppLogger.debug.debug("[OfflineSync] Resolving conflict: using remote for \(conflict.bookId)")
+            AppLogger.general.debug("[OfflineSync] Resolving conflict: using remote for \(conflict.bookId)")
             persistenceManager.savePlaybackState(conflict.serverState)
         case .useNewest:
             // Already handled in resolveConflict
             break
         case .manual:
             // Manual resolution would require UI interaction
-            AppLogger.debug.debug("[OfflineSync] Manual conflict resolution needed for \(conflict.bookId)")
+            AppLogger.general.debug("[OfflineSync] Manual conflict resolution needed for \(conflict.bookId)")
         }
     }
     

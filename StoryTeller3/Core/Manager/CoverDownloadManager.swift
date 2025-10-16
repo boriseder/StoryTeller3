@@ -97,6 +97,6 @@ actor CoverDownloadManager {
         downloadTasks.values.forEach { $0.cancel() }
         downloadTasks.removeAll()
         
-        AppLogger.debug.debug("CoverDownloadManager shutdown - cancelled all downloads")
+        AppLogger.general.debug("CoverDownloadManager shutdown - cancelled all downloads")
     }
 }

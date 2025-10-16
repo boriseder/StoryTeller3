@@ -73,7 +73,7 @@ class AudioPlayer: NSObject, ObservableObject {
         switch type {
         case .began:
             // Interruption began (phone call, alarm, etc.)
-            AppLogger.debug.debug("[AudioPlayer] 🔔 Interruption began - pausing")
+            AppLogger.general.debug("[AudioPlayer] 🔔 Interruption began - pausing")
             pause()
             
         case .ended:
@@ -84,7 +84,7 @@ class AudioPlayer: NSObject, ObservableObject {
             let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
             if options.contains(.shouldResume) {
                 // Resume playback after interruption
-                AppLogger.debug.debug("[AudioPlayer] 🔔 Interruption ended - resuming")
+                AppLogger.general.debug("[AudioPlayer] 🔔 Interruption ended - resuming")
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
                     self?.play()
                 }
@@ -166,7 +166,7 @@ class AudioPlayer: NSObject, ObservableObject {
             return .success
         }
         
-        AppLogger.debug.debug("[AudioPlayer] Remote command center configured")
+        AppLogger.general.debug("[AudioPlayer] Remote command center configured")
     }
     
     // MARK: - NEW: Now Playing Info
@@ -179,11 +179,11 @@ class AudioPlayer: NSObject, ObservableObject {
         let trackNumber = max(currentChapterIndex + 1, 1)
         let trackCount = max(book.chapters.count, 2) // mind. 2 für Prev/Next
         
-        AppLogger.debug.debug("[AudioPlayer] trackNumber: \(trackNumber)")
-        AppLogger.debug.debug("[AudioPlayer] trackCount: \(trackCount)")
+        AppLogger.general.debug("[AudioPlayer] trackNumber: \(trackNumber)")
+        AppLogger.general.debug("[AudioPlayer] trackCount: \(trackCount)")
         
         let trackName = "Unknown Title"
-        AppLogger.debug.debug("[AudioPlayer] trackName: \(trackName)")
+        AppLogger.general.debug("[AudioPlayer] trackName: \(trackName)")
 
         var nowPlayingInfo: [String: Any] = [
             MPMediaItemPropertyTitle: currentChapter?.title ?? "Kapitel",
@@ -230,7 +230,7 @@ class AudioPlayer: NSObject, ObservableObject {
             if let savedState = PlaybackPersistenceManager.shared.loadPlaybackState(for: book.id) {
                 self.currentChapterIndex = min(savedState.chapterIndex, book.chapters.count - 1)
                 self.targetSeekTime = savedState.currentTime
-                AppLogger.debug.debug("[AudioPlayer] Restored state: Chapter \(savedState.chapterIndex), Time: \(savedState.currentTime)s")
+                AppLogger.general.debug("[AudioPlayer] Restored state: Chapter \(savedState.chapterIndex), Time: \(savedState.currentTime)s")
             }
         } else {
             self.currentChapterIndex = 0
@@ -245,16 +245,16 @@ class AudioPlayer: NSObject, ObservableObject {
 
     func loadChapter(shouldResumePlayback: Bool = false) {
         guard let chapter = currentChapter else {
-            AppLogger.debug.debug("[AudioPlayer] ERROR: No current chapter found")
+            AppLogger.general.debug("[AudioPlayer] ERROR: No current chapter found")
             errorMessage = "Kein Kapitel verfügbar"
             return
         }
         
-        AppLogger.debug.debug("[AudioPlayer] Loading chapter: \(chapter.title)")
-        AppLogger.debug.debug("[AudioPlayer] Chapter index: \(self.currentChapterIndex)")
-        AppLogger.debug.debug("[AudioPlayer] Offline mode: \(self.isOfflineMode)")
-        AppLogger.debug.debug("[AudioPlayer] Should resume playback: \(shouldResumePlayback)")
-        AppLogger.debug.debug("[AudioPlayer] Library item ID: \(chapter.libraryItemId ?? "nil")")
+        AppLogger.general.debug("[AudioPlayer] Loading chapter: \(chapter.title)")
+        AppLogger.general.debug("[AudioPlayer] Chapter index: \(self.currentChapterIndex)")
+        AppLogger.general.debug("[AudioPlayer] Offline mode: \(self.isOfflineMode)")
+        AppLogger.general.debug("[AudioPlayer] Should resume playback: \(shouldResumePlayback)")
+        AppLogger.general.debug("[AudioPlayer] Library item ID: \(chapter.libraryItemId ?? "nil")")
 
         isLoading = true
         errorMessage = nil
@@ -273,11 +273,11 @@ class AudioPlayer: NSObject, ObservableObject {
                 
                 switch result {
                 case .success(let session):
-                    AppLogger.debug.debug("[AudioPlayer] SUCCESS: Playback session created: \(session.id)")
+                    AppLogger.general.debug("[AudioPlayer] SUCCESS: Playback session created: \(session.id)")
                     self.currentPlaybackSession = session
                     self.setupPlayerWithSession(session, shouldResumePlayback: shouldResumePlayback)
                 case .failure(let error):
-                    AppLogger.debug.debug("[AudioPlayer] ERROR: Failed to create playback session: \(error)")
+                    AppLogger.general.debug("[AudioPlayer] ERROR: Failed to create playback session: \(error)")
                     self.errorMessage = error.localizedDescription
                 }
             }
@@ -287,24 +287,24 @@ class AudioPlayer: NSObject, ObservableObject {
     // MARK: - Enhanced Chapter Management
     func setCurrentChapter(index: Int) {
         guard let book = book else {
-            AppLogger.debug.debug("[AudioPlayer] ERROR: No book loaded")
+            AppLogger.general.debug("[AudioPlayer] ERROR: No book loaded")
             return
         }
         
         guard index >= 0 && index < book.chapters.count else {
-            AppLogger.debug.debug("[AudioPlayer] ERROR: Invalid chapter index: \(index) (valid range: 0-\(book.chapters.count - 1))")
+            AppLogger.general.debug("[AudioPlayer] ERROR: Invalid chapter index: \(index) (valid range: 0-\(book.chapters.count - 1))")
             return
         }
         
         guard index != currentChapterIndex else {
-            AppLogger.debug.debug("[AudioPlayer] Chapter \(index) is already current")
+            AppLogger.general.debug("[AudioPlayer] Chapter \(index) is already current")
             return
         }
         
         let wasPlaying = isPlaying
         let targetChapter = book.chapters[index]
         
-        AppLogger.debug.debug("[AudioPlayer] Switching to chapter \(index): \(targetChapter.title), wasPlaying: \(wasPlaying)")
+        AppLogger.general.debug("[AudioPlayer] Switching to chapter \(index): \(targetChapter.title), wasPlaying: \(wasPlaying)")
         
         if isPlaying {
             pause()
@@ -330,8 +330,8 @@ class AudioPlayer: NSObject, ObservableObject {
             if downloadManager.isBookDownloaded(book.id),
                let localURL = downloadManager.getLocalAudioURL(for: book.id, chapterIndex: self.currentChapterIndex) {
                 
-                AppLogger.debug.debug("[AudioPlayer] Loading offline file: \(localURL)")
-                AppLogger.debug.debug("[AudioPlayer] File exists: \(FileManager.default.fileExists(atPath: localURL.path))")
+                AppLogger.general.debug("[AudioPlayer] Loading offline file: \(localURL)")
+                AppLogger.general.debug("[AudioPlayer] File exists: \(FileManager.default.fileExists(atPath: localURL.path))")
                 
                 let playerItem = AVPlayerItem(url: localURL)
                 let chapterDuration = (chapter.end ?? 0) - (chapter.start ?? 0)
@@ -350,7 +350,7 @@ class AudioPlayer: NSObject, ObservableObject {
         addTimeObserver()
         self.duration = duration
         
-        AppLogger.debug.debug("[AudioPlayer] Offline player setup complete, duration: \(duration)")
+        AppLogger.general.debug("[AudioPlayer] Offline player setup complete, duration: \(duration)")
         
         // Update now playing info
         updateNowPlayingInfo()
@@ -360,18 +360,18 @@ class AudioPlayer: NSObject, ObservableObject {
             let timeToSeek = seekTime
             self.targetSeekTime = nil
             
-            AppLogger.debug.debug("[AudioPlayer] Delayed seek to restored position: \(timeToSeek)s")
+            AppLogger.general.debug("[AudioPlayer] Delayed seek to restored position: \(timeToSeek)s")
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
                 guard let self = self else { return }
                 self.seek(to: timeToSeek)
                 
                 if shouldResumePlayback {
-                    AppLogger.debug.debug("[AudioPlayer] Auto-resuming playback after restoration")
+                    AppLogger.general.debug("[AudioPlayer] Auto-resuming playback after restoration")
                     self.play()
                 }
             }
         } else if shouldResumePlayback {
-            AppLogger.debug.debug("[AudioPlayer] Auto-resuming playback for offline chapter")
+            AppLogger.general.debug("[AudioPlayer] Auto-resuming playback for offline chapter")
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
                 self?.play()
             }
@@ -409,7 +409,7 @@ class AudioPlayer: NSObject, ObservableObject {
             return
         }
         
-        AppLogger.debug.debug("[AudioPlayer] Creating playback session: \(url)")
+        AppLogger.general.debug("[AudioPlayer] Creating playback session: \(url)")
         
         URLSession.shared.dataTask(with: request) { data, response, error in
             if let error = error {
@@ -426,22 +426,22 @@ class AudioPlayer: NSObject, ObservableObject {
             
             do {
                 let session = try JSONDecoder().decode(PlaybackSessionResponse.self, from: data)
-                AppLogger.debug.debug("[AudioPlayer] Playback session created: \(session.id)")
+                AppLogger.general.debug("[AudioPlayer] Playback session created: \(session.id)")
                 completion(.success(session))
             } catch {
-                AppLogger.debug.debug("[AudioPlayer] ERROR: JSON decode error: \(error)")
+                AppLogger.general.debug("[AudioPlayer] ERROR: JSON decode error: \(error)")
                 completion(.failure(error))
             }
         }.resume()
     }
     
     private func setupPlayerWithSession(_ session: PlaybackSessionResponse, shouldResumePlayback: Bool = false) {
-        AppLogger.debug.debug("[AudioPlayer] Setting up player with session: \(session.id)")
-        AppLogger.debug.debug("[AudioPlayer] Available tracks: \(session.audioTracks.count)")
-        AppLogger.debug.debug("[AudioPlayer] Current chapter index: \(self.currentChapterIndex)")
+        AppLogger.general.debug("[AudioPlayer] Setting up player with session: \(session.id)")
+        AppLogger.general.debug("[AudioPlayer] Available tracks: \(session.audioTracks.count)")
+        AppLogger.general.debug("[AudioPlayer] Current chapter index: \(self.currentChapterIndex)")
         
         guard self.currentChapterIndex < session.audioTracks.count else {
-            AppLogger.debug.debug("[AudioPlayer] ERROR: Chapter index out of bounds for available tracks")
+            AppLogger.general.debug("[AudioPlayer] ERROR: Chapter index out of bounds for available tracks")
             errorMessage = "Kapitel-Index ungültig"
             return
         }
@@ -449,11 +449,11 @@ class AudioPlayer: NSObject, ObservableObject {
         let audioTrack = session.audioTracks[self.currentChapterIndex]
         let fullURL = "\(baseURL)\(audioTrack.contentUrl)"
 
-        AppLogger.debug.debug("[AudioPlayer] Audio URL: \(fullURL)")
-        AppLogger.debug.debug("[AudioPlayer] Track duration: \(audioTrack.duration)")
+        AppLogger.general.debug("[AudioPlayer] Audio URL: \(fullURL)")
+        AppLogger.general.debug("[AudioPlayer] Track duration: \(audioTrack.duration)")
 
         guard let audioURL = URL(string: fullURL) else {
-            AppLogger.debug.debug("[AudioPlayer] ERROR: Invalid audio URL: \(fullURL)")
+            AppLogger.general.debug("[AudioPlayer] ERROR: Invalid audio URL: \(fullURL)")
             errorMessage = "Ungültige Audio-URL"
             return
         }
@@ -468,7 +468,7 @@ class AudioPlayer: NSObject, ObservableObject {
         addTimeObserver()
         self.duration = audioTrack.duration
         
-        AppLogger.debug.debug("[AudioPlayer] Player created, duration set to: \(self.duration)")
+        AppLogger.general.debug("[AudioPlayer] Player created, duration set to: \(self.duration)")
         
         // Update now playing info
         updateNowPlayingInfo()
@@ -477,18 +477,18 @@ class AudioPlayer: NSObject, ObservableObject {
             let timeToSeek = seekTime
             self.targetSeekTime = nil
             
-            AppLogger.debug.debug("[AudioPlayer] Delayed seek to restored position: \(timeToSeek)s")
+            AppLogger.general.debug("[AudioPlayer] Delayed seek to restored position: \(timeToSeek)s")
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
                 guard let self = self else { return }
                 self.seek(to: timeToSeek)
                 
                 if shouldResumePlayback {
-                    AppLogger.debug.debug("[AudioPlayer] Auto-resuming playback after restoration")
+                    AppLogger.general.debug("[AudioPlayer] Auto-resuming playback after restoration")
                     self.play()
                 }
             }
         } else if shouldResumePlayback {
-            AppLogger.debug.debug("[AudioPlayer] Auto-resuming playback for online chapter")
+            AppLogger.general.debug("[AudioPlayer] Auto-resuming playback for online chapter")
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
                 self?.play()
             }
@@ -571,7 +571,7 @@ class AudioPlayer: NSObject, ObservableObject {
             return
         }
         
-        AppLogger.debug.debug("[AudioPlayer] Play requested - Status: \(currentItem.status.rawValue)")
+        AppLogger.general.debug("[AudioPlayer] Play requested - Status: \(currentItem.status.rawValue)")
         
         switch currentItem.status {
         case .readyToPlay:
@@ -579,13 +579,13 @@ class AudioPlayer: NSObject, ObservableObject {
             player.rate = self.playbackRate
             isPlaying = true
             updateNowPlayingInfo()
-            AppLogger.debug.debug("[AudioPlayer] Playback started at rate: \(self.playbackRate)")
+            AppLogger.general.debug("[AudioPlayer] Playback started at rate: \(self.playbackRate)")
         case .failed:
             let error = currentItem.error?.localizedDescription ?? "Unbekannter Fehler"
             errorMessage = "Playback failed: \(error)"
-            AppLogger.debug.debug("[AudioPlayer] Playback failed: \(error)")
+            AppLogger.general.debug("[AudioPlayer] Playback failed: \(error)")
         case .unknown:
-            AppLogger.debug.debug("[AudioPlayer] Player status unknown - waiting for ready state")
+            AppLogger.general.debug("[AudioPlayer] Player status unknown - waiting for ready state")
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
                 guard let self = self,
                       let currentItem = self.player?.currentItem,
@@ -604,64 +604,64 @@ class AudioPlayer: NSObject, ObservableObject {
     }
     
     func pause() {
-        AppLogger.debug.debug("[AudioPlayer] Pause requested")
+        AppLogger.general.debug("[AudioPlayer] Pause requested")
         player?.pause()
         isPlaying = false
         updateNowPlayingInfo()
     }
     
     func togglePlayPause() {
-        AppLogger.debug.debug("[AudioPlayer] Toggle play/pause - currently playing: \(self.isPlaying)")
+        AppLogger.general.debug("[AudioPlayer] Toggle play/pause - currently playing: \(self.isPlaying)")
         self.isPlaying ? pause() : play()
         saveCurrentPlaybackState()
     }
 
     func nextChapter() {
         guard let book = book else {
-            AppLogger.debug.debug("[AudioPlayer] No book loaded for next chapter")
+            AppLogger.general.debug("[AudioPlayer] No book loaded for next chapter")
             return
         }
         
         guard self.currentChapterIndex + 1 < book.chapters.count else {
-            AppLogger.debug.debug("[AudioPlayer] Already at last chapter")
+            AppLogger.general.debug("[AudioPlayer] Already at last chapter")
             pause()
             return
         }
         
-        AppLogger.debug.debug("[AudioPlayer] Moving to next chapter: \(self.currentChapterIndex + 1)")
+        AppLogger.general.debug("[AudioPlayer] Moving to next chapter: \(self.currentChapterIndex + 1)")
         setCurrentChapter(index: self.currentChapterIndex + 1)
     }
     
     func previousChapter() {
         guard self.currentChapterIndex > 0 else {
-            AppLogger.debug.debug("[AudioPlayer] Already at first chapter")
+            AppLogger.general.debug("[AudioPlayer] Already at first chapter")
             return
         }
         
-        AppLogger.debug.debug("[AudioPlayer] Moving to previous chapter: \(self.currentChapterIndex - 1)")
+        AppLogger.general.debug("[AudioPlayer] Moving to previous chapter: \(self.currentChapterIndex - 1)")
         setCurrentChapter(index: self.currentChapterIndex - 1)
     }
 
     func seek15SecondsBack() {
         let newTime = max(0, self.currentTime - 15)
-        AppLogger.debug.debug("[AudioPlayer] Seeking back 15s: \(self.currentTime) -> \(newTime)")
+        AppLogger.general.debug("[AudioPlayer] Seeking back 15s: \(self.currentTime) -> \(newTime)")
         seek(to: newTime)
     }
 
     func seek15SecondsForward() {
         let newTime = min(self.duration, self.currentTime + 15)
-        AppLogger.debug.debug("[AudioPlayer] Seeking forward 15s: \(self.currentTime) -> \(newTime)")
+        AppLogger.general.debug("[AudioPlayer] Seeking forward 15s: \(self.currentTime) -> \(newTime)")
         seek(to: newTime)
     }
 
     func seek(to seconds: Double) {
         guard seconds >= 0 && seconds <= self.duration else {
-            AppLogger.debug.debug("[AudioPlayer] Invalid seek time: \(seconds) (duration: \(self.duration))")
+            AppLogger.general.debug("[AudioPlayer] Invalid seek time: \(seconds) (duration: \(self.duration))")
             return
         }
         
         let time = CMTime(seconds: seconds, preferredTimescale: 1)
-        AppLogger.debug.debug("[AudioPlayer] Seeking to: \(seconds)s")
+        AppLogger.general.debug("[AudioPlayer] Seeking to: \(seconds)s")
         player?.seek(to: time)
         
         if isPlaying {
@@ -747,14 +747,14 @@ class AudioPlayer: NSObject, ObservableObject {
         }
         
         updateNowPlayingInfo()
-        AppLogger.debug.debug("[AudioPlayer] Playback rate set to: \(rate)x (applied: \(self.isPlaying))")
+        AppLogger.general.debug("[AudioPlayer] Playback rate set to: \(rate)x (applied: \(self.isPlaying))")
     }
     
     @objc private func playerItemDidFinishPlaying(_ notification: Notification) {
-        AppLogger.debug.debug("[AudioPlayer] Chapter finished - auto-advancing to next")
+        AppLogger.general.debug("[AudioPlayer] Chapter finished - auto-advancing to next")
         
         guard let book = book, self.currentChapterIndex + 1 < book.chapters.count else {
-            AppLogger.debug.debug("[AudioPlayer] Book finished - stopping playback")
+            AppLogger.general.debug("[AudioPlayer] Book finished - stopping playback")
             DispatchQueue.main.async { [weak self] in
                 self?.isPlaying = false
                 self?.updateNowPlayingInfo()
@@ -784,13 +784,13 @@ class AudioPlayer: NSObject, ObservableObject {
                 switch playerItem.status {
                 case .readyToPlay:
                     self.errorMessage = nil
-                    AppLogger.debug.debug("[AudioPlayer] Player item ready to play")
+                    AppLogger.general.debug("[AudioPlayer] Player item ready to play")
                 case .failed:
                     let errorDescription = playerItem.error?.localizedDescription ?? "Unknown error"
                     self.errorMessage = errorDescription
-                    AppLogger.debug.debug("[AudioPlayer] Player item failed: \(errorDescription)")
+                    AppLogger.general.debug("[AudioPlayer] Player item failed: \(errorDescription)")
                 case .unknown:
-                    AppLogger.debug.debug("[AudioPlayer] Player item status unknown")
+                    AppLogger.general.debug("[AudioPlayer] Player item status unknown")
                 @unknown default:
                     break
                 }
@@ -830,6 +830,6 @@ class AudioPlayer: NSObject, ObservableObject {
         // Clear now playing info
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
         
-        AppLogger.debug.debug("[AudioPlayer] Deinitialized and cleaned up")
+        AppLogger.general.debug("[AudioPlayer] Deinitialized and cleaned up")
     }
 }

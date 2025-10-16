@@ -155,7 +155,7 @@ struct ChaptersListView: View {
     }
     
     private func handleChapterTap(index: Int) {
-        AppLogger.debug.debug("[ChaptersList] Chapter \(index) selected")
+        AppLogger.general.debug("[ChaptersList] Chapter \(index) selected")
         
         let wasPlaying = player.isPlaying
         
@@ -205,7 +205,7 @@ struct ChapterCardView: View {
     
     var body: some View {
         Button(action: {
-            AppLogger.debug.debug("[ChapterCard] Chapter \(chapterIndex) tapped: \(chapter.title)")
+            AppLogger.general.debug("[ChapterCard] Chapter \(chapterIndex) tapped: \(chapter.title)")
             onTap()
         }) {
             HStack(spacing: 16) {
@@ -350,7 +350,7 @@ struct ChapterRowView: View {
     
     var body: some View {
         Button(action: {
-            AppLogger.debug.debug("[ChapterRow] Chapter \(chapterIndex) tapped: \(chapter.title)")
+            AppLogger.general.debug("[ChapterRow] Chapter \(chapterIndex) tapped: \(chapter.title)")
             onTap()
         }) {
             HStack {
@@ -424,7 +424,7 @@ struct PlaybackSettingsView: View {
                     value: Binding(
                         get: { Double(player.playbackRate) },
                         set: { newValue in
-                            AppLogger.debug.debug("[PlaybackSettings] Speed changed to: \(newValue)x")
+                            AppLogger.general.debug("[PlaybackSettings] Speed changed to: \(newValue)x")
                             player.setPlaybackRate(newValue)
                         }
                     ),
@@ -437,7 +437,7 @@ struct PlaybackSettingsView: View {
                             // The player will automatically apply the rate when playing
                             // No need to access private player property
                         }
-                        AppLogger.debug.debug("[PlaybackSettings] Speed slider interaction ended, rate applied: \(player.playbackRate)")
+                        AppLogger.general.debug("[PlaybackSettings] Speed slider interaction ended, rate applied: \(player.playbackRate)")
                     }
                 }
                 .accentColor(.primary)
@@ -464,7 +464,7 @@ struct PlaybackSettingsView: View {
             ], spacing: 12) {
                 ForEach(playbackRateOptions, id: \.self) { rate in
                     Button(action: {
-                        AppLogger.debug.debug("[PlaybackSettings] Quick speed button: \(rate)x")
+                        AppLogger.general.debug("[PlaybackSettings] Quick speed button: \(rate)x")
                         player.setPlaybackRate(rate)
                     }) {
                         Text("\(rate, specifier: rate.truncatingRemainder(dividingBy: 1) == 0 ? "%.0f" : "%.2f")x")

@@ -226,7 +226,7 @@ class SettingsViewModel: ObservableObject {
                 serverConfig.password = ""
                 
             } catch {
-                AppLogger.debug.debug("[SettingsViewModel] Logout error: \(error)")
+                AppLogger.general.debug("[SettingsViewModel] Logout error: \(error)")
             }
         }
     }
@@ -248,7 +248,7 @@ class SettingsViewModel: ObservableObject {
             try await clearCacheUseCase.execute()
             storage.lastCacheCleanupDate = Date()
         } catch {
-            AppLogger.debug.debug("[SettingsViewModel] Cache clear error: \(error)")
+            AppLogger.general.debug("[SettingsViewModel] Cache clear error: \(error)")
         }
         
         await calculateStorageInfo()
@@ -295,7 +295,7 @@ class SettingsViewModel: ObservableObject {
         
         diagnosticsService.exportLogs { [weak self] url in
             guard let url = url else {
-                AppLogger.debug.debug("[SettingsViewModel] Failed to export logs")
+                AppLogger.general.debug("[SettingsViewModel] Failed to export logs")
                 return
             }
             

@@ -22,7 +22,7 @@ struct StoryTeller3App: App {
 
     init() {
         // No longer need setupTerminationHandler - AppDelegate handles it
-        AppLogger.debug.debug("[App] App initialized")
+        AppLogger.general.debug("[App] App initialized")
     }
     
     private func setupCacheManager() {
@@ -33,7 +33,7 @@ struct StoryTeller3App: App {
                 await CoverCacheManager.shared.optimizeCache()
             }
             
-            AppLogger.debug.debug("[App] Cache manager initialized")
+            AppLogger.general.debug("[App] Cache manager initialized")
         }
     }
 }

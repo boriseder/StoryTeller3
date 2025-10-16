@@ -56,7 +56,7 @@ class CoverCacheManager: ObservableObject {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            AppLogger.debug.debug("App backgrounded - clearing memory cache")
+            AppLogger.general.debug("App backgrounded - clearing memory cache")
             self?.cache.removeAllObjects()
         }
         observers.append(backgroundObserver)
@@ -131,7 +131,7 @@ class CoverCacheManager: ObservableObject {
     }
 
     private func handleMemoryWarning() {
-        AppLogger.debug.debug("Memory warning - clearing memory cache")
+        AppLogger.general.debug("Memory warning - clearing memory cache")
         
         // Clear memory cache
         cache.removeAllObjects()
@@ -143,7 +143,7 @@ class CoverCacheManager: ObservableObject {
     }
 
     private func handleCriticalMemory() {
-        AppLogger.debug.debug("Critical memory pressure - aggressive cleanup")
+        AppLogger.general.debug("Critical memory pressure - aggressive cleanup")
         
         // Clear memory cache
         cache.removeAllObjects()
@@ -204,7 +204,7 @@ class CoverCacheManager: ObservableObject {
             clearOldestDiskCacheItems(keepCount: 100)
         }
         
-        AppLogger.debug.debug("[CoverCache] Cache optimization completed")
+        AppLogger.general.debug("[CoverCache] Cache optimization completed")
     }
     
     private func findCorruptedCacheFiles() -> [URL] {
@@ -241,7 +241,7 @@ class CoverCacheManager: ObservableObject {
                     files.append((fileURL, modificationDate))
                 }
             } catch {
-                AppLogger.debug.debug("[CoverCache] Error reading file attributes: \(error)")
+                AppLogger.general.debug("[CoverCache] Error reading file attributes: \(error)")
             }
         }
         
@@ -255,7 +255,7 @@ class CoverCacheManager: ObservableObject {
         }
         
         if !filesToRemove.isEmpty {
-            AppLogger.debug.debug("[CoverCache] Removed \(filesToRemove.count) old cache files")
+            AppLogger.general.debug("[CoverCache] Removed \(filesToRemove.count) old cache files")
         }
     }
     

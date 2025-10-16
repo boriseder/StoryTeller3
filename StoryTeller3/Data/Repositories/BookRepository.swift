@@ -60,25 +60,25 @@ class BookRepository: BookRepositoryProtocol {
             
             cache?.cacheBooks(books, for: libraryId)
             
-            AppLogger.debug.debug("[BookRepository] Fetched \(books.count) books from library \(libraryId)")
+            AppLogger.general.debug("[BookRepository] Fetched \(books.count) books from library \(libraryId)")
             
             return books
             
         } catch let decodingError as DecodingError {
-            AppLogger.debug.debug("[BookRepository] Decoding error: \(decodingError)")
+            AppLogger.general.debug("[BookRepository] Decoding error: \(decodingError)")
             
             if let cachedBooks = cache?.getCachedBooks(for: libraryId) {
-                AppLogger.debug.debug("[BookRepository] Returning \(cachedBooks.count) cached books")
+                AppLogger.general.debug("[BookRepository] Returning \(cachedBooks.count) cached books")
                 return cachedBooks
             }
             
             throw RepositoryError.decodingError(decodingError)
             
         } catch let urlError as URLError {
-            AppLogger.debug.debug("[BookRepository] Network error: \(urlError)")
+            AppLogger.general.debug("[BookRepository] Network error: \(urlError)")
             
             if let cachedBooks = cache?.getCachedBooks(for: libraryId) {
-                AppLogger.debug.debug("[BookRepository] Returning \(cachedBooks.count) cached books (offline)")
+                AppLogger.general.debug("[BookRepository] Returning \(cachedBooks.count) cached books (offline)")
                 return cachedBooks
             }
             
@@ -95,15 +95,15 @@ class BookRepository: BookRepositoryProtocol {
             
             cache?.cacheBook(book)
             
-            AppLogger.debug.debug("[BookRepository] Fetched details for book: \(book.title)")
+            AppLogger.general.debug("[BookRepository] Fetched details for book: \(book.title)")
             
             return book
             
         } catch let decodingError as DecodingError {
-            AppLogger.debug.debug("[BookRepository] Decoding error for book \(bookId): \(decodingError)")
+            AppLogger.general.debug("[BookRepository] Decoding error for book \(bookId): \(decodingError)")
             
             if let cachedBook = cache?.getCachedBook(bookId: bookId) {
-                AppLogger.debug.debug("[BookRepository] Returning cached book")
+                AppLogger.general.debug("[BookRepository] Returning cached book")
                 return cachedBook
             }
             
@@ -111,7 +111,7 @@ class BookRepository: BookRepositoryProtocol {
             
         } catch let urlError as URLError {
             if let cachedBook = cache?.getCachedBook(bookId: bookId) {
-                AppLogger.debug.debug("[BookRepository] Returning cached book (offline)")
+                AppLogger.general.debug("[BookRepository] Returning cached book (offline)")
                 return cachedBook
             }
             
@@ -135,7 +135,7 @@ class BookRepository: BookRepositoryProtocol {
                 (book.author?.localizedCaseInsensitiveContains(query) ?? false)
             }
             
-            AppLogger.debug.debug("[BookRepository] Search '\(query)' found \(filteredBooks.count) books")
+            AppLogger.general.debug("[BookRepository] Search '\(query)' found \(filteredBooks.count) books")
             
             return filteredBooks
             
@@ -148,7 +148,7 @@ class BookRepository: BookRepositoryProtocol {
         do {
             let series = try await api.fetchSeries(from: libraryId)
             
-            AppLogger.debug.debug("[BookRepository] Fetched \(series.count) series")
+            AppLogger.general.debug("[BookRepository] Fetched \(series.count) series")
             
             return series
             
@@ -167,7 +167,7 @@ class BookRepository: BookRepositoryProtocol {
         do {
             let books = try await api.fetchSeriesSingle(from: libraryId, seriesId: seriesId)
             
-            AppLogger.debug.debug("[BookRepository] Fetched \(books.count) books for series \(seriesId)")
+            AppLogger.general.debug("[BookRepository] Fetched \(books.count) books for series \(seriesId)")
             
             return books
             
@@ -186,7 +186,7 @@ class BookRepository: BookRepositoryProtocol {
         do {
             let sections = try await api.fetchPersonalizedSections(from: libraryId)
             
-            AppLogger.debug.debug("[BookRepository] Fetched \(sections.count) personalized sections")
+            AppLogger.general.debug("[BookRepository] Fetched \(sections.count) personalized sections")
             
             return sections
             

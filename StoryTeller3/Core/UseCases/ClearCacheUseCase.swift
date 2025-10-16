@@ -27,6 +27,6 @@ class ClearCacheUseCase: ClearCacheUseCaseProtocol {
             coverCacheManager.clearAllCache()
         }
         
-        AppLogger.debug.debug("[ClearCacheUseCase] Cache cleared successfully")
+        AppLogger.general.debug("[ClearCacheUseCase] Cache cleared successfully")
     }
 }

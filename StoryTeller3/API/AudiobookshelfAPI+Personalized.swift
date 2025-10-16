@@ -20,7 +20,7 @@ extension AudiobookshelfAPI {
             throw AudiobookshelfError.invalidURL("\(baseURLString)/api/libraries/\(libraryId)/personalized")
         }
         
-        AppLogger.debug.debug("[AudiobookshelfAPI] Fetching all personalized sections from: \(url)")
+        AppLogger.general.debug("[AudiobookshelfAPI] Fetching all personalized sections from: \(url)")
         
         let request = networkService.createAuthenticatedRequest(url: url, authToken: authToken)
         
@@ -30,17 +30,17 @@ extension AudiobookshelfAPI {
                 responseType: PersonalizedResponse.self
             )
             
-            AppLogger.debug.debug("[AudiobookshelfAPI] Received \(personalizedSections.count) personalized sections")
+            AppLogger.general.debug("[AudiobookshelfAPI] Received \(personalizedSections.count) personalized sections")
             
             // Log section details for debugging
             for section in personalizedSections {
-                AppLogger.debug.debug("[AudiobookshelfAPI] Section: \(section.id) (\(section.type)) - \(section.entities.count) items")
+                AppLogger.general.debug("[AudiobookshelfAPI] Section: \(section.id) (\(section.type)) - \(section.entities.count) items")
             }
             
             return personalizedSections
             
         } catch {
-            AppLogger.debug.debug("[AudiobookshelfAPI] fetchPersonalizedSections error: \(error)")
+            AppLogger.general.debug("[AudiobookshelfAPI] fetchPersonalizedSections error: \(error)")
             throw error
         }
     }

@@ -28,7 +28,7 @@ class PlaybackRepository: PlaybackRepositoryProtocol {
     
     func savePlaybackState(_ state: PlaybackState) {
         persistenceManager.savePlaybackState(state)
-        AppLogger.debug.debug("[PlaybackRepository] Saved state for book: \(state.bookId)")
+        AppLogger.general.debug("[PlaybackRepository] Saved state for book: \(state.bookId)")
     }
     
     func getRecentlyPlayed(limit: Int) -> [PlaybackState] {
@@ -41,7 +41,7 @@ class PlaybackRepository: PlaybackRepositoryProtocol {
     
     func deletePlaybackState(for bookId: String) {
         persistenceManager.deletePlaybackState(for: bookId)
-        AppLogger.debug.debug("[PlaybackRepository] Deleted state for book: \(bookId)")
+        AppLogger.general.debug("[PlaybackRepository] Deleted state for book: \(bookId)")
     }
     
     func clearAllPlaybackStates() {
@@ -49,7 +49,7 @@ class PlaybackRepository: PlaybackRepositoryProtocol {
         for state in states {
             persistenceManager.deletePlaybackState(for: state.bookId)
         }
-        AppLogger.debug.debug("[PlaybackRepository] Cleared all playback states")
+        AppLogger.general.debug("[PlaybackRepository] Cleared all playback states")
     }
     
     // MARK: - Server Sync
@@ -60,9 +60,9 @@ class PlaybackRepository: PlaybackRepositoryProtocol {
         for state in states {
             do {
                 try await uploadProgress(state, to: server)
-                AppLogger.debug.debug("[PlaybackRepository] Synced progress for: \(state.bookId)")
+                AppLogger.general.debug("[PlaybackRepository] Synced progress for: \(state.bookId)")
             } catch {
-                AppLogger.debug.debug("[PlaybackRepository] Failed to sync \(state.bookId): \(error)")
+                AppLogger.general.debug("[PlaybackRepository] Failed to sync \(state.bookId): \(error)")
                 throw PlaybackError.syncFailed(state.bookId, error)
             }
         }

@@ -263,7 +263,7 @@ struct AuthorDetailSheet: View {
         } catch {
             errorMessage = error.localizedDescription
             showingErrorAlert = true
-            AppLogger.debug.debug("Error loading author books: \(error)")
+            AppLogger.general.debug("Error loading author books: \(error)")
         }
         
         isLoading = false
@@ -284,12 +284,12 @@ struct AuthorDetailSheet: View {
             dismiss()
             onBookSelected()
             
-            AppLogger.debug.debug("[AuthorDetailSheet] Loaded book: \(fetchedBook.title)")
+            AppLogger.general.debug("[AuthorDetailSheet] Loaded book: \(fetchedBook.title)")
             
         } catch {
             errorMessage = "Could not load '\(book.title)': \(error.localizedDescription)"
             showingErrorAlert = true
-            AppLogger.debug.debug("[AuthorDetailSheet] Failed to load book: \(error)")
+            AppLogger.general.debug("[AuthorDetailSheet] Failed to load book: \(error)")
         }
         
         isLoading = false

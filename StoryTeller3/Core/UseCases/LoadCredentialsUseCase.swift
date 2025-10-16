@@ -32,7 +32,7 @@ class LoadCredentialsUseCase: LoadCredentialsUseCaseProtocol {
               let port = UserDefaults.standard.string(forKey: "server_port"),
               let savedUsername = UserDefaults.standard.string(forKey: "stored_username"),
               let baseURL = UserDefaults.standard.string(forKey: "baseURL") else {
-            AppLogger.debug.debug("[LoadCredentialsUseCase] No saved credentials found")
+            AppLogger.general.debug("[LoadCredentialsUseCase] No saved credentials found")
             return nil
         }
         
@@ -42,11 +42,11 @@ class LoadCredentialsUseCase: LoadCredentialsUseCaseProtocol {
         let isValid = try await authService.validateToken(baseURL: baseURL, token: token)
         
         guard isValid else {
-            AppLogger.debug.debug("[LoadCredentialsUseCase] Token expired")
+            AppLogger.general.debug("[LoadCredentialsUseCase] Token expired")
             throw CredentialsError.tokenExpired
         }
         
-        AppLogger.debug.debug("[LoadCredentialsUseCase] Credentials loaded and validated successfully")
+        AppLogger.general.debug("[LoadCredentialsUseCase] Credentials loaded and validated successfully")
         
         return LoadedCredentials(
             scheme: scheme,

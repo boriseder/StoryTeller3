@@ -30,7 +30,7 @@ struct SleepTimerView: View {
                 }
             }
             .onDisappear {
-                AppLogger.debug.debug("[SleepTimerView] View dismissed, timer state: \(viewModel.isTimerActive)")
+                AppLogger.general.debug("[SleepTimerView] View dismissed, timer state: \(viewModel.isTimerActive)")
             }
         }
     }
@@ -158,7 +158,7 @@ struct SleepTimerView: View {
     
     private var cancelButton: some View {
         Button(action: {
-            AppLogger.debug.debug("[SleepTimerView] Cancel timer button tapped")
+            AppLogger.general.debug("[SleepTimerView] Cancel timer button tapped")
             viewModel.cancelTimer()
         }) {
             HStack {
@@ -247,7 +247,7 @@ struct SleepTimerView: View {
     
     private func durationOptionButton(minutes: Int) -> some View {
         Button(action: {
-            AppLogger.debug.debug("[SleepTimerView] Timer option selected: \(minutes) minutes")
+            AppLogger.general.debug("[SleepTimerView] Timer option selected: \(minutes) minutes")
             viewModel.startTimer(mode: .duration(minutes: minutes))
         }) {
             VStack(spacing: 8) {
@@ -288,7 +288,7 @@ struct SleepTimerView: View {
                         title: "End of Current Chapter",
                         subtitle: "Pause when chapter finishes",
                         action: {
-                            AppLogger.debug.debug("[SleepTimerView] End of chapter option selected")
+                            AppLogger.general.debug("[SleepTimerView] End of chapter option selected")
                             viewModel.startTimer(mode: .endOfChapter)
                         }
                     )
@@ -299,7 +299,7 @@ struct SleepTimerView: View {
                     title: "End of Book",
                     subtitle: "Pause when book finishes",
                     action: {
-                        AppLogger.debug.debug("[SleepTimerView] End of book option selected")
+                        AppLogger.general.debug("[SleepTimerView] End of book option selected")
                         viewModel.startTimer(mode: .endOfBook)
                     }
                 )

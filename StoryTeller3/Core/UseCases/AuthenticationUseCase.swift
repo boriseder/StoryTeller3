@@ -26,7 +26,7 @@ class AuthenticationUseCase: AuthenticationUseCaseProtocol {
         do {
             try keychainService.clearAllCredentials()
         } catch {
-            AppLogger.debug.debug("Failed to clear keychain: \(error)")
+            AppLogger.general.debug("Failed to clear keychain: \(error)")
         }
         
         await CoverDownloadManager.shared.shutdown()

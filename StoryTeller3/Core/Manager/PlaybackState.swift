@@ -48,7 +48,7 @@ class PlaybackPersistenceManager: ObservableObject {
                 self.userDefaults.set(allBookIds, forKey: "all_playback_books")
             }
             
-            AppLogger.debug.debug("[PlaybackPersistence] Saved state for book: \(state.bookId)")
+            AppLogger.general.debug("[PlaybackPersistence] Saved state for book: \(state.bookId)")
         }
     }
     
@@ -113,7 +113,7 @@ class PlaybackPersistenceManager: ObservableObject {
             allBookIds.removeAll { $0 == bookId }
             self.userDefaults.set(allBookIds, forKey: "all_playback_books")
             
-            AppLogger.debug.debug("[PlaybackPersistence] Deleted state for book: \(bookId)")
+            AppLogger.general.debug("[PlaybackPersistence] Deleted state for book: \(bookId)")
         }
     }
     
@@ -131,7 +131,7 @@ class PlaybackPersistenceManager: ObservableObject {
             
             self.userDefaults.removeObject(forKey: "all_playback_books")
             
-            AppLogger.debug.debug("[PlaybackPersistence] Cleared all playback states")
+            AppLogger.general.debug("[PlaybackPersistence] Cleared all playback states")
         }
     }
     

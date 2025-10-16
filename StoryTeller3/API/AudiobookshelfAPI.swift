@@ -89,8 +89,8 @@ class AudiobookshelfAPI {
             throw AudiobookshelfError.invalidURL("\(baseURLString)/api/libraries/\(libraryId)/items")
         }
 
-        AppLogger.debug.debug("[AudiobookshelfAPI] URL \(url)")
-        AppLogger.debug.debug("[AudiobookshelfAPI] collapsesseries  \(collapseSeries)")
+        AppLogger.general.debug("[AudiobookshelfAPI] URL \(url)")
+        AppLogger.general.debug("[AudiobookshelfAPI] collapsesseries  \(collapseSeries)")
 
         let request = networkService.createAuthenticatedRequest(url: url, authToken: authToken)
         let response: LibraryItemsResponse = try await networkService.performRequest(request, responseType: LibraryItemsResponse.self)
@@ -125,7 +125,7 @@ class AudiobookshelfAPI {
                     // Exponential backoff
                     let delay = pow(2.0, Double(attempt)) * 0.5
                     try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
-                    AppLogger.debug.debug("[AudiobookshelfAPI] Retrying fetchBookDetails, attempt \(attempt + 2)/\(retryCount)")
+                    AppLogger.general.debug("[AudiobookshelfAPI] Retrying fetchBookDetails, attempt \(attempt + 2)/\(retryCount)")
                     continue
                 }
             } catch {
@@ -149,7 +149,7 @@ class AudiobookshelfAPI {
             responseType: LibraryItemsResponse.self
         )
         
-        AppLogger.debug.debug("[AudiobookshelfAPI] Library \(libraryId) has \(response.total ?? 0) total books")
+        AppLogger.general.debug("[AudiobookshelfAPI] Library \(libraryId) has \(response.total ?? 0) total books")
         
         return response.total ?? 0
     }
@@ -181,7 +181,7 @@ class AudiobookshelfAPI {
             throw AudiobookshelfError.invalidRequest(error.localizedDescription)
         }
         
-        AppLogger.debug.debug("[AudiobookshelfAPI] Syncing session progress: \(sessionId), time: \(currentTime)s")
+        AppLogger.general.debug("[AudiobookshelfAPI] Syncing session progress: \(sessionId), time: \(currentTime)s")
         
         // Use performRequest but ignore response since PATCH /sync returns session data we don't need
         let _: [String: String]? = try? await networkService.performRequest(request, responseType: [String: String].self)
@@ -194,14 +194,14 @@ class AudiobookshelfAPI {
         
         let request = networkService.createAuthenticatedRequest(url: url, authToken: authToken)
         
-        AppLogger.debug.debug("[AudiobookshelfAPI] Fetching progress for item: \(libraryItemId)")
+        AppLogger.general.debug("[AudiobookshelfAPI] Fetching progress for item: \(libraryItemId)")
         
         do {
             let progress: MediaProgress = try await networkService.performRequest(request, responseType: MediaProgress.self)
             return progress
         } catch AudiobookshelfError.resourceNotFound {
             // No progress exists yet - this is normal for items not started
-            AppLogger.debug.debug("[AudiobookshelfAPI] No progress found for item: \(libraryItemId)")
+            AppLogger.general.debug("[AudiobookshelfAPI] No progress found for item: \(libraryItemId)")
             return nil
         }
     }
@@ -230,7 +230,7 @@ class AudiobookshelfAPI {
             throw AudiobookshelfError.invalidRequest(error.localizedDescription)
         }
         
-        AppLogger.debug.debug("[AudiobookshelfAPI] Closing session: \(sessionId), final time: \(currentTime)s")
+        AppLogger.general.debug("[AudiobookshelfAPI] Closing session: \(sessionId), final time: \(currentTime)s")
         
         let _: [String: String]? = try? await networkService.performRequest(request, responseType: [String: String].self)
     }
@@ -242,7 +242,7 @@ class AudiobookshelfAPI {
         
         let request = networkService.createAuthenticatedRequest(url: url, authToken: authToken)
         
-        AppLogger.debug.debug("[AudiobookshelfAPI] Fetching items in progress")
+        AppLogger.general.debug("[AudiobookshelfAPI] Fetching items in progress")
         
         struct ItemsInProgressResponse: Codable {
             let libraryItems: [MediaProgress]

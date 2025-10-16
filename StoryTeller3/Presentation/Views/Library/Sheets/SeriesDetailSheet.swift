@@ -271,7 +271,7 @@ struct SeriesDetailSheet: View {
         } catch {
             errorMessage = error.localizedDescription
             showingErrorAlert = true
-            AppLogger.debug.debug("Error loading series books: \(error)")
+            AppLogger.general.debug("Error loading series books: \(error)")
         }
         
         isLoading = false
@@ -292,12 +292,12 @@ struct SeriesDetailSheet: View {
             dismiss()
             onBookSelected()
             
-            AppLogger.debug.debug("[SeriesDetailSheet] Loaded book: \(fetchedBook.title)")
+            AppLogger.general.debug("[SeriesDetailSheet] Loaded book: \(fetchedBook.title)")
             
         } catch {
             errorMessage = "Could not load '\(book.title)': \(error.localizedDescription)"
             showingErrorAlert = true
-            AppLogger.debug.debug("[SeriesDetailSheet] Failed to load book: \(error)")
+            AppLogger.general.debug("[SeriesDetailSheet] Failed to load book: \(error)")
         }
         
         isLoading = false

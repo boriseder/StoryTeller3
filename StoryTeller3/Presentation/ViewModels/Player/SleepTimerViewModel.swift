@@ -84,7 +84,7 @@ class SleepTimerViewModel: ObservableObject {
             
         case .endOfChapter:
             guard let chapterEnd = player.currentChapter?.end else {
-                AppLogger.debug.debug("[SleepTimer] Cannot start end-of-chapter timer - no chapter info")
+                AppLogger.general.debug("[SleepTimer] Cannot start end-of-chapter timer - no chapter info")
                 return
             }
             duration = max(0, chapterEnd - player.currentTime)
@@ -94,7 +94,7 @@ class SleepTimerViewModel: ObservableObject {
         }
         
         guard duration > 0 else {
-            AppLogger.debug.debug("[SleepTimer] Invalid timer duration: \(duration)")
+            AppLogger.general.debug("[SleepTimer] Invalid timer duration: \(duration)")
             return
         }
         
@@ -111,7 +111,7 @@ class SleepTimerViewModel: ObservableObject {
         clearTimerState()
         cancelTimerEndNotification()
         
-        AppLogger.debug.debug("[SleepTimer] Timer cancelled")
+        AppLogger.general.debug("[SleepTimer] Timer cancelled")
     }
     
     // MARK: - Timer Implementation
@@ -128,7 +128,7 @@ class SleepTimerViewModel: ObservableObject {
         saveTimerState(endDate: endDate, mode: mode)
         scheduleTimerEndNotification(fireDate: endDate)
         
-        AppLogger.debug.debug("[SleepTimer] Timer started - duration: \(duration)s, mode: \(mode)")
+        AppLogger.general.debug("[SleepTimer] Timer started - duration: \(duration)s, mode: \(mode)")
     }
     
     private func setupTimerDelegate() {
@@ -185,7 +185,7 @@ class SleepTimerViewModel: ObservableObject {
         
         startTimerWithDuration(remaining, mode: mode)
         
-        AppLogger.debug.debug("[SleepTimer] Restored timer state - remaining: \(remaining)s")
+        AppLogger.general.debug("[SleepTimer] Restored timer state - remaining: \(remaining)s")
     }
     
     private func clearTimerState() {
@@ -218,9 +218,9 @@ class SleepTimerViewModel: ObservableObject {
     private func requestNotificationPermission() {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { granted, error in
             if let error = error {
-                AppLogger.debug.debug("[SleepTimer] Notification permission error: \(error)")
+                AppLogger.general.debug("[SleepTimer] Notification permission error: \(error)")
             } else if granted {
-                AppLogger.debug.debug("[SleepTimer] Notification permission granted")
+                AppLogger.general.debug("[SleepTimer] Notification permission granted")
             }
         }
     }
@@ -247,7 +247,7 @@ class SleepTimerViewModel: ObservableObject {
         
         UNUserNotificationCenter.current().add(request) { error in
             if let error = error {
-                AppLogger.debug.debug("[SleepTimer] Failed to schedule notification: \(error)")
+                AppLogger.general.debug("[SleepTimer] Failed to schedule notification: \(error)")
             }
         }
     }
@@ -266,7 +266,7 @@ class SleepTimerViewModel: ObservableObject {
             NotificationCenter.default.removeObserver(observer)
         }
         observers.removeAll()
-        AppLogger.debug.debug("[SleepTimer] ViewModel deinitialized")
+        AppLogger.general.debug("[SleepTimer] ViewModel deinitialized")
     }
 }
 
@@ -277,7 +277,7 @@ extension SleepTimerViewModel: TimerDelegate {
     }
     
     func timerDidComplete() {
-        AppLogger.debug.debug("[SleepTimer] Timer finished - pausing playback")
+        AppLogger.general.debug("[SleepTimer] Timer finished - pausing playback")
         
         player.pause()
         
@@ -292,6 +292,6 @@ extension SleepTimerViewModel: TimerDelegate {
         impactFeedback.impactOccurred()
         #endif
         
-        AppLogger.debug.debug("[SleepTimer] Sleep timer completed successfully")
+        AppLogger.general.debug("[SleepTimer] Sleep timer completed successfully")
     }
 }

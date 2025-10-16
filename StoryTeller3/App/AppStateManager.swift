@@ -182,15 +182,15 @@ class AppStateManager: ObservableObject {
                 
                 if !isOnline {
                     self.isServerReachable = false
-                    AppLogger.debug.debug("[AppState] Device went offline")
+                    AppLogger.general.debug("[AppState] Device went offline")
                 } else if !wasOnline && isOnline {
-                    AppLogger.debug.debug("[AppState] Device came online")
+                    AppLogger.general.debug("[AppState] Device came online")
                     await self.checkServerReachability()
                 }
             }
         }
         
         networkMonitor.startMonitoring()
-        AppLogger.debug.debug("[AppState] Network monitoring started")
+        AppLogger.general.debug("[AppState] Network monitoring started")
     }
 }

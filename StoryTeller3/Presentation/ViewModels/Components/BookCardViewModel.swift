@@ -65,7 +65,7 @@ class BookCardViewModel: ObservableObject {
     
     func startDownload() {
         guard let api = api else {
-            AppLogger.debug.debug("[BookCardViewModel] Cannot download: API not available")
+            AppLogger.general.debug("[BookCardViewModel] Cannot download: API not available")
             return
         }
         
@@ -75,7 +75,7 @@ class BookCardViewModel: ObservableObject {
     }
     
     func cancelDownload() {
-        AppLogger.debug.debug("[BookCardViewModel] Cancel download requested for: \(self.book.title)")
+        AppLogger.general.debug("[BookCardViewModel] Cancel download requested for: \(self.book.title)")
         downloadUseCase.cancel(bookId: book.id)
     }
     

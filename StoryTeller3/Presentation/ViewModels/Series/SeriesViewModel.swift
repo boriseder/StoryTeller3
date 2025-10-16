@@ -115,6 +115,6 @@ class SeriesViewModel: ObservableObject {
     private func handleRepositoryError(_ error: RepositoryError) {
         errorMessage = error.localizedDescription
         showingErrorAlert = true
-        AppLogger.debug.debug("[SeriesViewModel] Repository error: \(error)")
+        AppLogger.general.debug("[SeriesViewModel] Repository error: \(error)")
     }
 }

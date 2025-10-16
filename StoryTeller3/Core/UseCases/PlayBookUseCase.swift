@@ -57,9 +57,9 @@ class PlayBookUseCase: PlayBookUseCaseProtocol {
         if isDownloaded {
             do {
                 fullBook = try loadLocalMetadata(bookId: book.id, downloadManager: downloadManager)
-                AppLogger.debug.debug("[PlayBookUseCase] Loaded book from local metadata: \(fullBook.title)")
+                AppLogger.general.debug("[PlayBookUseCase] Loaded book from local metadata: \(fullBook.title)")
             } catch {
-                AppLogger.debug.debug("[PlayBookUseCase] Failed to load local metadata, trying online: \(error)")
+                AppLogger.general.debug("[PlayBookUseCase] Failed to load local metadata, trying online: \(error)")
                 do {
                     fullBook = try await api.fetchBookDetails(bookId: book.id)
                 } catch {
@@ -90,11 +90,11 @@ class PlayBookUseCase: PlayBookUseCaseProtocol {
             switch playbackMode {
             case .online:
                 player.load(book: fullBook, isOffline: false, restoreState: restoreState)
-                AppLogger.debug.debug("[PlayBookUseCase] Loaded book: \(fullBook.title) (mode: online)")
+                AppLogger.general.debug("[PlayBookUseCase] Loaded book: \(fullBook.title) (mode: online)")
                 
             case .offline:
                 player.load(book: fullBook, isOffline: true, restoreState: restoreState)
-                AppLogger.debug.debug("[PlayBookUseCase] Loaded book: \(fullBook.title) (mode: offline)")
+                AppLogger.general.debug("[PlayBookUseCase] Loaded book: \(fullBook.title) (mode: offline)")
                 
             case .unavailable:
                 break
