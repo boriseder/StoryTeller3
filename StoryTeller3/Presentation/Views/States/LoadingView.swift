@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct LoadingView: View {
-    @State var message: String = "Initializing & loading data..."
+    @State var message: String = "Loading..."
     
     var body: some View {
         StateContainer {
@@ -12,7 +12,7 @@ struct LoadingView: View {
                     .frame(width: 60, height: 60, alignment: .center)
                 
                 Text(message)
-                    .font(DSText.body)
+                    .font(DSText.detail)
                     .foregroundStyle(DSColor.onDark)
                     .frame(height: 24)
             }

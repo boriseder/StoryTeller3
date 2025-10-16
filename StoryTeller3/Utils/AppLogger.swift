@@ -25,10 +25,6 @@ enum AppLogger {
             let timestamp = ISO8601DateFormatter().string(from: Date())
             let line = "[\(timestamp)] \(level) [\(category)] \(message)"
 
-            #if DEBUG
-            print(line) // direkt in Xcode-Konsole, keine Rekursion
-            #endif
-
             AppLogger.writeToFile(line)
             logger.log(level: osLevel, "\(message, privacy: .public)")
         }

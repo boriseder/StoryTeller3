@@ -212,7 +212,7 @@ struct PersonalizedSectionView: View {
             }
             
             Spacer()
-            
+            /*
             if section.total > section.entities.count {
                 Text("\(section.entities.count) of \(section.total)")
                     .font(.caption)
@@ -222,7 +222,10 @@ struct PersonalizedSectionView: View {
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
+             */
         }
+        .padding(.top, DSLayout.elementPadding)
+
     }
     
     private var sectionIcon: String {
@@ -420,68 +423,6 @@ struct SeriesCardView: View {
     }
 }
 
-// MARK: - Series Card View
-/*
-struct SeriesCardView: View {
-    let series: Series
-    let onTap: () -> Void
-    
-    private let cardStyle: BookCardStyle = .series
-    
-    var body: some View {
-        Button(action: onTap) {
-            VStack(alignment: .leading, spacing: 8) {
-                // Series Cover (using first book's cover)
-                if let firstBook = series.books.first {
-                    let coverBook = Book(
-                        id: firstBook.id,
-                        title: firstBook.media.metadata.title,
-                        author: firstBook.media.metadata.author,
-                        chapters: [],
-                        coverPath: firstBook.coverPath,
-                        collapsedSeries: nil
-                    )
-                    
-                    BookCoverView.square(
-                        book: coverBook,
-                        size: cardStyle.coverSize
-                    )
-                    .clipShape(RoundedRectangle(cornerRadius: cardStyle.cornerRadius))
-                } else {
-                    RoundedRectangle(cornerRadius: cardStyle.cornerRadius)
-                        .fill(Color.gray.opacity(0.3))
-                        .frame(width: cardStyle.coverSize, height: cardStyle.coverSize)
-                        .overlay(
-                            Image(systemName: "books.vertical.fill")
-                                .font(.system(size: cardStyle.coverSize * 0.4))
-                                .foregroundColor(.gray)
-                        )
-                }
-                
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(series.name)
-                        .font(cardStyle.titleFont)
-                        .lineLimit(2)
-                        .multilineTextAlignment(.leading)
-                    
-                    if let author = series.author {
-                        Text(author)
-                            .font(cardStyle.authorFont)
-                            .foregroundColor(.secondary)
-                            .lineLimit(1)
-                    }
-                    
-                    Text("\(series.bookCount) books")
-                        .font(.system(size: 9))
-                        .foregroundColor(.secondary)
-                }
-                .frame(width: cardStyle.coverSize, alignment: .leading)
-            }
-        }
-        .buttonStyle(.plain)
-    }
-}
-*/
 // MARK: - Author Card View
 struct AuthorCardView: View {
     let authorName: String
@@ -523,13 +464,13 @@ struct HomeStatCard: View {
             Image(systemName: icon)
                 .font(.system(size: DSLayout.icon))
                 .foregroundColor(color)
-                .frame(width: DSLayout.largeIcon, height: DSLayout.largeIcon)
+                .frame(width: DSLayout.icon, height: DSLayout.icon)
                 .background(color.opacity(0.1))
-                .clipShape(Circle())
+               // .clipShape(Circle())
             
             VStack(alignment: .leading, spacing: DSLayout.tightGap) {
                 Text(title)
-                    .font(.caption)
+                    .font(DSText.footnote)
                     .foregroundColor(.secondary)
                 
                 Text(value)

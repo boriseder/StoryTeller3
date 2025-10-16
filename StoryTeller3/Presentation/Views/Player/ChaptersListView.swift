@@ -14,8 +14,6 @@ struct ChaptersListView: View {
         NavigationView {
             ScrollViewReader { proxy in
                 ZStack {
-                    Color(.systemGroupedBackground)
-                        .ignoresSafeArea()
                     
                     ScrollView {
                         if let book = player.book {
@@ -50,13 +48,9 @@ struct ChaptersListView: View {
                             .font(.headline)
                             .foregroundColor(.primary)
                     }
-                    
                     ToolbarItem(placement: .navigationBarTrailing) {
                         Button(action: { dismiss() }) {
                             Image(systemName: "xmark.circle.fill")
-                                .font(.title3)
-                                .foregroundColor(.secondary)
-                                .symbolRenderingMode(.hierarchical)
                         }
                     }
                 }
@@ -209,6 +203,19 @@ struct ChapterCardView: View {
         return chapterCurrentTime / chapterDuration
     }
     
+    private func truncateChapterTitle(_ title: String, maxLength: Int = 40) -> String {
+        guard title.count > maxLength else { return title }
+        
+        let visibleCount = maxLength - 3
+        let headCount = visibleCount / 2
+        let tailCount = visibleCount - headCount
+        
+        let head = title.prefix(headCount)
+        let tail = title.suffix(tailCount)
+        
+        return "\(head)...\(tail)"
+    }
+    
     var body: some View {
         Button(action: {
             AppLogger.general.debug("[ChapterCard] Chapter \(viewModel.id) tapped: \(viewModel.chapter.title)")
@@ -245,7 +252,7 @@ struct ChapterCardView: View {
                 }
                 
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(viewModel.chapter.title)
+                    Text(truncateChapterTitle(viewModel.chapter.title))
                         .font(.subheadline)
                         .fontWeight(viewModel.isCurrent ? .semibold : .regular)
                         .foregroundColor(viewModel.isCurrent ? .primary : .primary)
@@ -337,4 +344,6 @@ struct ChapterCardView: View {
             perform: {}
         )
     }
+    
+    
 }

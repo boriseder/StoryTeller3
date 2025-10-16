@@ -276,15 +276,16 @@ struct BookCardView: View {
                 
                 ZStack {
                     Circle()
-                        .fill(.green)
+                        .fill(.ultraThickMaterial)
                         .frame(width: 32, height: 32)
+
                     
-                    Image(systemName: "checkmark")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundColor(.white)
+                    Image(systemName: "arrow.down.circle.fill")
+                        .font(.system(size: 28))
+                        .foregroundColor(.green)
                 }
                 .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
-                .padding(8)
+                .padding(DSLayout.tightPadding)
             }
             
             Spacer()
@@ -299,17 +300,17 @@ struct BookCardView: View {
                 Button(action: onDownload) {
                     ZStack {
                         Circle()
-                            .fill(.regularMaterial)
-                            .frame(width: 36, height: 36)
+                            .fill(.ultraThickMaterial)
+                            .frame(width: 32, height: 32)
                         
-                        Image(systemName: "arrow.down.circle.fill")
-                            .font(.system(size: 20))
+                        Image(systemName: "icloud.circle.fill")
+                            .font(.system(size: 28))
                             .foregroundColor(.accentColor)
                     }
                     .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
                 }
                 .buttonStyle(.plain)
-                .padding(8)
+                .padding(DSLayout.tightPadding)
             }
             
             Spacer()

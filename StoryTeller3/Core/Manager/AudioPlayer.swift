@@ -180,12 +180,6 @@ class AudioPlayer: NSObject, ObservableObject {
         let trackNumber = max(currentChapterIndex + 1, 1)
         let trackCount = max(book.chapters.count, 2) // mind. 2 für Prev/Next
         
-        AppLogger.general.debug("[AudioPlayer] trackNumber: \(trackNumber)")
-        AppLogger.general.debug("[AudioPlayer] trackCount: \(trackCount)")
-        
-        let trackName = "Unknown Title"
-        AppLogger.general.debug("[AudioPlayer] trackName: \(trackName)")
-
         var nowPlayingInfo: [String: Any] = [
             MPMediaItemPropertyTitle: currentChapter?.title ?? "Kapitel",
             MPMediaItemPropertyArtist: book.author ?? "Unknown Author",
