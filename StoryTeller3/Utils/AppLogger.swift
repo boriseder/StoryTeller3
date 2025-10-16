@@ -1,19 +1,32 @@
+//
+//  AppLogger.swift
+//  NavidromeClient
+//
+//  Created by Boris Eder on 16.10.25.
+//
+
 import os
 import Foundation
 
 enum AppLogger {
-    private static let subsystem = "com.meinefirma.StoryTeller3"
+    private static let subsystem = "at.amtabor.StoryTeller3"
 
-    struct LogWrapper {
+    // MARK: - Logger Wrapper
+    final class LogWrapper {
         let logger: Logger
         let category: String
+
+        init(logger: Logger, category: String) {
+            self.logger = logger
+            self.category = category
+        }
 
         func write(_ level: String, message: String, osLevel: OSLogType) {
             let timestamp = ISO8601DateFormatter().string(from: Date())
             let line = "[\(timestamp)] \(level) [\(category)] \(message)"
 
             #if DEBUG
-            print(line)
+            print(line) // direkt in Xcode-Konsole, keine Rekursion
             #endif
 
             AppLogger.writeToFile(line)
@@ -26,7 +39,7 @@ enum AppLogger {
         func error(_ msg: String) { write("❌ ERROR", message: msg, osLevel: .error) }
     }
 
-    // Kategorien
+    // MARK: - Kategorien
     static let general = LogWrapper(logger: Logger(subsystem: subsystem, category: "General"), category: "General")
     static let ui      = LogWrapper(logger: Logger(subsystem: subsystem, category: "UI"), category: "UI")
     static let network = LogWrapper(logger: Logger(subsystem: subsystem, category: "Network"), category: "Network")
