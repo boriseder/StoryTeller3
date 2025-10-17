@@ -22,7 +22,13 @@ struct LibraryView: View {
     ]
 
     var body: some View {
-        Group {
+        ZStack {
+            
+            if appConfig.userBackgroundStyle == .dynamic {
+                Color.accent.ignoresSafeArea()
+            }
+
+            
             switch viewModel.uiState {
             case .loading:
                 LoadingView()

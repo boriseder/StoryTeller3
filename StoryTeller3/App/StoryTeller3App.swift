@@ -24,7 +24,7 @@ struct StoryTeller3App: App {
         // No longer need setupTerminationHandler - AppDelegate handles it
         AppLogger.general.debug("[App] App initialized")
     }
-    
+
     private func setupCacheManager() {
         Task { @MainActor in
             CoverCacheManager.shared.updateCacheLimits()

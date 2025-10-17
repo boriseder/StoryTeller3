@@ -18,37 +18,37 @@ struct ContentView: View {
     enum TabIndex: Hashable {
         case home, library, series, downloads
     }
-
     
     var body: some View {
+        ZStack {
+            Color.accent.ignoresSafeArea()
+
+            switch appState.loadingState {
             
-            Group {
-                switch appState.loadingState {
-                case .initial, .loadingCredentials, .credentialsFoundValidating:
-                    LoadingView()
-                        .transition(.opacity)
-                    
-                case .noCredentialsSaved:
-                    Color.clear
-                        .onAppear {
-                            if UserDefaults.standard.string(forKey: "stored_username") != nil {
-                                Task {
-                                    await setupApp()
-                                }
-                            } else if appState.isFirstLaunch {
-                                appState.showingWelcome = true
-                            } else {
-                                appState.showingSettings = true
+            case .initial, .loadingCredentials, .credentialsFoundValidating:
+                    LoadingView(message: "Loading")
+                    .padding(.top, 56)   // avoid jumping from contentView to homeView
+
+            case .noCredentialsSaved:
+                Color.clear
+                    .onAppear {
+                        if UserDefaults.standard.string(forKey: "stored_username") != nil {
+                            Task {
+                                setupApp()
                             }
+                        } else if appState.isFirstLaunch {
+                            appState.showingWelcome = true
+                        } else {
+                            appState.showingSettings = true
                         }
-                    
-                case .networkError(let issueType):
+                    }
+            case .networkError(let issueType):
                     NetworkErrorView(
                         issueType: issueType,
                         downloadedBooksCount: downloadManager.downloadedBooks.count,
                         onRetry: {
                             Task {
-                                await setupApp()
+                                setupApp()
                             }
                         },
                         onViewDownloads: {
@@ -59,26 +59,22 @@ struct ContentView: View {
                             appState.showingSettings = true
                         }
                     )
-                    .transition(.opacity)
                     
-                case .authenticationError:
+            case .authenticationError:
                     AuthErrorView(
                         onReLogin: {
                             appState.showingSettings = true
                         }
                     )
-                    .transition(.opacity)
                     
-                case .loadingData:
-                    LoadingView()
-                        .transition(.opacity)
-                    
+            case .loadingData:
+                    LoadingView(message: "Loading")
+                    .padding(.top, 56)   // avoid jumping from contentView to homeView
+
                 case .ready:
                     mainContent
-                        .transition(.opacity)
-                }
             }
-        .animation(.easeInOut(duration: 0.25), value: appState.loadingState)
+        }
         .onAppear(perform: setupApp)
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)) { _ in
             if UserDefaults.standard.bool(forKey: "auto_cache_cleanup") {
@@ -90,7 +86,7 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: .init("ServerSettingsChanged"))) { _ in
             appState.clearConnectionIssue()
             Task {
-                await setupApp()
+                setupApp()
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .init("ShowSettings"))) { _ in
@@ -101,7 +97,7 @@ struct ContentView: View {
                 Task {
                     await appState.checkServerReachability()
                     if appState.isServerReachable {
-                        await setupApp()
+                        setupApp()
                     }
                 }
             }
@@ -118,7 +114,7 @@ struct ContentView: View {
                             Button("Done") {
                                 appState.showingSettings = false
                                 Task {
-                                    await setupApp()
+                                    setupApp()
                                 }
                             }
                         }
@@ -151,18 +147,21 @@ struct ContentView: View {
         }
     }
     
+    
     // MARK: - Tab Views
     
     private var homeTab: some View {
         NavigationStack {
-            if let api = appState.apiClient {
-                HomeView(
-                    player: player,
-                    api: api,
-                    downloadManager: downloadManager,
-                    onBookSelected: { openFullscreenPlayer() }
-                )
-                .environmentObject(appState)
+            ZStack {
+                if let api = appState.apiClient {
+                    HomeView(
+                        player: player,
+                        api: api,
+                        downloadManager: downloadManager,
+                        onBookSelected: { openFullscreenPlayer() }
+                    )
+                    .environmentObject(appState)
+                }
             }
         }
         .tabItem {
@@ -240,11 +239,13 @@ struct ContentView: View {
         .tag(TabIndex.downloads)
     }
 
+    
     // MARK: - Helper Functions
 
     private func openFullscreenPlayer() {
         playerStateManager.showFullscreen()
     }
+    
     
     // MARK: - Setup Methods
     
@@ -302,6 +303,7 @@ struct ContentView: View {
             AppLogger.general.debug("Initial data load failed: \(error)")
         }
     }
+    
     
     // MARK: - Connection Testing
     

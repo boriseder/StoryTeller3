@@ -5,7 +5,7 @@ class LibraryViewModel: ObservableObject {
     // MARK: - Published UI State
     @Published var books: [Book] = []
     @Published var filterState = LibraryFilterState()
-    @Published var libraryName: String = "Meine Bibliothek"
+    @Published var libraryName: String = "Library"
     @Published var isLoading = false
     @Published var errorMessage: String?
     @Published var showingErrorAlert = false

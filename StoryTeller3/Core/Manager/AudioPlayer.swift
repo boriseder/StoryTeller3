@@ -524,6 +524,8 @@ class AudioPlayer: NSObject, ObservableObject {
     private func startPreloadingNextChapter() {
         guard let book = book else { return }
         
+        AppLogger.audio.info("startPreloadingNextChapter() called")
+
         preloader.preloadNext(
             chapterIndex: currentChapterIndex,
             book: book,
@@ -758,6 +760,13 @@ class AudioPlayer: NSObject, ObservableObject {
             if Int(self.currentTime) % 5 == 0 {
                 self.updateNowPlayingInfo()
             }
+            
+            // Preload 30s vor Ende
+            if let duration = player.currentItem?.duration.seconds,
+               duration - self.currentTime <= 30 {
+                self.startPreloadingNextChapter()
+            }
+
         }
     }
     

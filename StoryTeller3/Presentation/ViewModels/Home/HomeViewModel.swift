@@ -10,6 +10,10 @@ class HomeViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var showingErrorAlert = false
     
+    // For smooth transistions
+    @Published var contentLoaded = false
+    @Published var sectionsLoaded = false
+    
     // MARK: - Dependencies (Use Cases & Repositories)
     private let fetchPersonalizedSectionsUseCase: FetchPersonalizedSectionsUseCaseProtocol
     private let playBookUseCase: PlayBookUseCase

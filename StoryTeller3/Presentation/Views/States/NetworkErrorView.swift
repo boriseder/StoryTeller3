@@ -16,21 +16,24 @@ struct NetworkErrorView: View {
     let onSettings: () -> Void
     
     var body: some View {
-        StateContainer {
-            VStack(spacing: 32) {
+        ZStack {
+            Color.white.opacity(0.3)
+                .frame(width: 360, height: 480)
+                .cornerRadius(DSCorners.comfortable)
+                .blur(radius: 0.5)
+            
+            VStack(spacing: DSLayout.contentGap) {
                 Image(systemName: issueType.systemImage)
-                    .font(.system(size: 80))
-                    .foregroundStyle(issueType.iconColor.gradient)
-                    .frame(width: 80, height: 80) // Consistent sizing
-                
-                VStack(spacing: 12) {
+                    .font(.system(size: 32))
+                    .foregroundStyle(.black.gradient)
+                    .frame(width: 40, height: 40)
+
+                VStack(spacing: DSLayout.contentGap) {
                     Text(issueType.userMessage)
-                        .font(.title2)
-                        .fontWeight(.semibold)
-                    
+                        .font(DSText.itemTitle)
+
                     Text(issueType.detailMessage)
-                        .font(.body)
-                        .foregroundColor(.secondary)
+                        .font(DSText.footnote)
                         .multilineTextAlignment(.center)
                 }
                 
@@ -51,13 +54,16 @@ struct NetworkErrorView: View {
                                 Image(systemName: "arrow.down.circle.fill")
                                 Text("View Downloaded Books")
                             }
-                            .font(.headline)
+                            .font(DSText.detail)
                             .foregroundColor(.white)
-                            .padding(.horizontal, 24)
-                            .padding(.vertical, 12)
+                            .padding(.horizontal, DSLayout.elementPadding)
+                            .padding(.vertical, DSLayout.elementPadding)
                             .background(Color.green)
                             .clipShape(Capsule())
                         }
+                        
+                        Text("or")
+                            .padding(.vertical, DSLayout.elementPadding)
                     }
                 }
                 
@@ -68,10 +74,10 @@ struct NetworkErrorView: View {
                                 Image(systemName: "arrow.clockwise")
                                 Text("Retry Connection")
                             }
-                            .font(.headline)
+                            .font(DSText.detail)
                             .foregroundColor(.white)
-                            .padding(.horizontal, 24)
-                            .padding(.vertical, 12)
+                            .padding(.horizontal, DSLayout.elementPadding)
+                            .padding(.vertical, DSLayout.elementPadding)
                             .background(Color.accentColor)
                             .clipShape(Capsule())
                         }

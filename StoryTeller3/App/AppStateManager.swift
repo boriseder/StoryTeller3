@@ -78,7 +78,7 @@ enum ConnectionIssueType: Equatable {
         case .noInternet:
             return "wifi.slash"
         case .serverUnreachable, .serverError:
-            return "server.rack"
+            return "icloud.slash"
         case .authInvalid:
             return "key.slash"
         }

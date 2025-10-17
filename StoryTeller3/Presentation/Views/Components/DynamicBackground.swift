@@ -16,15 +16,14 @@ struct DynamicBackground: View {
     ]
     
     var body: some View {
-        ZStack {
-            switch appConfig.userBackgroundStyle {
-            case .dynamic:
-                StaticLinearGradientBackground()
-            case .light:
-                Color.white.ignoresSafeArea()
-            case .dark:
-                Color.black.ignoresSafeArea()
-            }
+            
+        switch appConfig.userBackgroundStyle {
+        case .dynamic:
+            StaticLinearGradientBackground()
+        case .light:
+            Color.white.ignoresSafeArea()
+        case .dark:
+            Color.black.ignoresSafeArea()
         }
     }
 }
@@ -39,17 +38,19 @@ struct StaticLinearGradientBackground: View {
     
     var body: some View {
         ZStack {
+            Color.accent.ignoresSafeArea()
             LinearGradient(
                 colors: [
-                    Color.indigo.opacity(0.35),
-                    Color.blue.opacity(0.3),
-                    Color.teal.opacity(0.25)
+                    Color.indigo.opacity(0.55),
+                    Color.blue.opacity(0.35),
+                    Color.teal.opacity(0.45)
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
             .ignoresSafeArea()
-            
+            Color.black.opacity(0.7).ignoresSafeArea()
+
             // Statische Blobs
             ForEach(0..<6, id: \.self) { index in
                 StaticBlobView(index: index, colors: colors)

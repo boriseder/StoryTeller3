@@ -15,7 +15,12 @@ struct SeriesView: View {
     }
 
     var body: some View {
-        Group {
+        ZStack {
+            
+            if appConfig.userBackgroundStyle == .dynamic {
+                Color.accent.ignoresSafeArea()
+            }
+
             if viewModel.isLoading {
                 LoadingView()
             } else if let error = viewModel.errorMessage {

@@ -24,10 +24,8 @@ struct FullscreenPlayerContainer<Content: View>: View {
     
     var body: some View {
         GeometryReader { geometry in
-            ZStack {
                 // Main Content - TabView with TabBar
                 content
-                
                 // Global MiniPlayer - appears over content but TabBar remains visible
                 if playerStateManager.showMiniPlayer && player.book != nil && !playerStateManager.showFullscreenPlayer {
                     VStack {
@@ -100,7 +98,6 @@ struct FullscreenPlayerContainer<Content: View>: View {
                         removal: .move(edge: .bottom)
                     ))
                 }
-            }
         }
         .animation(.easeInOut(duration: 0.3), value: playerStateManager.showMiniPlayer)
         .animation(.easeInOut(duration: 0.4), value: playerStateManager.showFullscreenPlayer)

@@ -4,6 +4,7 @@
 //
 //  Created by Boris Eder on 23.09.25.
 //
+
 import SwiftUI
 
 enum LibraryUIState {
@@ -15,7 +16,7 @@ enum LibraryUIState {
     case content
 }
 
-enum HomeUIState {
+enum HomeUIState: Equatable {
     case loading
     case error(String)
     case empty

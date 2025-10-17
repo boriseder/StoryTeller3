@@ -24,10 +24,16 @@ struct HomeView: View {
     }
 
     var body: some View {
-        Group {
+        ZStack {
+            
+            if appConfig.userBackgroundStyle == .dynamic {
+                Color.accent.ignoresSafeArea()
+            }
+          
             switch viewModel.uiState {
+
             case .loading:
-                LoadingView()
+                LoadingView(message: "Loading")
             case .error(let message):
                 ErrorView(error: message)
             case .empty:
@@ -46,13 +52,13 @@ struct HomeView: View {
             appConfig.userBackgroundStyle.textColor == .white ? .dark : .light,
             for: .navigationBar
         )
-        .refreshable {
-            await viewModel.loadPersonalizedSections()
-        }
-         .toolbar {
+        .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 settingsButton
             }
+        }
+        .refreshable {
+            await viewModel.loadPersonalizedSections()
         }
         .alert("Error", isPresented: $viewModel.showingErrorAlert) {
             Button("OK") { }
@@ -66,29 +72,29 @@ struct HomeView: View {
             await viewModel.loadPersonalizedSectionsIfNeeded()
         }
         .sheet(item: $selectedSeries) { series in
-            SeriesDetailSheet(
-                series: series,
-                player: viewModel.player,
-                api: viewModel.api,
-                downloadManager: viewModel.downloadManager,
-                onBookSelected: viewModel.onBookSelected
-            )
-            .environmentObject(appState)
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
-        }
+        SeriesDetailSheet(
+            series: series,
+            player: viewModel.player,
+            api: viewModel.api,
+            downloadManager: viewModel.downloadManager,
+            onBookSelected: viewModel.onBookSelected
+        )
+        .environmentObject(appState)
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
+    }
         .sheet(item: $selectedAuthor) { authorWrapper in
-            AuthorDetailSheet(
-                authorName: authorWrapper.value,
-                player: viewModel.player,
-                api: viewModel.api,
-                downloadManager: viewModel.downloadManager,
-                onBookSelected: viewModel.onBookSelected
-            )
-            .environmentObject(appState)
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
-        }
+        AuthorDetailSheet(
+            authorName: authorWrapper.value,
+            player: viewModel.player,
+            api: viewModel.api,
+            downloadManager: viewModel.downloadManager,
+            onBookSelected: viewModel.onBookSelected
+        )
+        .environmentObject(appState)
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
+    }
     }
     
     // MARK: - Content View
@@ -96,21 +102,22 @@ struct HomeView: View {
     private var contentView: some View {
         ZStack {
             DynamicBackground()
-            
+            Color.clear.ignoresSafeArea()
+
             ScrollView {
                 LazyVStack(spacing: DSLayout.contentGap) {
                     homeHeaderView
+                        .opacity(viewModel.sectionsLoaded ? 1 : 0)
+                        .animation(.easeInOut(duration: 0.3).delay(0.1), value: viewModel.sectionsLoaded)
                     
-                    ForEach(viewModel.personalizedSections) { section in
+                    ForEach(Array(viewModel.personalizedSections.enumerated()), id: \.element.id) { index, section in
                         PersonalizedSectionView(
                             section: section,
                             player: viewModel.player,
                             api: viewModel.api,
                             downloadManager: viewModel.downloadManager,
                             onBookSelected: { book in
-                                Task {
-                                    await viewModel.playBook(book, appState: appState)
-                                }
+                                Task { await viewModel.playBook(book, appState: appState) }
                             },
                             onSeriesSelected: { series in
                                 selectedSeries = series
@@ -120,13 +127,28 @@ struct HomeView: View {
                             }
                         )
                         .environmentObject(appState)
+                        .opacity(viewModel.sectionsLoaded ? 1 : 0)
+                        .animation(
+                            .easeInOut(duration: 0.4).delay(0.1 + Double(index) * 0.1),
+                            value: viewModel.sectionsLoaded
+                        )
                     }
 
                     Spacer()
                         .frame(height: DSLayout.miniPlayerHeight)
                 }
             }
+            .scrollIndicators(.hidden)
             .padding(.horizontal, DSLayout.screenPadding)
+        }
+        .opacity(viewModel.contentLoaded ? 1 : 0)
+        .animation(.easeInOut(duration: 0.5), value: viewModel.contentLoaded)
+        .animation(.easeInOut(duration: 0.3), value: viewModel.uiState)
+        .onAppear {
+            viewModel.contentLoaded = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                viewModel.sectionsLoaded = true
+            }
         }
     }
     
@@ -179,6 +201,8 @@ struct PersonalizedSectionView: View {
     let onSeriesSelected: (Series) -> Void
     let onAuthorSelected: (String) -> Void
     
+    @EnvironmentObject var appConfig: AppConfig
+    
     var body: some View {
         VStack(alignment: .leading) {
             // Section Header
@@ -204,11 +228,13 @@ struct PersonalizedSectionView: View {
             HStack{
                 Image(systemName: sectionIcon)
                     .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.accentColor)
+                    .foregroundColor(appConfig.userBackgroundStyle == .light ? .black : .white)
                 
                 Text(section.label)
                     .font(.title2)
                     .fontWeight(.semibold)
+                    .foregroundColor(appConfig.userBackgroundStyle == .light ? .black : .white)
+
             }
             
             Spacer()
@@ -324,7 +350,7 @@ struct PersonalizedSectionView: View {
     }
 }
 
-// MARK: - Robust Series Card View for Debugging
+// MARK: - Series Card View
 struct SeriesCardView: View {
     let entity: PersonalizedEntity
     let api: AudiobookshelfAPI
@@ -428,6 +454,8 @@ struct AuthorCardView: View {
     let authorName: String
     let onTap: () -> Void
     
+    @EnvironmentObject var appConfig: AppConfig
+
     var body: some View {
         Button(action: onTap) {
             VStack(spacing: 8) {
@@ -443,6 +471,7 @@ struct AuthorCardView: View {
                 
                 Text(authorName)
                     .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(appConfig.userBackgroundStyle == .light ? .black : .white)
                     .lineLimit(2)
                     .multilineTextAlignment(.center)
                     .frame(width: 80)

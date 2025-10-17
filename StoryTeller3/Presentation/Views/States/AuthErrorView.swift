@@ -12,38 +12,41 @@ struct AuthErrorView: View {
     let onReLogin: () -> Void
     
     var body: some View {
-        StateContainer {
-            VStack(spacing: 32) {
-                Image(systemName: "key.slash.fill")
-                    .font(.system(size: 80))
-                    .foregroundStyle(.yellow.gradient)
-                    .frame(width: 80, height: 80) // Consistent sizing
+        ZStack {
+            Color.white.opacity(0.3)
+                .frame(width: 360, height: 240)
+                .cornerRadius(DSCorners.comfortable)
+                .blur(radius: 0.5)
 
+            VStack(spacing: DSLayout.contentGap) {
+                Image(systemName: "key.slash.fill")
+                    .font(.system(size: 32))
+                    .foregroundStyle(.black.gradient)
+                    .frame(width: 40, height: 40)
+                
                 VStack(spacing: 12) {
                     Text("Authentication Failed")
-                        .font(.title2)
-                        .fontWeight(.semibold)
+                        .font(DSText.itemTitle)
                     
                     Text("Your credentials are invalid or have expired. Please log in again.")
-                        .font(.body)
-                        .foregroundColor(.secondary)
+                        .font(DSText.footnote)
                         .multilineTextAlignment(.center)
                 }
-                
+                    
                 Button(action: onReLogin) {
                     HStack {
                         Image(systemName: "arrow.right.circle.fill")
                         Text("Update Credentials")
                     }
-                    .font(.headline)
+                    .font(DSText.detail)
                     .foregroundColor(.white)
-                    .padding(.horizontal, 32)
-                    .padding(.vertical, 16)
+                    .padding(.horizontal, DSLayout.elementPadding)
+                    .padding(.vertical, DSLayout.elementPadding)
                     .background(Color.accentColor)
                     .clipShape(Capsule())
                 }
             }
-            .padding(.horizontal, 40)
+            .padding(.horizontal, DSLayout.screenPadding)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }

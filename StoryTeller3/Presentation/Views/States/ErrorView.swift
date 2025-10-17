@@ -11,23 +11,26 @@ struct ErrorView: View {
     let error: String
     
     var body: some View {
-        StateContainer {
-            VStack(spacing: 24) {
-                Image(systemName: "wifi.exclamationmark")
-                    .font(.system(size: 60))
-                    .foregroundStyle(.red.gradient)
-                    .frame(width: 80, height: 80) // Consistent sizing
+        ZStack {
+            Color.white.opacity(0.3)
+                .frame(width: 360, height: 240)
+                .cornerRadius(DSCorners.comfortable)
+                .blur(radius: 0.5)
+            
+            VStack(spacing: DSLayout.contentGap) {
                 
+                Image(systemName: "icloud.slash")
+                    .font(.system(size: 32))
+                    .foregroundStyle(.black.gradient)
+                    .frame(width: 40, height: 40)
+
                 VStack(spacing: 12) {
                     Text("Connection error")
-                        .font(.title2)
-                        .fontWeight(.semibold)
-                    
+                        .font(DSText.itemTitle)
+
                     Text(error)
-                        .font(.body)
-                        .foregroundColor(.secondary)
+                        .font(DSText.footnote)
                         .multilineTextAlignment(.center)
-                        .fixedSize(horizontal: false, vertical: true) // Prevent layout shifts
                 }
                 .padding(.horizontal, 40)
             }

@@ -1,22 +1,28 @@
 import SwiftUI
 
 struct LoadingView: View {
-    @State var message: String = "Loading..."
+    let message: String
     
+    init(message: String = "Syncing...") {
+        self.message = message
+    }
     var body: some View {
-        StateContainer {
-            VStack(spacing: 20) {
+        ZStack {
+            Color.white.opacity(0.3)
+                .frame(width: 360, height: 240)
+                .cornerRadius(DSCorners.comfortable)
+                .blur(radius: 0.5)
+            
+            VStack(spacing: DSLayout.contentGap) {
                 ProgressView()
-                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
                     .scaleEffect(1.5)
-                    .frame(width: 60, height: 60, alignment: .center)
-                
-                Text(message)
-                    .font(DSText.detail)
-                    .foregroundStyle(DSColor.onDark)
-                    .frame(height: 24)
+                Text("Syncing...")
+                    .font(DSText.footnote)
+                    .foregroundColor(.secondary)
+
             }
-            .frame(minWidth: 100, minHeight: 120)
+            .frame(width: 60, height: 60)
         }
     }
 }
+

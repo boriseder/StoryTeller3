@@ -211,7 +211,7 @@ struct ContinueReadingCard: View {
                                 .lineLimit(1)
                         }
                     } else {
-                        Text("Loading...")
+                        Text("Syncing...")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                     }

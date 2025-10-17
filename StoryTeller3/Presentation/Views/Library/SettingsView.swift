@@ -412,13 +412,24 @@ struct SettingsView: View {
     // MARK: - Advanced Section
     
     private var advancedSection: some View {
-        Section {
-            NavigationLink(destination: AdvancedSettingsView(viewModel: viewModel)) {
-                Label("Advanced Settings", systemImage: "gearshape.2")
+        Group {
+            Section {
+                NavigationLink(destination: AdvancedSettingsView(viewModel: viewModel)) {
+                    Label("Advanced Settings", systemImage: "gearshape.2")
+                }
+            } footer: {
+                Text("Network settings, cache configuration, and debug options")
+                    .font(.caption)
             }
-        } footer: {
-            Text("Network settings, cache configuration, and debug options")
-                .font(.caption)
+            
+            Section {
+                NavigationLink(destination: DebugView()) {
+                    Label("Debug Settings", systemImage: "gearshape.2")
+                }
+            } footer: {
+                Text("Enable or disable various features for development purposes")
+                    .font(.caption)
+            }
         }
     }
     

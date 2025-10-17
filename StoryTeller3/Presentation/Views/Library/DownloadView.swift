@@ -22,93 +22,100 @@ struct DownloadsView: View {
     ]
     
     var body: some View {
-            Group {
-                if viewModel.downloadedBooks.isEmpty {
-                    emptyStateView
-                } else {
-                    contentView
-                }
+        ZStack {
+            
+            if appConfig.userBackgroundStyle == .dynamic {
+                Color.accent.ignoresSafeArea()
             }
-            .navigationTitle("Downloads")
-            .navigationBarTitleDisplayMode(.large)
-            .toolbarBackground(.visible, for: .navigationBar)
-            .toolbarBackground(.clear, for: .navigationBar)
-            .toolbarColorScheme(
-                appConfig.userBackgroundStyle.textColor == .white ? .dark : .light,
-                for: .navigationBar
-            )
-             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    toolbarButtons
-                }
+
+            if viewModel.downloadedBooks.isEmpty {
+                emptyStateView
+            } else {
+                contentView
             }
-            .alert("Delete book", isPresented: $viewModel.showingDeleteConfirmation) {
-                Button("Cancel", role: .cancel) {
-                    viewModel.cancelDelete()
-                }
-                Button("Delete", role: .destructive) {
-                    viewModel.confirmDeleteBook()
-                }
-            } message: {
-                if let book = viewModel.bookToDelete {
-                    Text("Are you sure? '\(book.title)' will be deleted.")
-                }
+        }
+        .navigationTitle("Downloads")
+        .navigationBarTitleDisplayMode(.large)
+        .toolbarBackground(.visible, for: .navigationBar)
+        .toolbarBackground(.clear, for: .navigationBar)
+        .toolbarColorScheme(
+            appConfig.userBackgroundStyle.textColor == .white ? .dark : .light,
+            for: .navigationBar
+        )
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                toolbarButtons
             }
-            .sheet(isPresented: $showingStorageInfo) {
-                storageInfoSheet
+        }
+        .alert("Delete book", isPresented: $viewModel.showingDeleteConfirmation) {
+            Button("Cancel", role: .cancel) {
+                viewModel.cancelDelete()
             }
-            .alert("Error", isPresented: $viewModel.showingErrorAlert) {
-                Button("OK") { }
-            } message: {
-                Text(viewModel.errorMessage ?? "Unknown error")
+            Button("Delete", role: .destructive) {
+                viewModel.confirmDeleteBook()
             }
+        } message: {
+            if let book = viewModel.bookToDelete {
+                Text("Are you sure? '\(book.title)' will be deleted.")
+            }
+        }
+        .sheet(isPresented: $showingStorageInfo) {
+            storageInfoSheet
+        }
+        .alert("Error", isPresented: $viewModel.showingErrorAlert) {
+            Button("OK") { }
+        } message: {
+            Text(viewModel.errorMessage ?? "Unknown error")
+        }
         
     }
     
     // MARK: - Empty State
     private var emptyStateView: some View {
-        StateContainer {
-            VStack(spacing: 32) {
-                Image(systemName: "arrow.down.circle")
-                    .font(.system(size: 80))
-                    .foregroundStyle(.orange.gradient)
-                    .frame(width: 80, height: 80)
-                
-                VStack(spacing: 8) {
-                    Text("No Downloads")
-                        .font(.title2)
-                        .fontWeight(.semibold)
+        ZStack {
+            HStack {
+                VStack(spacing: 32) {
+                    Image(systemName: "arrow.down.circle")
+                        .font(.system(size: 80))
+                        .foregroundStyle(.orange.gradient)
+                        .frame(width: 80, height: 80)
                     
-                    Text("Download books to listen offline. Look for the download button on book cards.")
-                        .font(.body)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                
-                VStack(spacing: 12) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "info.circle.fill")
-                            .foregroundColor(.blue)
-                        Text("Downloads are stored on this device only")
-                            .font(.caption)
+                    VStack(spacing: 8) {
+                        Text("No Downloads")
+                            .font(.title2)
+                            .fontWeight(.semibold)
+                        
+                        Text("Download books to listen offline. Look for the download button on book cards.")
+                            .font(.body)
                             .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                     
-                    HStack(spacing: 8) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(.green)
-                        Text("Downloaded books work without internet")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                    VStack(spacing: 12) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "info.circle.fill")
+                                .foregroundColor(.blue)
+                            Text("Downloads are stored on this device only")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        HStack(spacing: 8) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundColor(.green)
+                            Text("Downloaded books work without internet")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
                     }
+                    .padding(.top, 8)
                 }
-                .padding(.top, 8)
+                .padding(.horizontal, 40)
             }
-            .padding(.horizontal, 40)
         }
     }
-    
+
     // MARK: - Content View
     private var contentView: some View {
         ZStack {
