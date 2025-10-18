@@ -45,8 +45,7 @@ struct FullscreenPlayerContainer<Content: View>: View {
                                 }
                             }
                         )
-                        .padding(.horizontal, 16)
-                        .padding(.bottom, 49)
+                        .padding(.bottom, 50)
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
                     .zIndex(1)

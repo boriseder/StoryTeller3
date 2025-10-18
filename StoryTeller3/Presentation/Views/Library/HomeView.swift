@@ -134,9 +134,10 @@ struct HomeView: View {
                         )
                     }
 
-                    Spacer()
-                        .frame(height: DSLayout.miniPlayerHeight)
                 }
+                Spacer()
+                .frame(height: DSLayout.miniPlayerHeight)
+
             }
             .scrollIndicators(.hidden)
             .padding(.horizontal, DSLayout.screenPadding)
@@ -224,20 +225,18 @@ struct PersonalizedSectionView: View {
     }
     
     private var sectionHeader: some View {
-        HStack {
-            HStack{
+        HStack(alignment: .firstTextBaseline){
                 Image(systemName: sectionIcon)
-                    .font(.system(size: 16, weight: .medium))
+                    .font(DSText.itemTitle)
                     .foregroundColor(appConfig.userBackgroundStyle == .light ? .black : .white)
                 
                 Text(section.label)
-                    .font(.title2)
+                    .font(DSText.itemTitle)
                     .fontWeight(.semibold)
                     .foregroundColor(appConfig.userBackgroundStyle == .light ? .black : .white)
 
-            }
             
-            Spacer()
+                Spacer()
             /*
             if section.total > section.entities.count {
                 Text("\(section.entities.count) of \(section.total)")
@@ -284,7 +283,7 @@ struct PersonalizedSectionView: View {
             player: player,
             api: api,
             downloadManager: downloadManager,
-            cardStyle: .library,
+            cardStyle: .series,
             onBookSelected: onBookSelected
         )
     }
@@ -361,7 +360,7 @@ struct SeriesCardView: View {
     
     var body: some View {
         Button(action: onTap) {
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: DSLayout.tightGap) {
                 Group {
                     if let series = entity.asSeries,
                        let firstBook = series.books.first,
@@ -373,12 +372,12 @@ struct SeriesCardView: View {
                             api: api,
                             downloadManager: downloadManager
                         )
-                        .clipShape(RoundedRectangle(cornerRadius: cardStyle.cornerRadius))
+                        .clipShape(RoundedRectangle(cornerRadius: DSCorners.content))
                     }
                 }
                 .padding(DSLayout.elementGap)
 
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: DSLayout.tightGap) {
                     Text(displayName)
                         .font(DSText.emphasized)
                         .lineLimit(2)

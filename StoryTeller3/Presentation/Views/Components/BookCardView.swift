@@ -4,62 +4,27 @@ import SwiftUI
 enum BookCardStyle {
     case library
     case series
-    case compact
     
     var coverSize: CGFloat {
         switch self {
-        case .library: return 152
-        case .series: return 152
-        case .compact: return 80
-        }
-    }
-    
-    var cardPadding: CGFloat {
-        switch self {
-        case .library: return 8
-        case .series: return 8
-        case .compact: return 8
-        }
-    }
-    
-    var textPadding: CGFloat {
-        switch self {
-        case .library: return 8
-        case .series: return 8
-        case .compact: return 4
+        case .library: return 150
+        case .series: return 150
         }
     }
     
     var dimensions: (width: CGFloat, height: CGFloat, infoHeight: CGFloat) {
-        let cardWidth = coverSize + (cardPadding * 2)
-        let cardHeight = cardWidth * 1.45 // 40% höher als breit
-        let infoHeight: CGFloat = cardHeight - coverSize - (cardPadding * 3)
+        let cardWidth = coverSize + (DSLayout.elementPadding * 2)
+        let cardHeight = cardWidth * 1.40// 40% höher als breit
+        let infoHeight: CGFloat = cardHeight - coverSize - 3 * DSLayout.elementPadding
         
+        /*
+        AppLogger.ui.info("### coverSize: \(coverSize)")
+        AppLogger.ui.info("### cardWidth: \(cardWidth)")
+        AppLogger.ui.info("### cardHeight: \(cardHeight)")
+        AppLogger.ui.info("### infoHeight: \(infoHeight)")
+        */
+          
         return (width: cardWidth, height: cardHeight, infoHeight: infoHeight)
-    }
-    
-    var cornerRadius: CGFloat {
-        switch self {
-        case .library: return 8
-        case .series: return 8
-        case .compact: return 4
-        }
-    }
-    
-    var titleFont: Font {
-        switch self {
-        case .library: return .system(size: 16, weight: .semibold, design: .rounded)
-        case .series: return .system(size: 12, weight: .semibold, design: .rounded)
-        case .compact: return .system(size: 10, weight: .semibold, design: .rounded)
-        }
-    }
-    
-    var authorFont: Font {
-        switch self {
-        case .library: return .system(size: 12, weight: .medium)
-        case .series: return .system(size: 10, weight: .medium)
-        case .compact: return .system(size: 9, weight: .medium)
-        }
     }
 }
 
@@ -87,19 +52,18 @@ struct BookCardView: View {
                     bookCoverSection
                     Spacer()
                 }
-                .padding(.top, style.cardPadding)
+                .padding(.top, DSLayout.elementPadding)
                 
                 Spacer()
-                
                 bookInfoSection
                     .frame(height: dimensions.infoHeight)
-                    .padding(.bottom, style.cardPadding)
-                    .padding(.horizontal, style.cardPadding)
+                    .padding(.bottom, DSLayout.elementPadding)
+                    .padding(.horizontal, DSLayout.elementPadding)
             }
             .frame(width: dimensions.width, height: dimensions.height)
             .background {
-                RoundedRectangle(cornerRadius: style.cornerRadius)
-                    .fill(.ultraThinMaterial)
+                RoundedRectangle(cornerRadius: DSCorners.element)
+                    .fill(.regularMaterial)
                     .shadow(
                         color: .black.opacity(0.1),
                         radius: isPressed ? 4 : 12,
@@ -108,7 +72,7 @@ struct BookCardView: View {
                     )
             }
             .overlay {
-                RoundedRectangle(cornerRadius: style.cornerRadius)
+                RoundedRectangle(cornerRadius: DSCorners.element)
                     .stroke(
                         viewModel.isCurrentBook ? Color.accentColor : Color.clear,
                         lineWidth: 2
@@ -132,7 +96,6 @@ struct BookCardView: View {
             },
             perform: {}
         )
-        .padding(.trailing, DSLayout.elementPadding)
     }
     
     // MARK: - Book Cover Section
@@ -145,7 +108,7 @@ struct BookCardView: View {
                 downloadManager: nil,
                 showProgress: false
             )
-            .clipShape(RoundedRectangle(cornerRadius: style.cornerRadius))
+            .clipShape(RoundedRectangle(cornerRadius: DSCorners.tight))
             
             VStack {
                 HStack {
@@ -259,7 +222,7 @@ struct BookCardView: View {
                     .foregroundColor(.white)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 4)
-                    .background(Color.red.opacity(0.8))
+                    .background(Color.white.opacity(0.8))
                     .clipShape(Capsule())
                 }
                 .buttonStyle(.plain)
@@ -338,19 +301,22 @@ struct BookCardView: View {
     }
     
     private var bookInfoSection: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading) {
+            
+            // Text soll in zwei Zeilen sein
             Text(viewModel.book.displayTitle)
-                .font(style.titleFont)
+                .font(DSText.emphasized)
                 .foregroundColor(.primary)
                 .lineLimit(2)
                 .multilineTextAlignment(.leading)
-                .frame(minHeight: DSLayout.contentGap, alignment: .top)
-
+                //.frame(maxWidth: .infinity, alignment: .leading)
+                .fixedSize(horizontal: false, vertical: true)
+            
             Spacer()
 
-            VStack(alignment: .leading, spacing: style == .compact ? 2 : 4) {
+            VStack(alignment: .leading) {
                 Text(viewModel.book.author ?? "Unbekannter Autor")
-                    .font(style.authorFont)
+                    .font(DSText.footnote)
                     .foregroundColor(.secondary)
                     .lineLimit(1)
 
@@ -359,8 +325,7 @@ struct BookCardView: View {
                 }
             }
         }
-        .padding(.horizontal, style.textPadding)
-        .frame(maxWidth: .infinity, alignment: .leading)
+       // .frame(maxWidth: .infinity, alignment: .leading)
     }
     
     private var bookProgressIndicator: some View {

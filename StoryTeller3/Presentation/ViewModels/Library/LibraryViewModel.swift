@@ -10,6 +10,9 @@ class LibraryViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var showingErrorAlert = false
     
+    // For smooth transistions
+    @Published var contentLoaded = false
+
     // MARK: - Dependencies (Use Cases & Repositories)
     private let fetchBooksUseCase: FetchBooksUseCaseProtocol
     private let playBookUseCase: PlayBookUseCase

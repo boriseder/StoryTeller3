@@ -29,7 +29,7 @@ struct DownloadsView: View {
             }
 
             if viewModel.downloadedBooks.isEmpty {
-                emptyStateView
+                EmptyStateView()
             } else {
                 contentView
             }
@@ -67,55 +67,8 @@ struct DownloadsView: View {
         } message: {
             Text(viewModel.errorMessage ?? "Unknown error")
         }
-        
     }
     
-    // MARK: - Empty State
-    private var emptyStateView: some View {
-        ZStack {
-            HStack {
-                VStack(spacing: 32) {
-                    Image(systemName: "arrow.down.circle")
-                        .font(.system(size: 80))
-                        .foregroundStyle(.orange.gradient)
-                        .frame(width: 80, height: 80)
-                    
-                    VStack(spacing: 8) {
-                        Text("No Downloads")
-                            .font(.title2)
-                            .fontWeight(.semibold)
-                        
-                        Text("Download books to listen offline. Look for the download button on book cards.")
-                            .font(.body)
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    
-                    VStack(spacing: 12) {
-                        HStack(spacing: 8) {
-                            Image(systemName: "info.circle.fill")
-                                .foregroundColor(.blue)
-                            Text("Downloads are stored on this device only")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                        
-                        HStack(spacing: 8) {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundColor(.green)
-                            Text("Downloaded books work without internet")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                    .padding(.top, 8)
-                }
-                .padding(.horizontal, 40)
-            }
-        }
-    }
-
     // MARK: - Content View
     private var contentView: some View {
         ZStack {
@@ -165,9 +118,16 @@ struct DownloadsView: View {
                     Spacer()
                         .frame(height: DSLayout.miniPlayerHeight)
                 }
+                Spacer()
+                .frame(height: DSLayout.miniPlayerHeight)
             }
+            .scrollIndicators(.hidden)
             .padding(.horizontal, DSLayout.screenPadding)
         }
+        .opacity(viewModel.contentLoaded ? 1 : 0)
+        .animation(.easeInOut(duration: 0.5), value: viewModel.contentLoaded)
+        .onAppear { viewModel.contentLoaded = true }
+
     }
     
     // MARK: - Storage Warning Banner

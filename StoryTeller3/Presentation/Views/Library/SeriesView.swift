@@ -73,7 +73,7 @@ struct SeriesView: View {
             DynamicBackground()
             
             ScrollView {
-                LazyVStack(spacing: 20) {
+                LazyVStack(spacing: DSLayout.contentGap) {
                     ForEach(viewModel.filteredAndSortedSeries) { series in
                         SeriesSectionView(
                             series: series,
@@ -87,10 +87,16 @@ struct SeriesView: View {
                         .environmentObject(appState)
                     }
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 16)
+                Spacer()
+                .frame(height: DSLayout.miniPlayerHeight)
             }
+            .scrollIndicators(.hidden)
+            .padding(.horizontal, DSLayout.screenPadding)
         }
+        .opacity(viewModel.contentLoaded ? 1 : 0)
+        .animation(.easeInOut(duration: 0.5), value: viewModel.contentLoaded)
+        .onAppear { viewModel.contentLoaded = true }
+
     }
     
     // MARK: - Toolbar Components

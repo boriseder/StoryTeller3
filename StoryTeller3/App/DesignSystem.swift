@@ -52,7 +52,7 @@ enum DSLayout {
 // MARK: - Corners (Ersetzt Radius)
 
 enum DSCorners {
-    static let tight: CGFloat = 3           // AlbumCover mini
+    static let tight: CGFloat = 4           // AlbumCover mini
     static let element: CGFloat = 8         // Buttons, small elements
     static let content: CGFloat = 16        // Cards, containers
     static let comfortable: CGFloat = 24    // Large containers

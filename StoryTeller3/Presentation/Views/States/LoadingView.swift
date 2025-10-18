@@ -8,17 +8,20 @@ struct LoadingView: View {
     }
     var body: some View {
         ZStack {
+            
             Color.white.opacity(0.3)
-                .frame(width: 360, height: 240)
+                .frame(width: 240, height: 120)
                 .cornerRadius(DSCorners.comfortable)
                 .blur(radius: 0.5)
             
             VStack(spacing: DSLayout.contentGap) {
                 ProgressView()
+                    .tint(.white)
                     .scaleEffect(1.5)
+
                 Text("Syncing...")
                     .font(DSText.footnote)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.white)
 
             }
             .frame(width: 60, height: 60)

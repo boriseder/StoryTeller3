@@ -17,9 +17,9 @@ struct LibraryView: View {
         ))
     }
     
-    private let columns = [
-        GridItem(.adaptive(minimum: 132, maximum: 160), spacing: 16)
-    ]
+    // private let columns = [GridItem(.adaptive(minimum: 132, maximum: 160), spacing: 16) ]
+    private let columns = [GridItem(.flexible()), GridItem(.flexible())]
+
 
     var body: some View {
         ZStack {
@@ -93,7 +93,7 @@ struct LibraryView: View {
             .presentationDetents([.medium])
             .presentationDragIndicator(.visible)
         }
-        .onChange(of: viewModel.filteredAndSortedBooks.count) { _ in
+        .onChange(of: viewModel.filteredAndSortedBooks.count) {
             updateBookCardViewModels()
         }
         .onReceive(viewModel.player.$currentTime.throttle(for: .seconds(2), scheduler: RunLoop.main, latest: true)) { _ in
@@ -125,7 +125,7 @@ struct LibraryView: View {
                 }
                 
                 ScrollView {
-                    LazyVGrid(columns: columns, spacing: 12) {
+                    LazyVGrid(columns: columns, spacing: DSLayout.contentGap) {
                         ForEach(bookCardVMs) { bookVM in
                             BookCardView(
                                 viewModel: bookVM,
@@ -141,14 +141,21 @@ struct LibraryView: View {
                                 },
                                 style: .library
                             )
+
                         }
                     }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 8)
+
+                    Spacer()
+                    .frame(height: DSLayout.miniPlayerHeight)
                 }
                 .scrollIndicators(.hidden)
+                .padding(.horizontal, DSLayout.screenPadding)
             }
         }
+        .opacity(viewModel.contentLoaded ? 1 : 0)
+        .animation(.easeInOut(duration: 0.5), value: viewModel.contentLoaded)
+        .animation(.easeInOut(duration: 0.3), value: viewModel.uiState)
+        .onAppear { viewModel.contentLoaded = true }
     }
     
     // MARK: - Ultra-Optimized Update Logic

@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-enum LibraryUIState {
+enum LibraryUIState: Equatable {
     case loading
     case error(String)
     case empty

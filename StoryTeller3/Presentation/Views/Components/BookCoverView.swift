@@ -54,10 +54,9 @@ struct BookCoverView: View {
         .onAppear {
             loader.load()
         }
-        .onChange(of: book.id) { _, _ in
+        .onChange(of: book.id) {
             loader.load()
         }
-        // MEMORY LEAK FIX - Cancel loading when view disappears
         .onDisappear {
             loader.cancelLoading()
         }

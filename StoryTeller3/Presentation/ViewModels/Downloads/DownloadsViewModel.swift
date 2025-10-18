@@ -7,6 +7,9 @@ class DownloadsViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var showingErrorAlert = false
     
+    // For smooth transistions
+    @Published var contentLoaded = false
+
     // MARK: - Dependencies
     private let downloadUseCase: DownloadBookUseCase
     private let playBookUseCase: PlayBookUseCase

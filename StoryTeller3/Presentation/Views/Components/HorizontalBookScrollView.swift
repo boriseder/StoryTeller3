@@ -17,7 +17,7 @@ struct HorizontalBookScrollView: View {
         player: AudioPlayer,
         api: AudiobookshelfAPI,
         downloadManager: DownloadManager,
-        cardStyle: BookCardStyle = .series,
+        cardStyle: BookCardStyle = .library,
         onBookSelected: @escaping (Book) -> Void
     ) {
         self.books = books
@@ -30,7 +30,7 @@ struct HorizontalBookScrollView: View {
     
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 4) {
+            HStack(spacing: DSLayout.elementGap) {
                 ForEach(bookCardVMs) { bookVM in
                     BookCardView(
                         viewModel: bookVM,
