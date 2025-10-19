@@ -87,8 +87,9 @@ class HomeViewModel: ObservableObject {
                 return
             }
 
-            libraryName = "\(selectedLibrary.name) - Home"
-            
+            // libraryName = "\(selectedLibrary.name) - Home"
+            libraryName = "Explore & listen"
+
             // Fetch sections and stats in parallel
             async let sectionsTask = fetchPersonalizedSectionsUseCase.execute(
                 libraryId: selectedLibrary.id

@@ -69,8 +69,9 @@ class SeriesViewModel: ObservableObject {
                 return
             }
 
-            libraryName = "\(selectedLibrary.name) - Serien"
-            
+            //libraryName = "\(selectedLibrary.name) - Serien"
+            libraryName = "Series"
+
             let fetchedSeries = try await fetchSeriesUseCase.execute(
                 libraryId: selectedLibrary.id
             )

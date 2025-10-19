@@ -34,7 +34,7 @@ struct DownloadsView: View {
                 contentView
             }
         }
-        .navigationTitle("Downloads")
+        .navigationTitle("Downloaded")
         .navigationBarTitleDisplayMode(.large)
         .toolbarBackground(.visible, for: .navigationBar)
         .toolbarBackground(.clear, for: .navigationBar)

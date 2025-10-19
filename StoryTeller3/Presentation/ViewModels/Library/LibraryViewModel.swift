@@ -111,8 +111,9 @@ class LibraryViewModel: ObservableObject {
                 return
             }
             
-            libraryName = library.name
-            
+            // libraryName = library.name
+            libraryName = "Library"
+
             let fetchedBooks = try await fetchBooksUseCase.execute(
                 libraryId: library.id,
                 collapseSeries: filterState.showSeriesGrouped
