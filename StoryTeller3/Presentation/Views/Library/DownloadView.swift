@@ -17,10 +17,6 @@ struct DownloadsView: View {
         ))
     }
     
-    private let columns = [
-        GridItem(.adaptive(minimum: 132, maximum: 160), spacing: 16)
-    ]
-    
     var body: some View {
         ZStack {
             
@@ -84,9 +80,10 @@ struct DownloadsView: View {
                 LazyVStack(spacing: DSLayout.contentGap) {
                     // Statistics card
                     downloadStatsCard
-                    
+                        .padding(.bottom, DSLayout.contentPadding)
+
                     // Books grid
-                    LazyVGrid(columns: columns, spacing: 12) {
+                    LazyVGrid(columns: DSGridColumns.two) {
                         ForEach(viewModel.downloadedBooks) { book in
                             let bookVM = BookCardStateViewModel(
                                 book: book,
@@ -174,11 +171,7 @@ struct DownloadsView: View {
         VStack(spacing: DSLayout.elementGap) {
             HStack {
                 VStack(alignment: .leading, spacing: DSLayout.tightGap) {
-                    Text("Downloaded Books")
-                        .font(.headline)
-                        .foregroundColor(.primary)
-                    
-                    Text("\(viewModel.downloadedBooks.count) books available offline")
+                    Text("\(viewModel.downloadedBooks.count) \(viewModel.downloadedBooks.count == 1 ? "book" : "books") available offline")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -215,9 +208,9 @@ struct DownloadsView: View {
                 )
             }
         }
-        .padding(DSLayout.contentGap)
+        .padding(DSLayout.contentPadding)
         .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .clipShape(RoundedRectangle(cornerRadius: DSCorners.element))
         .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
     }
     

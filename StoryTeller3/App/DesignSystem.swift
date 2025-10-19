@@ -142,7 +142,7 @@ enum DSAnimations {
 }
 
 // MARK: - Grid Helpers
-enum GridColumns {
+enum DSGridColumns {
     static let two = Array(repeating: GridItem(.flexible(), spacing: DSLayout.contentGap), count: 2)
     static let three = Array(repeating: GridItem(.flexible(), spacing: DSLayout.elementGap), count: 3)
     static let four = Array(repeating: GridItem(.flexible(), spacing: DSLayout.elementGap), count: 4)

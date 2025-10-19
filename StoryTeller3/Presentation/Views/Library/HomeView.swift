@@ -177,7 +177,7 @@ struct HomeView: View {
         }
         .padding(DSLayout.contentGap)
         .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .clipShape(RoundedRectangle(cornerRadius: DSCorners.element))
         .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
     }
     
@@ -213,10 +213,13 @@ struct PersonalizedSectionView: View {
             switch section.type {
             case "book":
                 bookSection
+
             case "series":
                 seriesSection
+
             case "authors":
                 authorsSection
+
             default:
                 // Fallback for unknown types - treat as books
                 bookSection
@@ -249,7 +252,7 @@ struct PersonalizedSectionView: View {
             }
              */
         }
-        .padding(.top, DSLayout.elementPadding)
+        .padding(.top, DSLayout.contentPadding)
 
     }
     
@@ -356,7 +359,7 @@ struct SeriesCardView: View {
     let downloadManager: DownloadManager
     let onTap: () -> Void
     
-    private let cardStyle: BookCardStyle = .library
+    private let cardStyle: BookCardStyle = .series
     
     var body: some View {
         Button(action: onTap) {
@@ -375,32 +378,22 @@ struct SeriesCardView: View {
                         .clipShape(RoundedRectangle(cornerRadius: DSCorners.content))
                     }
                 }
-                .padding(DSLayout.elementGap)
+                .padding(.top, DSLayout.elementGap)
+                .padding(.horizontal, DSLayout.elementGap)
 
-                VStack(alignment: .leading, spacing: DSLayout.tightGap) {
-                    Text(displayName)
-                        .font(DSText.emphasized)
-                        .lineLimit(2)
-                        .multilineTextAlignment(.leading)
-                    
-                    if let author = displayAuthor {
-                        Text(author)
-                            .font(DSText.fine)
-                            .foregroundColor(.secondary)
-                            .lineLimit(1)
-                    }
-                    
-                    Text(displayBookCount)
-                        .font(DSText.metadata)
-                        .foregroundColor(.secondary)
-                }
-                .frame(width: cardStyle.coverSize, alignment: .leading)
-                .padding(DSLayout.elementGap)
+                Text(displayName)
+                    .font(DSText.emphasized)
+                    .foregroundColor(.primary)
+                    .lineLimit(1)
+                    .frame(maxWidth: cardStyle.coverSize, alignment: .leading)
+                    .fixedSize(horizontal: true, vertical: true)
+                    .padding(.vertical, DSLayout.elementPadding)
+                    .padding(.horizontal, DSLayout.elementPadding)
 
             }
             .background {
                 RoundedRectangle(cornerRadius: DSCorners.element)
-                    .fill(.ultraThinMaterial)
+                    .fill(.regularMaterial)
                     .shadow(
                         color: .black.opacity(0.1),
                         radius: 4,

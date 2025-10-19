@@ -37,7 +37,7 @@ struct SeriesSectionView: View {
                 }
             )
         }
-        .padding(DSLayout.elementPadding)
+        .padding(.vertical, DSLayout.elementPadding)
        /* .background  {
             RoundedRectangle(cornerRadius: DSCorners.content)
                 .fill(.regularMaterial)
@@ -48,31 +48,38 @@ struct SeriesSectionView: View {
     
     private var seriesHeader: some View {
         
-        VStack (alignment: .leading) {
-            HStack (alignment: .firstTextBaseline){
-                Image(systemName: "books.vertical")
-                    .font(DSText.itemTitle)
-                    .foregroundColor(.white)
-                
-                Text(viewModel.series.name)
-                    .font(DSText.itemTitle)
-                    .foregroundColor(.white)
-            }
-            HStack (alignment: .firstTextBaseline){
-                if let author = viewModel.series.author {
-                    Text(author)
-                        .font(DSText.metadata)
+            HStack{
+                VStack (alignment: .leading) {
+                    Image(systemName: "books.vertical")
+                        .font(DSText.itemTitle)
                         .foregroundColor(.white)
+                    
+                }
+                VStack (alignment: .leading) {
+                    HStack {
+                        Text(viewModel.series.name)
+                            .font(DSText.metadata)
+                            .foregroundColor(.white)
+                    }
+                    HStack (alignment: .firstTextBaseline){
+                        if let author = viewModel.series.author {
+                            Text("\(author) -")
+                                .font(DSText.footnote)
+                                .foregroundColor(.white)
+                                .lineLimit(1)
+                        }
+                        Text("\(viewModel.series.bookCount) books")
+                            .font(DSText.metadata)
+                            .foregroundColor(.white)
+                    }
                 }
                 Spacer()
-                Text("\(viewModel.series.bookCount) books")
-                    .font(DSText.metadata)
-                    .foregroundColor(.white)
+
             }
-        }
-            
-        .padding(.top, DSLayout.elementPadding)
-        
+            .padding(.bottom, DSLayout.tightPadding)
+            .padding(.top, DSLayout.elementPadding)
+            .padding(.trailing, DSLayout.contentPadding)
+
         
         /*
          HStack {

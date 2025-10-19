@@ -199,12 +199,9 @@ struct AuthorDetailSheet: View {
     }
     
     private var booksGridView: some View {
-        let columns = [
-            GridItem(.adaptive(minimum: 120, maximum: 140), spacing: 12)
-        ]
         
         return ScrollView {
-            LazyVGrid(columns: columns, spacing: 12) {
+            LazyVGrid(columns: DSGridColumns.two) {
                 ForEach(authorBooks) { book in
                     let viewModel = BookCardStateViewModel(
                         book: book,

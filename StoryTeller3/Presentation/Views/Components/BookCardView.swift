@@ -7,8 +7,8 @@ enum BookCardStyle {
     
     var coverSize: CGFloat {
         switch self {
-        case .library: return 150
-        case .series: return 150
+        case .library: return 152
+        case .series: return 152
         }
     }
     
@@ -16,14 +16,7 @@ enum BookCardStyle {
         let cardWidth = coverSize + (DSLayout.elementPadding * 2)
         let cardHeight = cardWidth * 1.40// 40% höher als breit
         let infoHeight: CGFloat = cardHeight - coverSize - 3 * DSLayout.elementPadding
-        
-        /*
-        AppLogger.ui.info("### coverSize: \(coverSize)")
-        AppLogger.ui.info("### cardWidth: \(cardWidth)")
-        AppLogger.ui.info("### cardHeight: \(cardHeight)")
-        AppLogger.ui.info("### infoHeight: \(infoHeight)")
-        */
-          
+                  
         return (width: cardWidth, height: cardHeight, infoHeight: infoHeight)
     }
 }
@@ -54,13 +47,26 @@ struct BookCardView: View {
                 }
                 .padding(.top, DSLayout.elementPadding)
                 
-                Spacer()
-                bookInfoSection
-                    .frame(height: dimensions.infoHeight)
-                    .padding(.bottom, DSLayout.elementPadding)
-                    .padding(.horizontal, DSLayout.elementPadding)
+                if style == .series {
+                    Text(viewModel.book.displayTitle)
+                        .font(DSText.metadata)
+                        .foregroundColor(.primary)
+                        .lineLimit(1)
+                        .frame(maxWidth: dimensions.width - 2 * DSLayout.elementPadding, alignment: .leading)
+                        .fixedSize(horizontal: true, vertical: true)
+                        .padding(.vertical, DSLayout.elementPadding)
+                        .padding(.horizontal, DSLayout.elementPadding)
+
+                } else {
+                    Spacer()
+
+                    bookInfoSection
+                        //.frame(height: dimensions.infoHeight)
+                        .padding(.bottom, DSLayout.elementPadding)
+                        .padding(.horizontal, DSLayout.elementPadding)
+                }
             }
-            .frame(width: dimensions.width, height: dimensions.height)
+            //.frame(width: dimensions.width, height: dimensions.height)
             .background {
                 RoundedRectangle(cornerRadius: DSCorners.element)
                     .fill(.regularMaterial)
@@ -136,6 +142,31 @@ struct BookCardView: View {
         .frame(width: style.coverSize, height: style.coverSize)
     }
     
+    private var bookInfoSection: some View {
+        VStack(alignment: .leading) {
+            
+            Text(viewModel.book.displayTitle)
+                .font(DSText.metadata)
+                .foregroundColor(.primary)
+                .lineLimit(1)
+                .frame(maxWidth: style.coverSize, alignment: .leading)
+                .fixedSize(horizontal: true, vertical: true)
+            
+            Spacer()
+            
+            VStack(alignment: .leading) {
+                Text(viewModel.book.author ?? "Unbekannter Autor")
+                    .font(DSText.footnote)
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+
+                if viewModel.isCurrentBook && viewModel.duration > 0 && style == .library {
+                    bookProgressIndicator
+                }
+            }
+        }
+    }
+
     private var seriesBadge: some View {
         HStack(spacing: 4) {
             Image(systemName: "books.vertical.fill")
@@ -168,7 +199,7 @@ struct BookCardView: View {
     private var downloadingOverlay: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 8)
-                .fill(.ultraThinMaterial)
+                .fill(.regularMaterial)
                 .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
             
             VStack(spacing: 8) {
@@ -299,35 +330,7 @@ struct BookCardView: View {
         }
         .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
     }
-    
-    private var bookInfoSection: some View {
-        VStack(alignment: .leading) {
-            
-            // Text soll in zwei Zeilen sein
-            Text(viewModel.book.displayTitle)
-                .font(DSText.emphasized)
-                .foregroundColor(.primary)
-                .lineLimit(2)
-                .multilineTextAlignment(.leading)
-                //.frame(maxWidth: .infinity, alignment: .leading)
-                .fixedSize(horizontal: false, vertical: true)
-            
-            Spacer()
-
-            VStack(alignment: .leading) {
-                Text(viewModel.book.author ?? "Unbekannter Autor")
-                    .font(DSText.footnote)
-                    .foregroundColor(.secondary)
-                    .lineLimit(1)
-
-                if viewModel.isCurrentBook && viewModel.duration > 0 && style == .library {
-                    bookProgressIndicator
-                }
-            }
-        }
-       // .frame(maxWidth: .infinity, alignment: .leading)
-    }
-    
+        
     private var bookProgressIndicator: some View {
         VStack(spacing: 4) {
             ProgressView(value: viewModel.currentProgress)

@@ -17,10 +17,6 @@ struct LibraryView: View {
         ))
     }
     
-    // private let columns = [GridItem(.adaptive(minimum: 132, maximum: 160), spacing: 16) ]
-    private let columns = [GridItem(.flexible()), GridItem(.flexible())]
-
-
     var body: some View {
         ZStack {
             
@@ -125,7 +121,7 @@ struct LibraryView: View {
                 }
                 
                 ScrollView {
-                    LazyVGrid(columns: columns, spacing: DSLayout.contentGap) {
+                    LazyVGrid(columns: DSGridColumns.two) {
                         ForEach(bookCardVMs) { bookVM in
                             BookCardView(
                                 viewModel: bookVM,
@@ -143,6 +139,7 @@ struct LibraryView: View {
                             )
 
                         }
+                        .padding(.bottom, DSLayout.elementPadding)
                     }
 
                     Spacer()
