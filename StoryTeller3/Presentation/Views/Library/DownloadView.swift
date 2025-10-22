@@ -2,9 +2,9 @@ import SwiftUI
 
 struct DownloadsView: View {
     @StateObject private var viewModel: DownloadsViewModel
-    @EnvironmentObject private var appConfig: AppConfig
     @EnvironmentObject private var appState: AppStateManager
-    
+    @EnvironmentObject private var theme: ThemeManager
+
     @State private var showingStorageInfo = false
     
     init(downloadManager: DownloadManager, player: AudioPlayer, api: AudiobookshelfAPI, appState: AppStateManager, onBookSelected: @escaping () -> Void) {
@@ -20,7 +20,7 @@ struct DownloadsView: View {
     var body: some View {
         ZStack {
             
-            if appConfig.userBackgroundStyle == .dynamic {
+            if theme.backgroundStyle == .dynamic {
                 Color.accent.ignoresSafeArea()
             }
 
@@ -35,7 +35,7 @@ struct DownloadsView: View {
         .toolbarBackground(.visible, for: .navigationBar)
         .toolbarBackground(.clear, for: .navigationBar)
         .toolbarColorScheme(
-            appConfig.userBackgroundStyle.textColor == .white ? .dark : .light,
+            theme.colorScheme,
             for: .navigationBar
         )
         .toolbar {
@@ -68,7 +68,10 @@ struct DownloadsView: View {
     // MARK: - Content View
     private var contentView: some View {
         ZStack {
-            DynamicBackground()
+            
+            if theme.backgroundStyle == .dynamic {
+                DynamicBackground()
+            }
             
             // Storage info banner
             if viewModel.showStorageWarning {
@@ -217,15 +220,6 @@ struct DownloadsView: View {
     // MARK: - Toolbar Buttons
     private var toolbarButtons: some View {
         HStack(spacing: 12) {
-            if !viewModel.downloadedBooks.isEmpty {
-                Button(action: {
-                    showingStorageInfo = true
-                }) {
-                    Image(systemName: "externaldrive.fill")
-                        .font(.system(size: 16))
-                        .foregroundColor(.primary)
-                }
-            }
             Button(action: {
                 NotificationCenter.default.post(name: .init("ShowSettings"), object: nil)
             }) {

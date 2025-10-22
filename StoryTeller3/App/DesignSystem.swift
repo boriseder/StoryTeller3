@@ -23,7 +23,7 @@ enum DSLayout {
     static let elementPadding: CGFloat = 8  // Button-Inhalt, kleine Elemente
     static let contentPadding: CGFloat = 16 // Standard Card/Container-Inhalt
     static let comfortPadding: CGFloat = 24 // Große Container
-    static let screenPadding: CGFloat = 32  // Screen-Ränder (16 war zu eng)
+    static let screenPadding: CGFloat = 16  // Screen-Ränder (16 war zu eng)
     
     // MARK: Feste UI Größen
     static let buttonHeight: CGFloat = 44
@@ -39,7 +39,9 @@ enum DSLayout {
     // MARK: Cover/Avatar Größen (Use-Case spezifisch)
     static let miniCover: CGFloat = 50      // Song rows, mini player
     static let listCover: CGFloat = 70      // List items
-    static let cardCover: CGFloat = 140     // Grid cards
+    static let cardCoverWithPadding: CGFloat = 152     // Grid cards
+    static let cardCoverNoPadding: CGFloat = 170     // Grid cards
+    //static let cardCover: CGFloat = 140     // Grid cards
     static let detailCover: CGFloat = 300   // Detail views
     static let fullCover: CGFloat = 400     // Full screen
     static let smallAvatar: CGFloat = 72    // User avatars
@@ -126,7 +128,7 @@ enum DSColor {
     // MARK: Overlays
     static let overlay = SwiftUI.Color.black.opacity(0.4)
     static let overlayLight = SwiftUI.Color.black.opacity(0.2)
-    static let overlayHeavy = SwiftUI.Color.black.opacity(0.6)
+    static let overlayHeavy = SwiftUI.Color.black.opacity(0.6)   
 }
 
 enum DSAnimations {
@@ -146,66 +148,4 @@ enum DSGridColumns {
     static let two = Array(repeating: GridItem(.flexible(), spacing: DSLayout.contentGap), count: 2)
     static let three = Array(repeating: GridItem(.flexible(), spacing: DSLayout.elementGap), count: 3)
     static let four = Array(repeating: GridItem(.flexible(), spacing: DSLayout.elementGap), count: 4)
-}
-
-
-// MARK: - Semantic Extensions (Deine bestehenden, umbenannt)
-
-extension View {
-    // MARK: Layout
-    func elementGap<Content: View>(@ViewBuilder content: () -> Content) -> some View {
-        VStack(spacing: DSLayout.elementGap, content: content)
-    }
-    
-    func contentGap<Content: View>(@ViewBuilder content: () -> Content) -> some View {
-        VStack(spacing: DSLayout.contentGap, content: content)
-    }
-    
-    func sectionGap<Content: View>(@ViewBuilder content: () -> Content) -> some View {
-        VStack(spacing: DSLayout.sectionGap, content: content)
-    }
-    
-    func screenPadding() -> some View {
-        padding(.horizontal, DSLayout.screenPadding)
-    }
-    
-    func contentPadding() -> some View {
-        padding(DSLayout.contentPadding)
-    }
-    
-    func elementPadding() -> some View {
-        padding(DSLayout.elementPadding)
-    }
-    
-    func listItemPadding() -> some View {
-        self.padding(.horizontal, DSLayout.contentPadding)
-            .padding(.vertical, DSLayout.elementPadding)
-    }
-
-    
-    // MARK: Shapes
-    func elementCorners() -> some View {
-        clipShape(RoundedRectangle(cornerRadius: DSCorners.element))
-    }
-    
-    func contentCorners() -> some View {
-        clipShape(RoundedRectangle(cornerRadius: DSCorners.content))
-    }
-    
-    // MARK: Surfaces
-    func surfaceStyle() -> some View {
-        background(DSColor.surface)
-            .contentCorners()
-    }
-    
-    func cardStyle() -> some View {
-        background(DSColor.surface)
-            .contentCorners()
-            .shadow(color: .black.opacity(0.1), radius: 8, y: 4)
-    }
-    
-    func glassMorphic() -> some View {
-        background(.ultraThinMaterial)
-            .contentCorners()
-    }
 }

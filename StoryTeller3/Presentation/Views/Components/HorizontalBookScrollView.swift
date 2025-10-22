@@ -30,7 +30,7 @@ struct HorizontalBookScrollView: View {
     
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: DSLayout.elementGap) {
+            HStack(spacing: DSLayout.contentGap) {
                 ForEach(bookCardVMs) { bookVM in
                     BookCardView(
                         viewModel: bookVM,

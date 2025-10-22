@@ -11,22 +11,22 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         
         configureAudioSession()
         
-        AppLogger.general.debug("[AppDelegate] App launched successfully")
+        AppLogger.general.info("[AppDelegate] App launched successfully")
         
         return true
     }
     
     func applicationWillTerminate(_ application: UIApplication) {
-        AppLogger.general.debug("[AppDelegate] 🔴 App will terminate - saving state")
+        AppLogger.general.info("[AppDelegate] App will terminate - saving state")
         
         NotificationCenter.default.post(name: .playbackAutoSave, object: nil)
         Thread.sleep(forTimeInterval: 0.5)
         
-        AppLogger.general.debug("[AppDelegate] State saved before termination")
+        AppLogger.general.info("[AppDelegate] State saved before termination")
     }
     
     func applicationDidReceiveMemoryWarning(_ application: UIApplication) {
-        AppLogger.general.debug("[AppDelegate] ⚠️ Memory warning received - triggering cleanup")
+        AppLogger.general.warn("[AppDelegate] Memory warning received - triggering cleanup")
         
         Task { @MainActor in
             CoverCacheManager.shared.triggerCriticalCleanup()
@@ -36,11 +36,11 @@ class AppDelegate: NSObject, UIApplicationDelegate {
             await CoverDownloadManager.shared.cancelAllDownloads()
         }
         
-        AppLogger.general.debug("[AppDelegate] Memory cleanup completed")
+        AppLogger.general.info("[AppDelegate] Memory cleanup completed")
     }
     
     func applicationDidEnterBackground(_ application: UIApplication) {
-        AppLogger.general.debug("[AppDelegate] 📱 App entered background")
+        AppLogger.general.info("[AppDelegate] App entered background")
         
         NotificationCenter.default.post(name: .playbackAutoSave, object: nil)
         
@@ -63,16 +63,16 @@ class AppDelegate: NSObject, UIApplicationDelegate {
     }
     
     func applicationWillEnterForeground(_ application: UIApplication) {
-        AppLogger.general.debug("[AppDelegate] 📱 App will enter foreground")
+        AppLogger.general.info("[AppDelegate] App will enter foreground")
         NotificationCenter.default.post(name: .init("AppWillEnterForeground"), object: nil)
     }
     
     func applicationDidBecomeActive(_ application: UIApplication) {
-        AppLogger.general.debug("[AppDelegate] App became active")
+        AppLogger.general.info("[AppDelegate] App became active")
     }
     
     func applicationWillResignActive(_ application: UIApplication) {
-        AppLogger.general.debug("[AppDelegate] ⏸️ App will resign active")
+        AppLogger.general.info("[AppDelegate] App will resign active")
     }
     
     private func configureAudioSession() {
@@ -81,10 +81,10 @@ class AppDelegate: NSObject, UIApplicationDelegate {
             try audioSession.setCategory(.playback, mode: .spokenAudio)
             try audioSession.setActive(true)
             
-            AppLogger.general.debug("[AppDelegate] Audio session configured")
+            AppLogger.general.info("[AppDelegate] Audio session configured")
             
         } catch {
-            AppLogger.general.debug("[AppDelegate] ❌ Failed to configure audio session: \(error)")
+            AppLogger.general.error("[AppDelegate] ❌ Failed to configure audio session: \(error)")
         }
     }
 }

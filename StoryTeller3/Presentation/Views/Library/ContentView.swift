@@ -4,7 +4,8 @@ import Combine
 struct ContentView: View {
     // MARK: - Environment
     @EnvironmentObject private var appState: AppStateManager
-    
+    @EnvironmentObject private var theme: ThemeManager
+
     // MARK: - State Objects
     @StateObject private var player = AudioPlayer()
     @StateObject private var downloadManager = DownloadManager()
@@ -26,7 +27,7 @@ struct ContentView: View {
             switch appState.loadingState {
             
             case .initial, .loadingCredentials, .credentialsFoundValidating:
-                    LoadingView(message: "Loading")
+                LoadingView(message: "Loading")
                     .padding(.top, 56)   // avoid jumping from contentView to homeView
 
             case .noCredentialsSaved:
@@ -42,37 +43,38 @@ struct ContentView: View {
                             appState.showingSettings = true
                         }
                     }
+            
             case .networkError(let issueType):
-                    NetworkErrorView(
-                        issueType: issueType,
-                        downloadedBooksCount: downloadManager.downloadedBooks.count,
-                        onRetry: {
-                            Task {
-                                setupApp()
-                            }
-                        },
-                        onViewDownloads: {
-                            selectedTab = .downloads
-                            appState.loadingState = .ready
-                        },
-                        onSettings: {
-                            appState.showingSettings = true
+                NetworkErrorView(
+                    issueType: issueType,
+                    downloadedBooksCount: downloadManager.downloadedBooks.count,
+                    onRetry: {
+                        Task {
+                            setupApp()
                         }
-                    )
+                    },
+                    onViewDownloads: {
+                        selectedTab = .downloads
+                        appState.loadingState = .ready
+                    },
+                    onSettings: {
+                        appState.showingSettings = true
+                    }
+                )
                     
             case .authenticationError:
-                    AuthErrorView(
-                        onReLogin: {
-                            appState.showingSettings = true
-                        }
-                    )
+                AuthErrorView(
+                    onReLogin: {
+                        appState.showingSettings = true
+                    }
+                )
                     
             case .loadingData:
-                    LoadingView(message: "Loading")
+                LoadingView(message: "Loading")
                     .padding(.top, 56)   // avoid jumping from contentView to homeView
 
-                case .ready:
-                    mainContent
+            case .ready:
+                mainContent
             }
         }
         .onAppear(perform: setupApp)
@@ -143,7 +145,8 @@ struct ContentView: View {
                 seriesTab
                 downloadsTab
             }
-            .tint(.accentColor)
+            .accentColor(theme.accent)
+            .id(theme.accent) // zwingt SwiftUI, die TabView neu zu rendern, wenn sich die Farbe ändert
         }
     }
     
@@ -165,8 +168,8 @@ struct ContentView: View {
             }
         }
         .tabItem {
-            Image(systemName: "house.fill")
-            Text("Home")
+            Image(systemName: "sharedwithyou")
+            Text("Explore")
         }
         .tag(TabIndex.home)
     }
@@ -185,7 +188,7 @@ struct ContentView: View {
         }
         .tabItem {
             Image(systemName: "books.vertical.fill")
-            Text("Bibliothek")
+            Text("Library")
         }
         .tag(TabIndex.library)
     }
@@ -203,8 +206,8 @@ struct ContentView: View {
             }
         }
         .tabItem {
-            Image(systemName: "rectangle.stack.fill")
-            Text("Serien")
+            Image(systemName: "play.square.stack.fill")
+            Text("Series")
         }
         .tag(TabIndex.series)
     }
@@ -287,7 +290,7 @@ struct ContentView: View {
                 }
                 
             } catch {
-                AppLogger.general.debug("Keychain error: \(error)")
+                AppLogger.general.error("[ContentView] Keychain error: \(error)")
                 appState.loadingState = .authenticationError
             }
         }
@@ -300,7 +303,7 @@ struct ContentView: View {
                 LibraryHelpers.saveLibrarySelection(firstLibrary.id)
             }
         } catch {
-            AppLogger.general.debug("Initial data load failed: \(error)")
+            AppLogger.general.error("[ContentView] Initial data load failed: \(error)")
         }
     }
     

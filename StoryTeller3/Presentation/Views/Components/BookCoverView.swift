@@ -50,7 +50,7 @@ struct BookCoverView: View {
                 placeholderView
             }
         }
-        .frame(width: size.width, height: size.height)
+        //.frame(width: size.width, height: size.height)
         .onAppear {
             loader.load()
         }

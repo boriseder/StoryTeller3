@@ -16,6 +16,7 @@ enum DebugSheet: Identifiable {
 
 struct DebugView: View {
     @State private var selectedSheet: DebugSheet?
+    @EnvironmentObject var theme: ThemeManager
 
     var body: some View {
         NavigationStack {
@@ -35,7 +36,9 @@ struct DebugView: View {
         }
         .sheet(item: $selectedSheet) { sheet in
             ZStack {
-                DynamicBackground()
+                if theme.backgroundStyle == .dynamic {
+                    DynamicBackground()
+                }
                 switch sheet {
                 case .authError:
                     AuthErrorView(onReLogin: {})

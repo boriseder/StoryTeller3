@@ -3,7 +3,7 @@ import SwiftUI
 struct SeriesView: View {
     @StateObject private var viewModel: SeriesViewModel
     @EnvironmentObject var appState: AppStateManager
-    @EnvironmentObject var appConfig: AppConfig
+    @EnvironmentObject var theme: ThemeManager
 
     init(player: AudioPlayer, api: AudiobookshelfAPI, downloadManager: DownloadManager, onBookSelected: @escaping () -> Void) {
         self._viewModel = StateObject(wrappedValue: SeriesViewModelFactory.create(
@@ -17,7 +17,7 @@ struct SeriesView: View {
     var body: some View {
         ZStack {
             
-            if appConfig.userBackgroundStyle == .dynamic {
+            if theme.backgroundStyle == .dynamic {
                 Color.accent.ignoresSafeArea()
             }
 
@@ -36,7 +36,7 @@ struct SeriesView: View {
         .toolbarBackground(.visible, for: .navigationBar)
         .toolbarBackground(.clear, for: .navigationBar)
         .toolbarColorScheme(
-            appConfig.userBackgroundStyle.textColor == .white ? .dark : .light,
+            theme.colorScheme,
             for: .navigationBar
         )
         .searchable(text: $viewModel.filterState.searchText, prompt: "Serien durchsuchen...")
@@ -70,8 +70,10 @@ struct SeriesView: View {
         
     private var contentView: some View {
         ZStack {
-            DynamicBackground()
-            
+            if theme.backgroundStyle == .dynamic {
+                DynamicBackground()
+            }
+
             ScrollView {
                 LazyVStack(spacing: DSLayout.contentGap) {
                     ForEach(viewModel.filteredAndSortedSeries) { series in

@@ -2,7 +2,10 @@ import SwiftUI
 
 struct SettingsView: View {
     @StateObject private var viewModel = SettingsViewModelFactory.create()
-    @EnvironmentObject var appConfig: AppConfig
+    @EnvironmentObject var theme: ThemeManager
+
+    @State private var selectedColor: Color = .blue
+    let colors: [Color] = [.red, .orange, .green, .blue, .purple, .pink]
 
     var body: some View {
         NavigationStack {
@@ -41,50 +44,46 @@ struct SettingsView: View {
     }
     
     private var themeSection: some View {
-        Section {
-            // Background Style
-            Picker("Background Style", selection: $appConfig.userBackgroundStyle) {
-                Text("Dynamic").tag(UserBackgroundStyle.dynamic)
-                Text("Light").tag(UserBackgroundStyle.light)
-                Text("Dark").tag(UserBackgroundStyle.dark)
-            }
-            .pickerStyle(.menu)
-            
-            // Accent Color
-            HStack {
-                Text("Accent Color")
-                Spacer()
-                Menu {
-                    Button(action: { appConfig.userAccentColor = .red }) {
-                        Label("Red", systemImage: "circle.fill")
-                    }
-                    Button(action: { appConfig.userAccentColor = .orange }) {
-                        Label("Orange", systemImage: "circle.fill")
-                    }
-                    Button(action: { appConfig.userAccentColor = .green }) {
-                        Label("Green", systemImage: "circle.fill")
-                    }
-                    Button(action: { appConfig.userAccentColor = .blue }) {
-                        Label("Blue", systemImage: "circle.fill")
-                    }
-                    Button(action: { appConfig.userAccentColor = .purple }) {
-                        Label("Purple", systemImage: "circle.fill")
-                    }
-                    Button(action: { appConfig.userAccentColor = .pink }) {
-                        Label("Pink", systemImage: "circle.fill")
-                    }
-                } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "circle.fill")
-                            .foregroundStyle(appConfig.userAccentColor.color)
-                        Text(appConfig.userAccentColor.rawValue.capitalized)
-                            .foregroundStyle(.secondary)
+        Group {
+            Section {
+                // Background Style
+                Picker("Select Theme", selection: $theme.backgroundStyle) {
+                    ForEach(UserBackgroundStyle.allCases, id: \.self) { option in
+                        Text(option.rawValue.capitalized).tag(option)
                     }
                 }
+                .pickerStyle(.menu)
+                    
+                HStack {
+                    Text("Accent Color")
+                    Spacer()
+                    Menu {
+                        ForEach(UserAccentColor.allCases) { colorOption in
+                            Button {
+                                theme.accentColor = colorOption
+                            } label: {
+                                Label(colorOption.rawValue.capitalized, systemImage: "circle.fill")
+                                if theme.accentColor == colorOption {
+                                    Image(systemName: "checkmark")
+                                }
+                            }
+                            .tint(colorOption.color)
+                        }
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: "circle.fill")
+                                .foregroundStyle(theme.accent)
+                            Text(theme.accentColor.rawValue.capitalized)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+
+            } header: {
+                Label("Appearance", systemImage: "paintbrush")
             }
-        } header: {
-            Label("Appearance", systemImage: "paintbrush")
         }
+        
     }
     // MARK: - Server Section
     
@@ -112,11 +111,11 @@ struct SettingsView: View {
             if viewModel.serverConfig.isServerConfigured {
                 HStack {
                     Text("Server URL")
-                        .font(.caption)
+                        .font(.caption2)
                         .foregroundColor(.secondary)
                     Spacer()
                     Text(viewModel.serverConfig.fullServerURL)
-                        .font(.caption.monospaced())
+                        .font(.caption2.monospaced())
                         .foregroundColor(.secondary)
                         .lineLimit(1)
                         .truncationMode(.middle)
@@ -127,11 +126,11 @@ struct SettingsView: View {
         } footer: {
             if viewModel.serverConfig.scheme == "http" {
                 Label("HTTP is not secure. Use HTTPS when possible.", systemImage: "exclamationmark.triangle.fill")
-                    .font(.caption)
+                    .font(.caption2)
                     .foregroundColor(.orange)
             } else {
                 Text("Enter the address of your Audiobookshelf server")
-                    .font(.caption)
+                    .font(.caption2)
             }
         }
     }
@@ -214,7 +213,7 @@ struct SettingsView: View {
                         ProgressView()
                             .scaleEffect(0.8)
                         Text("Logging in and setting up...")
-                            .font(.caption)
+                            .font(.caption2)
                             .foregroundColor(.secondary)
                     }
                 }
@@ -224,10 +223,10 @@ struct SettingsView: View {
         } footer: {
             if !viewModel.isLoggedIn && !viewModel.isTestingConnection {
                 Text("Enter your Audiobookshelf credentials to connect")
-                    .font(.caption)
+                    .font(.caption2)
             } else if viewModel.isTestingConnection {
                 Text("Please wait while we validate your credentials and load your libraries")
-                    .font(.caption)
+                    .font(.caption2)
                     .foregroundColor(.orange)
             }
         }
@@ -264,11 +263,11 @@ struct SettingsView: View {
                 
                 HStack {
                     Text("Total Libraries")
-                        .font(.caption)
+                        .font(.caption2)
                         .foregroundColor(.secondary)
                     Spacer()
                     Text("\(viewModel.libraries.count)")
-                        .font(.caption)
+                        .font(.caption2)
                         .foregroundColor(.secondary)
                 }
             }
@@ -276,7 +275,7 @@ struct SettingsView: View {
             Label("Libraries", systemImage: "books.vertical")
         } footer: {
             Text("Select which library to use for browsing and playback")
-                .font(.caption)
+                .font(.caption2)
         }
     }
     
@@ -296,8 +295,8 @@ struct SettingsView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Cache")
                             .font(.subheadline)
-                        Text("Temporary files and cover images")
-                            .font(.caption)
+                        Text("Metadata, cover images and other temp. files")
+                            .font(.caption2)
                             .foregroundColor(.secondary)
                     }
                     Spacer()
@@ -323,24 +322,22 @@ struct SettingsView: View {
                     if let lastCleanup = viewModel.storage.lastCacheCleanupDate {
                         HStack {
                             Text("Last cleared")
-                                .font(.caption)
+                                .font(.caption2)
                                 .foregroundColor(.secondary)
                             Spacer()
                             Text(lastCleanup, style: .relative)
-                                .font(.caption)
+                                .font(.caption2)
                                 .foregroundColor(.secondary)
                         }
                     }
                 }
-                
-                Divider()
                 
                 HStack {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Downloads")
                             .font(.subheadline)
                         Text("\(viewModel.storage.downloadedBooksCount) books available offline")
-                            .font(.caption)
+                            .font(.caption2)
                             .foregroundColor(.secondary)
                     }
                     Spacer()
@@ -361,7 +358,7 @@ struct SettingsView: View {
             Label("Storage & Downloads", systemImage: "internaldrive")
         } footer: {
             Text("Cache contains temporary files and can be safely cleared. Downloaded books are stored separately.")
-                .font(.caption)
+                .font(.caption2)
         }
     }
     
@@ -390,7 +387,7 @@ struct SettingsView: View {
                     Text("GitHub Repository")
                     Spacer()
                     Image(systemName: "arrow.up.forward")
-                        .font(.caption)
+                        .font(.caption2)
                         .foregroundColor(.secondary)
                 }
             }
@@ -400,7 +397,7 @@ struct SettingsView: View {
                     Text("Audiobookshelf Project")
                     Spacer()
                     Image(systemName: "arrow.up.forward")
-                        .font(.caption)
+                        .font(.caption2)
                         .foregroundColor(.secondary)
                 }
             }
@@ -428,7 +425,7 @@ struct SettingsView: View {
                 }
             } footer: {
                 Text("Enable or disable various features for development purposes")
-                    .font(.caption)
+                    .font(.caption2)
             }
         }
     }
@@ -480,3 +477,32 @@ private struct AlertsModifier: ViewModifier {
             }
     }
 }
+
+struct AccentColorSettings: View {
+    @Binding var selectedColor: Color
+    let colors: [Color] = [.red, .orange, .green, .blue, .purple, .pink]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Accent Color")
+                .font(.headline)
+
+            HStack(spacing: 16) {
+                ForEach(colors, id: \.self) { color in
+                    Circle()
+                        .fill(color)
+                        .frame(width: 36, height: 36)
+                        .overlay(
+                            Circle()
+                                .stroke(Color.white, lineWidth: selectedColor == color ? 3 : 0)
+                        )
+                        .onTapGesture {
+                            selectedColor = color
+                        }
+                }
+            }
+        }
+        .padding()
+    }
+}
+

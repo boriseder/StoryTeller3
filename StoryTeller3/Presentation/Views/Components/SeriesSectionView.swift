@@ -3,7 +3,8 @@ import SwiftUI
 struct SeriesSectionView: View {
     @StateObject private var viewModel: SeriesSectionViewModel
     @EnvironmentObject var appState: AppStateManager
-    
+    @EnvironmentObject var theme: ThemeManager
+
     init(
         series: Series,
         player: AudioPlayer,
@@ -38,12 +39,7 @@ struct SeriesSectionView: View {
             )
         }
         .padding(.vertical, DSLayout.elementPadding)
-       /* .background  {
-            RoundedRectangle(cornerRadius: DSCorners.content)
-                .fill(.regularMaterial)
-                .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
-        }
-        */
+
     }
     
     private var seriesHeader: some View {
@@ -52,25 +48,25 @@ struct SeriesSectionView: View {
                 VStack (alignment: .leading) {
                     Image(systemName: "books.vertical")
                         .font(DSText.itemTitle)
-                        .foregroundColor(.white)
+                        .foregroundColor(theme.textColor)
                     
                 }
                 VStack (alignment: .leading) {
                     HStack {
                         Text(viewModel.series.name)
                             .font(DSText.metadata)
-                            .foregroundColor(.white)
+                            .foregroundColor(theme.textColor)
                     }
                     HStack (alignment: .firstTextBaseline){
                         if let author = viewModel.series.author {
                             Text("\(author) -")
                                 .font(DSText.footnote)
-                                .foregroundColor(.white)
+                                .foregroundColor(theme.textColor)
                                 .lineLimit(1)
                         }
                         Text("\(viewModel.series.bookCount) books")
                             .font(DSText.metadata)
-                            .foregroundColor(.white)
+                            .foregroundColor(theme.textColor)
                     }
                 }
                 Spacer()
@@ -79,41 +75,6 @@ struct SeriesSectionView: View {
             .padding(.bottom, DSLayout.tightPadding)
             .padding(.top, DSLayout.elementPadding)
             .padding(.trailing, DSLayout.contentPadding)
-
-        
-        /*
-         HStack {
-         VStack(alignment: .leading) {
-         Text(viewModel.series.name)
-         .font(DSText.itemTitle)
-         .foregroundColor(.primary)
-         
-         if let author = viewModel.series.author {
-         Text(author)
-         .font(DSText.metadata)
-         .foregroundColor(.secondary)
-         }
-         }
-         
-         Spacer()
-         
-         VStack(alignment: .trailing, spacing: 2) {
-         Spacer()
-         
-         Text("\(viewModel.series.bookCount) books")
-         .font(DSText.metadata)
-         .foregroundColor(.secondary)
-         
-         /*
-          Text(viewModel.series.formattedDuration)
-          .font(.caption)
-          .foregroundColor(.secondary)
-          */
-         }
-         }
-         .padding(.top, DSLayout.contentPadding)
-         }
-         */
     }
 }
 

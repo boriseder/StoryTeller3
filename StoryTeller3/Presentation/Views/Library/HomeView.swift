@@ -9,7 +9,7 @@ import SwiftUI
 struct HomeView: View {
     @StateObject private var viewModel: HomeViewModel
     @EnvironmentObject var appState: AppStateManager
-    @EnvironmentObject var appConfig: AppConfig
+    @EnvironmentObject var theme: ThemeManager
 
     @State private var selectedSeries: Series?
     @State private var selectedAuthor: IdentifiableString?
@@ -26,7 +26,7 @@ struct HomeView: View {
     var body: some View {
         ZStack {
             
-            if appConfig.userBackgroundStyle == .dynamic {
+            if theme.backgroundStyle == .dynamic {
                 Color.accent.ignoresSafeArea()
             }
           
@@ -49,7 +49,7 @@ struct HomeView: View {
         .toolbarBackground(.visible, for: .navigationBar)
         .toolbarBackground(.clear, for: .navigationBar)
         .toolbarColorScheme(
-            appConfig.userBackgroundStyle.textColor == .white ? .dark : .light,
+            theme.colorScheme,
             for: .navigationBar
         )
         .toolbar {
@@ -101,9 +101,12 @@ struct HomeView: View {
     
     private var contentView: some View {
         ZStack {
-            DynamicBackground()
+            /*
+            if theme.backgroundStyle == .dynamic {
+                DynamicBackground()
+            }
             Color.clear.ignoresSafeArea()
-
+*/
             ScrollView {
                 LazyVStack(spacing: DSLayout.contentGap) {
                     homeHeaderView
@@ -202,7 +205,7 @@ struct PersonalizedSectionView: View {
     let onSeriesSelected: (Series) -> Void
     let onAuthorSelected: (String) -> Void
     
-    @EnvironmentObject var appConfig: AppConfig
+    @EnvironmentObject var theme: ThemeManager
     
     var body: some View {
         VStack(alignment: .leading) {
@@ -231,13 +234,12 @@ struct PersonalizedSectionView: View {
         HStack(alignment: .firstTextBaseline){
                 Image(systemName: sectionIcon)
                     .font(DSText.itemTitle)
-                    .foregroundColor(appConfig.userBackgroundStyle == .light ? .black : .white)
+                    .foregroundColor(theme.textColor)
                 
                 Text(section.label)
                     .font(DSText.itemTitle)
                     .fontWeight(.semibold)
-                    .foregroundColor(appConfig.userBackgroundStyle == .light ? .black : .white)
-
+                    .foregroundColor(theme.textColor)
             
                 Spacer()
             /*
@@ -360,6 +362,8 @@ struct SeriesCardView: View {
     let onTap: () -> Void
     
     private let cardStyle: BookCardStyle = .series
+    @EnvironmentObject var theme: ThemeManager
+
     
     var body: some View {
         Button(action: onTap) {
@@ -383,30 +387,13 @@ struct SeriesCardView: View {
 
                 Text(displayName)
                     .font(DSText.emphasized)
-                    .foregroundColor(.primary)
+                    .foregroundColor(theme.textColor)
                     .lineLimit(1)
                     .frame(maxWidth: cardStyle.coverSize, alignment: .leading)
                     .fixedSize(horizontal: true, vertical: true)
                     .padding(.vertical, DSLayout.elementPadding)
                     .padding(.horizontal, DSLayout.elementPadding)
 
-            }
-            .background {
-                RoundedRectangle(cornerRadius: DSCorners.element)
-                    .fill(.regularMaterial)
-                    .shadow(
-                        color: .black.opacity(0.1),
-                        radius: 4,
-                        x: 0,
-                        y: 2
-                    )
-            }
-            .overlay {
-                RoundedRectangle(cornerRadius: DSCorners.element)
-                    .stroke(
-                        Color.clear,
-                        lineWidth: 2
-                    )
             }
             .scaleEffect(1.0)
             .animation(.spring(response: 0.3, dampingFraction: 0.6), value: 1)
@@ -446,7 +433,7 @@ struct AuthorCardView: View {
     let authorName: String
     let onTap: () -> Void
     
-    @EnvironmentObject var appConfig: AppConfig
+    @EnvironmentObject var theme: ThemeManager
 
     var body: some View {
         Button(action: onTap) {
@@ -463,7 +450,7 @@ struct AuthorCardView: View {
                 
                 Text(authorName)
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(appConfig.userBackgroundStyle == .light ? .black : .white)
+                    .foregroundColor(theme.textColor)
                     .lineLimit(2)
                     .multilineTextAlignment(.center)
                     .frame(width: 80)

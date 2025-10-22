@@ -7,18 +7,28 @@ enum BookCardStyle {
     
     var coverSize: CGFloat {
         switch self {
-        case .library: return 152
-        case .series: return 152
+        case .library: return DSLayout.cardCoverNoPadding
+        case .series: return DSLayout.cardCoverNoPadding
         }
     }
-    
+    /*
     var dimensions: (width: CGFloat, height: CGFloat, infoHeight: CGFloat) {
         let cardWidth = coverSize + (DSLayout.elementPadding * 2)
         let cardHeight = cardWidth * 1.40// 40% höher als breit
-        let infoHeight: CGFloat = cardHeight - coverSize - 3 * DSLayout.elementPadding
+        let infoHeight = cardHeight - coverSize - 3 * DSLayout.elementPadding
+        
+        return (width: cardWidth, height: cardHeight, infoHeight: infoHeight)
+    }
+    */
+    // dimensions without padding around cover
+    var dimensions: (width: CGFloat, height: CGFloat, infoHeight: CGFloat) {
+        let cardWidth = coverSize
+        let cardHeight = cardWidth * 1.40
+        let infoHeight = cardHeight - coverSize - 3 * DSLayout.elementPadding
                   
         return (width: cardWidth, height: cardHeight, infoHeight: infoHeight)
     }
+
 }
 
 
@@ -32,7 +42,8 @@ struct BookCardView: View {
     let style: BookCardStyle
     
     @State private var isPressed = false
-    
+    @EnvironmentObject var theme: ThemeManager
+
     private var dimensions: (width: CGFloat, height: CGFloat, infoHeight: CGFloat) {
         style.dimensions
     }
@@ -40,17 +51,12 @@ struct BookCardView: View {
     var body: some View {
         Button(action: onTap) {
             VStack(alignment: .leading, spacing: 0) {
-                HStack {
-                    Spacer()
-                    bookCoverSection
-                    Spacer()
-                }
-                .padding(.top, DSLayout.elementPadding)
+                bookCoverSection
                 
                 if style == .series {
                     Text(viewModel.book.displayTitle)
                         .font(DSText.metadata)
-                        .foregroundColor(.primary)
+                        .foregroundColor(theme.textColor)
                         .lineLimit(1)
                         .frame(maxWidth: dimensions.width - 2 * DSLayout.elementPadding, alignment: .leading)
                         .fixedSize(horizontal: true, vertical: true)
@@ -63,27 +69,19 @@ struct BookCardView: View {
                     bookInfoSection
                         //.frame(height: dimensions.infoHeight)
                         .padding(.bottom, DSLayout.elementPadding)
-                        .padding(.horizontal, DSLayout.elementPadding)
+                        //.padding(.horizontal, DSLayout.elementPadding)
                 }
             }
             //.frame(width: dimensions.width, height: dimensions.height)
-            .background {
-                RoundedRectangle(cornerRadius: DSCorners.element)
-                    .fill(.regularMaterial)
-                    .shadow(
-                        color: .black.opacity(0.1),
-                        radius: isPressed ? 4 : 12,
-                        x: 0,
-                        y: isPressed ? 2 : 6
-                    )
-            }
-            .overlay {
-                RoundedRectangle(cornerRadius: DSCorners.element)
+            /*
+             .overlay {
+                RoundedRectangle(cornerRadius: DSCorners.content)
                     .stroke(
                         viewModel.isCurrentBook ? Color.accentColor : Color.clear,
                         lineWidth: 2
                     )
             }
+             */
             .scaleEffect(isPressed ? 0.95 : 1.0)
             .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isPressed)
             .animation(.easeInOut(duration: 0.2), value: viewModel.isCurrentBook)
@@ -114,7 +112,7 @@ struct BookCardView: View {
                 downloadManager: nil,
                 showProgress: false
             )
-            .clipShape(RoundedRectangle(cornerRadius: DSCorners.tight))
+            .clipShape(RoundedRectangle(cornerRadius: DSCorners.element))
             
             VStack {
                 HStack {
@@ -122,16 +120,12 @@ struct BookCardView: View {
                         seriesBadge
                     }
                     
-                    Spacer()
                     
                     if style == .library {
                         downloadStatusOverlay
                     }
                 }
-                .padding(.top, style == .library ? 8 : 4)
-                .padding(.horizontal, style == .library ? 8 : 4)
                 
-                Spacer()
                 
                 if viewModel.isCurrentBook && style == .library {
                     currentBookStatusOverlay
@@ -146,8 +140,8 @@ struct BookCardView: View {
         VStack(alignment: .leading) {
             
             Text(viewModel.book.displayTitle)
-                .font(DSText.metadata)
-                .foregroundColor(.primary)
+                .font(.subheadline)
+                .foregroundColor(theme.textColor)
                 .lineLimit(1)
                 .frame(maxWidth: style.coverSize, alignment: .leading)
                 .fixedSize(horizontal: true, vertical: true)
@@ -156,8 +150,8 @@ struct BookCardView: View {
             
             VStack(alignment: .leading) {
                 Text(viewModel.book.author ?? "Unbekannter Autor")
-                    .font(DSText.footnote)
-                    .foregroundColor(.secondary)
+                    .font(.caption2)
+                    .foregroundColor(theme.textColor)
                     .lineLimit(1)
 
                 if viewModel.isCurrentBook && viewModel.duration > 0 && style == .library {
@@ -198,11 +192,10 @@ struct BookCardView: View {
     
     private var downloadingOverlay: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 8)
-                .fill(.regularMaterial)
+            RoundedRectangle(cornerRadius: DSCorners.element)
+                .fill(.thinMaterial)
                 .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
-            
-            VStack(spacing: 8) {
+            VStack(spacing: DSLayout.elementGap) {
                 ZStack {
                     Circle()
                         .stroke(Color.white.opacity(0.3), lineWidth: 3)
@@ -270,13 +263,13 @@ struct BookCardView: View {
                 
                 ZStack {
                     Circle()
-                        .fill(.ultraThickMaterial)
-                        .frame(width: 32, height: 32)
+                        .fill(.green)
+                        .frame(width: DSLayout.largeIcon, height: DSLayout.largeIcon)
 
                     
-                    Image(systemName: "arrow.down.circle.fill")
-                        .font(.system(size: 28))
-                        .foregroundColor(.green)
+                    Image(systemName: "iphone.badge.checkmark")
+                        .font(.system(size: 16))
+                        .foregroundColor(.white)
                 }
                 .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
                 .padding(DSLayout.tightPadding)
@@ -294,12 +287,12 @@ struct BookCardView: View {
                 Button(action: onDownload) {
                     ZStack {
                         Circle()
-                            .fill(.ultraThickMaterial)
-                            .frame(width: 32, height: 32)
-                        
-                        Image(systemName: "icloud.circle.fill")
-                            .font(.system(size: 28))
-                            .foregroundColor(.accentColor)
+                            .fill(.accent)
+                            .frame(width: DSLayout.largeIcon, height: DSLayout.largeIcon)
+
+                        Image(systemName: "icloud.and.arrow.down")
+                            .font(.system(size: 16))
+                            .foregroundColor(.white)
                     }
                     .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
                 }

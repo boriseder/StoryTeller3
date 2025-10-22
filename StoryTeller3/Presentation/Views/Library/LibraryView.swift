@@ -3,7 +3,7 @@ import SwiftUI
 struct LibraryView: View {
     @StateObject var viewModel: LibraryViewModel
     @EnvironmentObject var appState: AppStateManager
-    @EnvironmentObject var appConfig: AppConfig
+    @EnvironmentObject var theme: ThemeManager
 
     @State private var selectedSeries: Book?
     @State private var bookCardVMs: [BookCardStateViewModel] = []
@@ -20,7 +20,7 @@ struct LibraryView: View {
     var body: some View {
         ZStack {
             
-            if appConfig.userBackgroundStyle == .dynamic {
+            if theme.backgroundStyle == .dynamic {
                 Color.accent.ignoresSafeArea()
             }
 
@@ -45,7 +45,7 @@ struct LibraryView: View {
         .toolbarBackground(.visible, for: .navigationBar)
         .toolbarBackground(.clear, for: .navigationBar)
         .toolbarColorScheme(
-            appConfig.userBackgroundStyle.textColor == .white ? .dark : .light,
+            theme.colorScheme,
             for: .navigationBar
         )
         .searchable(
@@ -102,7 +102,9 @@ struct LibraryView: View {
     
     private var contentView: some View {
         ZStack {
-            DynamicBackground()
+            if theme.backgroundStyle == .dynamic {
+                DynamicBackground()
+            }
 
             VStack(spacing: 0) {
                 if viewModel.filterState.showDownloadedOnly {
