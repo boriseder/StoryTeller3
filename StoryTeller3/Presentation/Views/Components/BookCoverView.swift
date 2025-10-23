@@ -40,6 +40,7 @@ struct BookCoverView: View {
             if let image = loader.image {
                 Image(uiImage: image)
                     .resizable()
+                    .scaledToFill()
                     .aspectRatio(contentMode: .fill)
                     .frame(width: size.width, height: size.height)
                     .clipped()
@@ -50,7 +51,6 @@ struct BookCoverView: View {
                 placeholderView
             }
         }
-        //.frame(width: size.width, height: size.height)
         .onAppear {
             loader.load()
         }

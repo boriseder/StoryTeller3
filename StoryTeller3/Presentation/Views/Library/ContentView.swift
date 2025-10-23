@@ -276,6 +276,8 @@ struct ContentView: View {
                     player.configure(baseURL: baseURL, authToken: token, downloadManager: downloadManager)
                     
                     appState.loadingState = .loadingData
+                    
+                    // ✅ USE REPOSITORY instead of direct API call
                     await loadInitialData(client: client)
                     
                     appState.loadingState = .ready
@@ -296,17 +298,57 @@ struct ContentView: View {
         }
     }
     
+    // ✅ CORRECTED: Use Repository Pattern
     private func loadInitialData(client: AudiobookshelfAPI) async {
+        AppLogger.general.debug("[ContentView] Loading initial data via Repository...")
+        
+        // Create repository instance
+        let libraryRepository = LibraryRepository(
+            api: client,
+            settingsRepository: SettingsRepository()
+        )
+        
         do {
-            let libraries = try await client.fetchLibraries()
-            if let firstLibrary = libraries.first {
-                LibraryHelpers.saveLibrarySelection(firstLibrary.id)
+            // Let repository handle all the logic
+            let selectedLibrary = try await libraryRepository.initializeLibrarySelection()
+            
+            if let library = selectedLibrary {
+                AppLogger.general.info("[ContentView] ✓ Library initialized: \(library.name)")
+            } else {
+                AppLogger.general.warn("[ContentView] No libraries available (valid for new servers)")
             }
+            
+        } catch let error as RepositoryError {
+            handleRepositoryError(error)
         } catch {
             AppLogger.general.error("[ContentView] Initial data load failed: \(error)")
         }
     }
     
+    // Handle repository-specific errors
+    private func handleRepositoryError(_ error: RepositoryError) {
+        switch error {
+        case .networkError(let urlError as URLError):
+            switch urlError.code {
+            case .notConnectedToInternet:
+                AppLogger.general.error("[ContentView] No internet - offline mode available")
+            case .timedOut:
+                AppLogger.general.error("[ContentView] Timeout - server might be slow")
+            default:
+                AppLogger.general.error("[ContentView] Network error: \(urlError)")
+            }
+            
+        case .decodingError:
+            AppLogger.general.error("[ContentView] Data format error - check server version")
+            
+        case .unauthorized:
+            appState.loadingState = .authenticationError
+            
+        default:
+            AppLogger.general.error("[ContentView] Repository error: \(error)")
+        }
+    }
+
     
     // MARK: - Connection Testing
     

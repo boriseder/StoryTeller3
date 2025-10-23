@@ -8,7 +8,6 @@
 
 /* Begin PBXBuildFile section */
 		A16E471C2E92818B00F3D879 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = A1F1E3F52E8FF7CD00033B05 /* PrivacyInfo.xcprivacy */; };
-		A1F1E3F62E8FF7D000033B05 /* PrivacyInfo.xcprivacy in Sources */ = {isa = PBXBuildFile; fileRef = A1F1E3F52E8FF7CD00033B05 /* PrivacyInfo.xcprivacy */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -140,7 +139,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A1F1E3F62E8FF7D000033B05 /* PrivacyInfo.xcprivacy in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

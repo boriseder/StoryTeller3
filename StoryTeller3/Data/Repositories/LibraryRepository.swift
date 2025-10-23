@@ -91,3 +91,54 @@ class LibraryRepository: LibraryRepositoryProtocol {
         AppLogger.general.debug("[LibraryRepository] Cleared library cache")
     }
 }
+
+// MARK: - LibraryRepository Enhancement
+extension LibraryRepository {
+    /// Initialize libraries with smart selection - single source of truth
+    func initializeLibrarySelection() async throws -> Library? {
+        AppLogger.general.debug("[LibraryRepository] Initializing library selection...")
+        
+        let libraries = try await getLibraries()
+        
+        // CASE 1: Empty server (valid state)
+        guard !libraries.isEmpty else {
+            AppLogger.general.warn("[LibraryRepository] No libraries available")
+            clearSelection()
+            return nil
+        }
+        
+        // CASE 2: Try to restore previously selected library
+        if let savedId = settingsRepository.getSelectedLibraryId(),
+           let restoredLibrary = libraries.first(where: { $0.id == savedId }) {
+            
+            AppLogger.general.debug("[LibraryRepository] ✓ Restored library: \(restoredLibrary.name)")
+            return restoredLibrary
+        }
+        
+        // CASE 3: Smart default selection
+        let defaultLibrary = selectBestDefaultLibrary(from: libraries)
+        selectLibrary(defaultLibrary.id)
+        
+        AppLogger.general.debug("[LibraryRepository] ✓ Auto-selected: \(defaultLibrary.name)")
+        return defaultLibrary
+    }
+    
+    /// Smart library selection with priority logic
+    private func selectBestDefaultLibrary(from libraries: [Library]) -> Library {
+        // Priority 1: Common names
+        let priorityNames = ["main", "default", "audiobooks", "library"]
+        if let namedLibrary = libraries.first(where: { library in
+            let name = library.name.lowercased()
+                    return priorityNames.contains { name.contains($0) }
+        }) {
+            return namedLibrary
+        }
+        
+        // Priority 2: First alphabetically
+        let sorted = libraries.sorted {
+            $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
+        }
+        
+        return sorted.first ?? libraries[0]
+    }
+}

@@ -33,6 +33,11 @@ class NetworkMonitor: NetworkMonitoring {
             if currentStatus != oldValue {
                 statusHandler?(currentStatus)
                 AppLogger.general.debug("[NetworkMonitor] Status changed: \(self.currentStatus)")
+                
+                // Post notification for background healing when connection is restored
+                if currentStatus == .online {
+                    NotificationCenter.default.post(name: .networkConnectivityChanged, object: nil)
+                }
             }
         }
     }
