@@ -1,30 +1,42 @@
 import SwiftUI
 // MARK: - Continue Reading Section
 struct ContinueReadingSection: View {
-    @StateObject private var continueManager = ContinueReadingManager()
-    @StateObject private var syncManager = OfflineSyncManager.shared
+    @StateObject private var viewModel: ContinueReadingViewModel
     
     let player: AudioPlayer
     let api: AudiobookshelfAPI
     let downloadManager: DownloadManager
     let onBookSelected: () -> Void
     
+    init(
+        viewModel: ContinueReadingViewModel,
+        player: AudioPlayer,
+        api: AudiobookshelfAPI,
+        downloadManager: DownloadManager,
+        onBookSelected: @escaping () -> Void
+    ) {
+        _viewModel = StateObject(wrappedValue: viewModel)
+        self.player = player
+        self.api = api
+        self.downloadManager = downloadManager
+        self.onBookSelected = onBookSelected
+    }
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             sectionHeader
             
-            if continueManager.recentBooks.isEmpty {
+            if viewModel.recentBooks.isEmpty {
                 emptyStateView
             } else {
                 recentBooksScrollView
             }
         }
         .onAppear {
-            continueManager.loadRecentBooks()
+            viewModel.loadRecentBooks()
         }
         .refreshable {
-            await syncManager.performSync()
-            continueManager.loadRecentBooks()
+            await viewModel.sync()
         }
     }
     
@@ -36,14 +48,13 @@ struct ContinueReadingSection: View {
             
             Spacer()
             
-            // Sync status indicator
             syncStatusIndicator
         }
     }
     
     private var syncStatusIndicator: some View {
         Group {
-            switch syncManager.syncStatus {
+            switch viewModel.syncStatus {
             case .idle:
                 EmptyView()
             case .syncing:
@@ -97,13 +108,13 @@ struct ContinueReadingSection: View {
     private var recentBooksScrollView: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 12) {
-                ForEach(continueManager.recentBooks, id: \.bookId) { state in
+                ForEach(viewModel.recentBooks, id: \.bookId) { state in
                     ContinueReadingCard(
                         state: state,
                         player: player,
                         api: api,
                         downloadManager: downloadManager,
-                        continueManager: continueManager,
+                        viewModel: viewModel,
                         onTap: {
                             Task {
                                 await resumeBook(state)
@@ -148,7 +159,7 @@ struct ContinueReadingCard: View {
     let player: AudioPlayer
     let api: AudiobookshelfAPI
     let downloadManager: DownloadManager
-    let continueManager: ContinueReadingManager
+    let viewModel: ContinueReadingViewModel
     let onTap: () -> Void
     
     @State private var book: Book?
@@ -156,7 +167,6 @@ struct ContinueReadingCard: View {
     var body: some View {
         Button(action: onTap) {
             VStack(alignment: .leading, spacing: 8) {
-                // Book cover with progress overlay
                 ZStack(alignment: .bottom) {
                     if let book = book {
                         BookCoverView.square(
@@ -174,11 +184,9 @@ struct ContinueReadingCard: View {
                             )
                     }
                     
-                    // Progress overlay
                     VStack(spacing: 0) {
                         Spacer()
                         
-                        // Progress bar
                         GeometryReader { geometry in
                             ZStack(alignment: .leading) {
                                 Rectangle()
@@ -195,7 +203,6 @@ struct ContinueReadingCard: View {
                 }
                 .clipShape(RoundedRectangle(cornerRadius: 8))
                 
-                // Book info
                 VStack(alignment: .leading, spacing: 4) {
                     if let book = book {
                         Text(book.title)
@@ -216,15 +223,14 @@ struct ContinueReadingCard: View {
                             .foregroundColor(.secondary)
                     }
                     
-                    // Progress info
                     HStack {
-                        Text(continueManager.getProgressText(for: state))
+                        Text(viewModel.getProgressText(for: state))
                             .font(.caption)
                             .foregroundColor(.accentColor)
                         
                         Spacer()
                         
-                        Text(continueManager.getTimeAgoText(for: state))
+                        Text(viewModel.getTimeAgoText(for: state))
                             .font(.caption)
                             .foregroundColor(.secondary.opacity(0.7))
                     }
@@ -247,149 +253,5 @@ struct ContinueReadingCard: View {
         } catch {
             AppLogger.general.debug("Failed to load book info for continue reading: \(error)")
         }
-    }
-}
-
-// MARK: - Sync Status View
-struct SyncStatusView: View {
-    @StateObject private var syncManager = OfflineSyncManager.shared
-    
-    var body: some View {
-        HStack {
-            switch syncManager.syncStatus {
-            case .idle:
-                Label("Ready to sync", systemImage: "arrow.triangle.2.circlepath")
-                    .foregroundColor(.secondary)
-            
-            case .syncing:
-                HStack {
-                    ProgressView()
-                        .scaleEffect(0.8)
-                    Text("Syncing progress...")
-                }
-                .foregroundColor(.blue)
-            
-            case .success(let date):
-                Label("Last sync: \(formatDate(date))", systemImage: "checkmark.circle.fill")
-                    .foregroundColor(.green)
-            
-            case .failed(let error):
-                Label("Sync failed", systemImage: "exclamationmark.triangle.fill")
-                    .foregroundColor(.red)
-            }
-            
-            Spacer()
-            
-            // Pending counts
-            if syncManager.pendingUploads > 0 || syncManager.pendingDownloads > 0 {
-                HStack(spacing: 8) {
-                    if syncManager.pendingUploads > 0 {
-                        HStack(spacing: 2) {
-                            Image(systemName: "arrow.up.circle")
-                                .font(.caption)
-                            Text("\(syncManager.pendingUploads)")
-                                .font(.caption)
-                        }
-                        .foregroundColor(.orange)
-                    }
-                    
-                    if syncManager.pendingDownloads > 0 {
-                        HStack(spacing: 2) {
-                            Image(systemName: "arrow.down.circle")
-                                .font(.caption)
-                            Text("\(syncManager.pendingDownloads)")
-                                .font(.caption)
-                        }
-                        .foregroundColor(.blue)
-                    }
-                }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(Color.secondary.opacity(0.1))
-                .clipShape(Capsule())
-            }
-            
-            // Manual sync button
-            Button(action: {
-                Task {
-                    await syncManager.performSync()
-                }
-            }) {
-                Image(systemName: "arrow.triangle.2.circlepath")
-                    .font(.caption)
-            }
-            .disabled(syncManager.syncStatus.isActive)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 8)
-        .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-    }
-    
-    private func formatDate(_ date: Date) -> String {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .abbreviated
-        return formatter.localizedString(for: date, relativeTo: Date())
-    }
-}
-
-// MARK: - Settings Integration
-struct ProgressSyncSettingsView: View {
-    @StateObject private var syncManager = OfflineSyncManager.shared
-    @State private var autoSyncEnabled = true
-    @State private var syncOnWiFiOnly = false
-    @State private var showingClearProgressAlert = false
-    
-    var body: some View {
-        Form {
-            Section("Progress Synchronization") {
-                Toggle("Auto-sync progress", isOn: $autoSyncEnabled)
-                Toggle("Sync only on Wi-Fi", isOn: $syncOnWiFiOnly)
-                
-                HStack {
-                    Text("Last sync")
-                    Spacer()
-                    switch syncManager.syncStatus {
-                    case .success(let date):
-                        Text(RelativeDateTimeFormatter().localizedString(for: date, relativeTo: Date()))
-                            .foregroundColor(.secondary)
-                    case .failed(_):
-                        Text("Failed")
-                            .foregroundColor(.red)
-                    default:
-                        Text("Never")
-                            .foregroundColor(.secondary)
-                    }
-                }
-                
-                Button("Sync now") {
-                    Task {
-                        await syncManager.performSync()
-                    }
-                }
-                .disabled(syncManager.syncStatus.isActive)
-            }
-            
-            Section("Data Management") {
-                Button("Clear all progress data") {
-                    showingClearProgressAlert = true
-                }
-                .foregroundColor(.red)
-            }
-        }
-        .navigationTitle("Progress & Sync")
-        .alert("Clear Progress Data", isPresented: $showingClearProgressAlert) {
-            Button("Cancel", role: .cancel) { }
-            Button("Clear", role: .destructive) {
-                clearAllProgressData()
-            }
-        } message: {
-            Text("This will permanently delete all saved reading progress. This action cannot be undone.")
-        }
-    }
-    
-    private func clearAllProgressData() {
-        // Implementation would clear CoreData and UserDefaults
-        AppLogger.general.debug("[ProgressSync] Clearing all progress data")
     }
 }
