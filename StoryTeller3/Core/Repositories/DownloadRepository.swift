@@ -92,12 +92,10 @@ final class DefaultDownloadRepository: DownloadRepository {
     // MARK: - DownloadRepository
     
     func downloadBook(_ book: Book, api: AudiobookshelfAPI) async throws {
-        // Check storage
         guard storageService.checkAvailableStorage(requiredSpace: 500_000_000) else {
             throw DownloadError.insufficientStorage
         }
         
-        // Check if already downloaded or downloading
         guard !isBookDownloaded(book.id),
               let manager = downloadManager,
               !manager.isDownloadingBook(book.id) else {
@@ -105,8 +103,8 @@ final class DefaultDownloadRepository: DownloadRepository {
             return
         }
         
-        let task = Task { @MainActor in
-            guard let manager = downloadManager else { return }
+        let task = Task { @MainActor [weak self, weak manager = self.downloadManager] in
+            guard let self = self, let manager = manager else { return }
             
             manager.isDownloading[book.id] = true
             manager.downloadProgress[book.id] = 0.0
@@ -114,17 +112,16 @@ final class DefaultDownloadRepository: DownloadRepository {
             manager.downloadStatus[book.id] = "Preparing download..."
             
             do {
-                try await orchestrationService.downloadBook(book, api: api) { [weak self, weak manager] bookId, progress, status, stage in
+                try await self.orchestrationService.downloadBook(book, api: api) { [weak manager] bookId, progress, status, stage in
                     Task { @MainActor in
                         manager?.downloadProgress[bookId] = progress
                         manager?.downloadStatus[bookId] = status
                         manager?.downloadStage[bookId] = stage
-                        self?.onProgress?(bookId, progress, status, stage)
                     }
                 }
                 
-                // Success - load the book
-                if let downloadedBook = loadBook(bookId: book.id) {
+                guard let manager = self.downloadManager else { return }
+                if let downloadedBook = self.loadBook(bookId: book.id) {
                     manager.downloadedBooks.append(downloadedBook)
                     manager.isDownloading[book.id] = false
                     manager.downloadProgress[book.id] = 1.0
@@ -138,6 +135,7 @@ final class DefaultDownloadRepository: DownloadRepository {
                 }
                 
             } catch is CancellationError {
+                guard let manager = self.downloadManager else { return }
                 AppLogger.general.debug("[DownloadRepository] Download cancelled: \(book.title)")
                 
                 manager.isDownloading[book.id] = false
@@ -145,9 +143,10 @@ final class DefaultDownloadRepository: DownloadRepository {
                 manager.downloadStage[book.id] = .failed
                 manager.downloadStatus[book.id] = "Download cancelled"
                 
-                cleanupFailedDownload(bookId: book.id)
+                self.cleanupFailedDownload(bookId: book.id)
                 
             } catch let error as DownloadError {
+                guard let manager = self.downloadManager else { return }
                 AppLogger.general.error("[DownloadRepository] Download failed: \(error.localizedDescription)")
                 
                 manager.isDownloading[book.id] = false
@@ -155,9 +154,10 @@ final class DefaultDownloadRepository: DownloadRepository {
                 manager.downloadStage[book.id] = .failed
                 manager.downloadStatus[book.id] = error.localizedDescription
                 
-                cleanupFailedDownload(bookId: book.id)
+                self.cleanupFailedDownload(bookId: book.id)
                 
             } catch {
+                guard let manager = self.downloadManager else { return }
                 AppLogger.general.error("[DownloadRepository] Download failed: \(error.localizedDescription)")
                 
                 manager.isDownloading[book.id] = false
@@ -165,7 +165,7 @@ final class DefaultDownloadRepository: DownloadRepository {
                 manager.downloadStage[book.id] = .failed
                 manager.downloadStatus[book.id] = "Download failed: \(error.localizedDescription)"
                 
-                cleanupFailedDownload(bookId: book.id)
+                self.cleanupFailedDownload(bookId: book.id)
             }
         }
         
@@ -185,12 +185,11 @@ final class DefaultDownloadRepository: DownloadRepository {
             cancelDownload(for: bookId)
         }
         
-        Task { @MainActor in
-            guard let manager = downloadManager else { return }
-            manager.isDownloading.removeAll()
-            manager.downloadProgress.removeAll()
-            manager.downloadStatus.removeAll()
-            manager.downloadStage.removeAll()
+        DispatchQueue.main.async { [weak downloadManager] in
+            downloadManager?.isDownloading.removeAll()
+            downloadManager?.downloadProgress.removeAll()
+            downloadManager?.downloadStatus.removeAll()
+            downloadManager?.downloadStage.removeAll()
         }
     }
     
@@ -200,11 +199,10 @@ final class DefaultDownloadRepository: DownloadRepository {
         do {
             try storageService.deleteBookDirectory(at: bookDir)
             
-            Task { @MainActor in
-                guard let manager = downloadManager else { return }
-                manager.downloadedBooks.removeAll { $0.id == bookId }
-                manager.downloadProgress.removeValue(forKey: bookId)
-                manager.isDownloading.removeValue(forKey: bookId)
+            DispatchQueue.main.async { [weak downloadManager] in
+                downloadManager?.downloadedBooks.removeAll { $0.id == bookId }
+                downloadManager?.downloadProgress.removeValue(forKey: bookId)
+                downloadManager?.isDownloading.removeValue(forKey: bookId)
             }
             
             AppLogger.general.debug("[DownloadRepository] Deleted book: \(bookId)")
@@ -220,13 +218,12 @@ final class DefaultDownloadRepository: DownloadRepository {
             deleteBook(book.id)
         }
         
-        Task { @MainActor in
-            guard let manager = downloadManager else { return }
-            manager.downloadedBooks.removeAll()
-            manager.downloadProgress.removeAll()
-            manager.isDownloading.removeAll()
-            manager.downloadStatus.removeAll()
-            manager.downloadStage.removeAll()
+        DispatchQueue.main.async { [weak downloadManager] in
+            downloadManager?.downloadedBooks.removeAll()
+            downloadManager?.downloadProgress.removeAll()
+            downloadManager?.isDownloading.removeAll()
+            downloadManager?.downloadStatus.removeAll()
+            downloadManager?.downloadStage.removeAll()
         }
         
         AppLogger.general.debug("[DownloadRepository] Deleted all books")
@@ -301,7 +298,6 @@ final class DefaultDownloadRepository: DownloadRepository {
     private func loadDownloadedBooks() {
         let books = storageService.loadDownloadedBooks()
         
-        // Filter only valid books
         let validBooks = books.filter { book in
             let validation = validationService.validateBookIntegrity(
                 bookId: book.id,
@@ -310,9 +306,8 @@ final class DefaultDownloadRepository: DownloadRepository {
             return validation.isValid
         }
         
-        Task { @MainActor in
-            guard let manager = downloadManager else { return }
-            manager.downloadedBooks = validBooks
+        DispatchQueue.main.async { [weak downloadManager] in
+            downloadManager?.downloadedBooks = validBooks
         }
         
         AppLogger.general.debug("[DownloadRepository] Loaded \(validBooks.count) valid books")
@@ -336,6 +331,16 @@ final class DefaultDownloadRepository: DownloadRepository {
     
     deinit {
         healingService.stop()
-        cancelAllDownloads()
+        
+        // Cancel all tasks synchronously
+        for (_, task) in downloadTasks {
+            task.cancel()
+        }
+        downloadTasks.removeAll()
+        
+        // Cancel orchestration service downloads
+        for bookId in downloadTasks.keys {
+            orchestrationService.cancelDownload(for: bookId)
+        }
     }
 }
