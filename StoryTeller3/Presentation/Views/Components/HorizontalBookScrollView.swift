@@ -4,7 +4,7 @@ import SwiftUI
 struct HorizontalBookScrollView: View {
     let books: [Book]
     let player: AudioPlayer
-    let api: AudiobookshelfAPI
+    let api: AudiobookshelfClient
     let downloadManager: DownloadManager
     let onBookSelected: (Book) -> Void
     let cardStyle: BookCardStyle
@@ -15,7 +15,7 @@ struct HorizontalBookScrollView: View {
     init(
         books: [Book],
         player: AudioPlayer,
-        api: AudiobookshelfAPI,
+        api: AudiobookshelfClient,
         downloadManager: DownloadManager,
         cardStyle: BookCardStyle = .library,
         onBookSelected: @escaping (Book) -> Void

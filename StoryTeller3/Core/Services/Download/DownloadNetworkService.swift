@@ -22,7 +22,7 @@ protocol DownloadNetworkService {
     ///   - libraryItemId: The library item ID
     ///   - api: The AudiobookshelfAPI instance
     /// - Returns: PlaybackSessionResponse containing audio track URLs
-    func createPlaybackSession(libraryItemId: String, api: AudiobookshelfAPI) async throws -> PlaybackSessionResponse
+    func createPlaybackSession(libraryItemId: String, api: AudiobookshelfClient) async throws -> PlaybackSessionResponse
 }
 
 final class DefaultDownloadNetworkService: DownloadNetworkService {
@@ -61,7 +61,7 @@ final class DefaultDownloadNetworkService: DownloadNetworkService {
         return data
     }
     
-    func createPlaybackSession(libraryItemId: String, api: AudiobookshelfAPI) async throws -> PlaybackSessionResponse {
+    func createPlaybackSession(libraryItemId: String, api: AudiobookshelfClient) async throws -> PlaybackSessionResponse {
         let url = URL(string: "\(api.baseURLString)/api/items/\(libraryItemId)/play")!
         let requestBody = DeviceUtils.createPlaybackRequest()
         

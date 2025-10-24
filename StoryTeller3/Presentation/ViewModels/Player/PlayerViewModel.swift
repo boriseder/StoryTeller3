@@ -6,7 +6,7 @@ class PlayerViewModel: ObservableObject {
     @Published var controlState = PlayerControlState()
     
     let player: AudioPlayer
-    let api: AudiobookshelfAPI
+    let api: AudiobookshelfClient
     
     // Convenience accessors for view binding
     var showingChaptersList: Bool {
@@ -34,7 +34,7 @@ class PlayerViewModel: ObservableObject {
         set { controlState.sliderValue = newValue }
     }
     
-    init(player: AudioPlayer, api: AudiobookshelfAPI) {
+    init(player: AudioPlayer, api: AudiobookshelfClient) {
         self.player = player
         self.api = api
         

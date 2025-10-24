@@ -8,7 +8,7 @@ protocol PlaybackRepositoryProtocol {
     func getAllPlaybackStates() -> [PlaybackState]
     func deletePlaybackState(for bookId: String)
     func clearAllPlaybackStates()
-    func syncPlaybackProgress(to server: AudiobookshelfAPI) async throws
+    func syncPlaybackProgress(to server: AudiobookshelfClient) async throws
 }
 
 // MARK: - Playback Repository Implementation
@@ -54,7 +54,7 @@ class PlaybackRepository: PlaybackRepositoryProtocol {
     
     // MARK: - Server Sync
     
-    func syncPlaybackProgress(to server: AudiobookshelfAPI) async throws {
+    func syncPlaybackProgress(to server: AudiobookshelfClient) async throws {
         let states = getAllPlaybackStates()
         
         for state in states {
@@ -70,7 +70,7 @@ class PlaybackRepository: PlaybackRepositoryProtocol {
     
     // MARK: - Private Helpers
     
-    private func uploadProgress(_ state: PlaybackState, to api: AudiobookshelfAPI) async throws {
+    private func uploadProgress(_ state: PlaybackState, to api: AudiobookshelfClient) async throws {
         let url = URL(string: "\(api.baseURLString)/api/me/progress/\(state.bookId)")!
         
         var request = URLRequest(url: url)

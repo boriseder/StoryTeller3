@@ -5,7 +5,7 @@ struct FullscreenPlayerContainer<Content: View>: View {
     let content: Content
     @ObservedObject var player: AudioPlayer
     @ObservedObject var playerStateManager: PlayerStateManager
-    let api: AudiobookshelfAPI?
+    let api: AudiobookshelfClient?
     
     @State private var dragOffset: CGFloat = 0
     @State private var isDragging = false
@@ -13,7 +13,7 @@ struct FullscreenPlayerContainer<Content: View>: View {
     init(
         player: AudioPlayer,
         playerStateManager: PlayerStateManager,
-        api: AudiobookshelfAPI?,
+        api: AudiobookshelfClient?,
         @ViewBuilder content: () -> Content
     ) {
         self.player = player

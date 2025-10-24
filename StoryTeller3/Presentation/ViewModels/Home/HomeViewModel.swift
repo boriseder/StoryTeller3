@@ -20,7 +20,7 @@ class HomeViewModel: ObservableObject {
     private let downloadRepository: DownloadRepository
     private let libraryRepository: LibraryRepositoryProtocol
     
-    let api: AudiobookshelfAPI
+    let api: AudiobookshelfClient
     let downloadManager: DownloadManager
     let player: AudioPlayer
     let onBookSelected: () -> Void
@@ -52,7 +52,7 @@ class HomeViewModel: ObservableObject {
         fetchPersonalizedSectionsUseCase: FetchPersonalizedSectionsUseCaseProtocol,
         downloadRepository: DownloadRepository,
         libraryRepository: LibraryRepositoryProtocol,
-        api: AudiobookshelfAPI,
+        api: AudiobookshelfClient,
         downloadManager: DownloadManager,
         player: AudioPlayer,
         onBookSelected: @escaping () -> Void
@@ -94,7 +94,7 @@ class HomeViewModel: ObservableObject {
             async let sectionsTask = fetchPersonalizedSectionsUseCase.execute(
                 libraryId: selectedLibrary.id
             )
-            async let statsTask = api.fetchLibraryStats(libraryId: selectedLibrary.id)
+            async let statsTask = api.libraries.fetchLibraryStats(libraryId: selectedLibrary.id)
             
             let (fetchedSections, totalBooks) = try await (sectionsTask, statsTask)
             
@@ -211,7 +211,7 @@ class HomeViewModel: ObservableObject {
         for section in personalizedSections {
             let sectionBooks = section.entities
                 .compactMap { $0.asLibraryItem }
-                .compactMap { api.convertLibraryItemToBook($0) }
+                .compactMap { api.converter.convertLibraryItemToBook($0) }
             
             allBooks.append(contentsOf: sectionBooks)
         }

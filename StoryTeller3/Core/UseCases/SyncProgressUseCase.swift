@@ -6,11 +6,11 @@ protocol SyncProgressUseCaseProtocol {
 
 class SyncProgressUseCase: SyncProgressUseCaseProtocol {
     private let playbackRepository: PlaybackRepositoryProtocol
-    private let api: AudiobookshelfAPI
+    private let api: AudiobookshelfClient
     
     init(
         playbackRepository: PlaybackRepositoryProtocol,
-        api: AudiobookshelfAPI
+        api: AudiobookshelfClient
     ) {
         self.playbackRepository = playbackRepository
         self.api = api

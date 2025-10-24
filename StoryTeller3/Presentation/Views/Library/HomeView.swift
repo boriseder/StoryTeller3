@@ -14,7 +14,7 @@ struct HomeView: View {
     @State private var selectedSeries: Series?
     @State private var selectedAuthor: IdentifiableString?
     
-    init(player: AudioPlayer, api: AudiobookshelfAPI, downloadManager: DownloadManager, onBookSelected: @escaping () -> Void) {
+    init(player: AudioPlayer, api: AudiobookshelfClient, downloadManager: DownloadManager, onBookSelected: @escaping () -> Void) {
         self._viewModel = StateObject(wrappedValue: HomeViewModelFactory.create(
             api: api,
             player: player,
@@ -199,7 +199,7 @@ struct HomeView: View {
 struct PersonalizedSectionView: View {
     let section: PersonalizedSection
     @ObservedObject var player: AudioPlayer
-    let api: AudiobookshelfAPI
+    let api: AudiobookshelfClient
     @ObservedObject var downloadManager: DownloadManager
     let onBookSelected: (Book) -> Void
     let onSeriesSelected: (Series) -> Void
@@ -280,7 +280,7 @@ struct PersonalizedSectionView: View {
     private var bookSection: some View {
         let books = section.entities.compactMap { entity -> Book? in
             guard let libraryItem = entity.asLibraryItem else { return nil }
-            return api.convertLibraryItemToBook(libraryItem)
+            return api.converter.convertLibraryItemToBook(libraryItem)
         }
         
         return HorizontalBookScrollView(
@@ -357,7 +357,7 @@ struct PersonalizedSectionView: View {
 // MARK: - Series Card View
 struct SeriesCardView: View {
     let entity: PersonalizedEntity
-    let api: AudiobookshelfAPI
+    let api: AudiobookshelfClient
     let downloadManager: DownloadManager
     let onTap: () -> Void
     
@@ -371,7 +371,7 @@ struct SeriesCardView: View {
                 Group {
                     if let series = entity.asSeries,
                        let firstBook = series.books.first,
-                       let coverBook = api.convertLibraryItemToBook(firstBook) {
+                       let coverBook = api.converter.convertLibraryItemToBook(firstBook) {
                         
                         BookCoverView.square(
                             book: coverBook,

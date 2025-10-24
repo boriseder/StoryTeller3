@@ -8,7 +8,7 @@ import SwiftUI
 struct SeriesDetailSheet: View {
     let series: Series
     @ObservedObject var player: AudioPlayer
-    let api: AudiobookshelfAPI
+    let api: AudiobookshelfClient
     @ObservedObject var downloadManager: DownloadManager
     let onBookSelected: () -> Void
     
@@ -266,7 +266,7 @@ struct SeriesDetailSheet: View {
         errorMessage = nil
         
         do {
-            let books = try await api.fetchSeriesSingle(from: libraryId, seriesId: series.id)
+            let books = try await api.series.fetchSeriesBooks(libraryId: libraryId, seriesId: series.id)
             
             withAnimation(.easeInOut(duration: 0.3)) {
                 seriesBooks = books
@@ -295,7 +295,7 @@ struct SeriesDetailSheet: View {
         errorMessage = nil
         
         do {
-            let fetchedBook = try await api.fetchBookDetails(bookId: book.id)
+            let fetchedBook = try await api.books.fetchBookDetails(bookId: book.id, retryCount: 3)
             player.configure(baseURL: api.baseURLString, authToken: api.authToken, downloadManager: downloadManager)
             
             let isOffline = downloadManager.isBookDownloaded(fetchedBook.id)

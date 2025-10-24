@@ -16,7 +16,7 @@ import SwiftUI
 struct AuthorDetailSheet: View {
     let authorName: String
     @ObservedObject var player: AudioPlayer
-    let api: AudiobookshelfAPI
+    let api: AudiobookshelfClient
     @ObservedObject var downloadManager: DownloadManager
     let onBookSelected: () -> Void
     
@@ -248,7 +248,7 @@ struct AuthorDetailSheet: View {
         
         do {
             // Fetch all books and filter by author
-            let allBooks = try await api.fetchBooks(from: libraryId, limit: 0, collapseSeries: false)
+            let allBooks = try await api.books.fetchBooks(libraryId: libraryId, limit: 0, collapseSeries: false)
             let filteredBooks = allBooks.filter { book in
                 book.author?.localizedCaseInsensitiveContains(authorName) == true
             }
@@ -284,7 +284,7 @@ struct AuthorDetailSheet: View {
         errorMessage = nil
         
         do {
-            let fetchedBook = try await api.fetchBookDetails(bookId: book.id)
+            let fetchedBook = try await api.books.fetchBookDetails(bookId: book.id, retryCount: 3)
             player.configure(baseURL: api.baseURLString, authToken: api.authToken, downloadManager: downloadManager)
             
             let isOffline = downloadManager.isBookDownloaded(fetchedBook.id)

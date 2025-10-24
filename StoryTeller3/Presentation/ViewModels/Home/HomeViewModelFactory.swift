@@ -2,7 +2,7 @@ import Foundation
 
 struct HomeViewModelFactory {
     @MainActor static func create(
-        api: AudiobookshelfAPI,
+        api: AudiobookshelfClient,
         player: AudioPlayer,
         downloadManager: DownloadManager,
         onBookSelected: @escaping () -> Void

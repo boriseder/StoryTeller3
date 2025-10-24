@@ -10,7 +10,7 @@ typealias DownloadProgressCallback = (String, Double, String, DownloadStage) -> 
 /// Service responsible for orchestrating the download process
 protocol DownloadOrchestrationService {
     /// Downloads a book with all its components
-    func downloadBook(_ book: Book, api: AudiobookshelfAPI, onProgress: @escaping DownloadProgressCallback) async throws
+    func downloadBook(_ book: Book, api: AudiobookshelfClient, onProgress: @escaping DownloadProgressCallback) async throws
     
     /// Cancels an ongoing download
     func cancelDownload(for bookId: String)
@@ -42,7 +42,7 @@ final class DefaultDownloadOrchestrationService: DownloadOrchestrationService {
     
     // MARK: - DownloadOrchestrationService
     
-    func downloadBook(_ book: Book, api: AudiobookshelfAPI, onProgress: @escaping DownloadProgressCallback) async throws {
+    func downloadBook(_ book: Book, api: AudiobookshelfClient, onProgress: @escaping DownloadProgressCallback) async throws {
         // Stage 1: Create directory
         onProgress(book.id, 0.05, "Creating download folder...", .preparing)
         let bookDir = try storageService.createBookDirectory(for: book.id)
@@ -50,7 +50,7 @@ final class DefaultDownloadOrchestrationService: DownloadOrchestrationService {
         
         // Stage 2: Fetch metadata
         onProgress(book.id, 0.10, "Fetching book details...", .fetchingMetadata)
-        let fullBook = try await api.fetchBookDetails(bookId: book.id)
+        let fullBook = try await api.books.fetchBookDetails(bookId: book.id, retryCount: 3)
         
         // Stage 3: Save metadata
         onProgress(book.id, 0.15, "Saving book information...", .fetchingMetadata)
@@ -106,7 +106,7 @@ final class DefaultDownloadOrchestrationService: DownloadOrchestrationService {
     private func downloadCoverWithRetry(
         bookId: String,
         coverPath: String,
-        api: AudiobookshelfAPI,
+        api: AudiobookshelfClient,
         bookDir: URL
     ) async throws {
         guard let coverURL = URL(string: "\(api.baseURLString)\(coverPath)") else {
@@ -142,7 +142,7 @@ final class DefaultDownloadOrchestrationService: DownloadOrchestrationService {
     
     private func downloadAudioFiles(
         for book: Book,
-        api: AudiobookshelfAPI,
+        api: AudiobookshelfClient,
         bookDir: URL,
         onProgress: @escaping DownloadProgressCallback
     ) async throws {
@@ -179,7 +179,7 @@ final class DefaultDownloadOrchestrationService: DownloadOrchestrationService {
     private func downloadAudioFileWithRetry(
         from url: URL,
         to localURL: URL,
-        api: AudiobookshelfAPI,
+        api: AudiobookshelfClient,
         bookId: String,
         totalTracks: Int,
         currentTrack: Int,

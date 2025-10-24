@@ -3,7 +3,7 @@ import SwiftUI
 @MainActor
 class SeriesSectionViewModel: ObservableObject {
     let series: Series
-    let api: AudiobookshelfAPI
+    let api: AudiobookshelfClient
     let player: AudioPlayer
     let downloadManager: DownloadManager
     let onBookSelected: () -> Void
@@ -11,12 +11,12 @@ class SeriesSectionViewModel: ObservableObject {
     private let playBookUseCase: PlayBookUseCase
     
     var books: [Book] {
-        series.books.compactMap { api.convertLibraryItemToBook($0) }
+        series.books.compactMap { api.converter.convertLibraryItemToBook($0) }
     }
     
     init(
         series: Series,
-        api: AudiobookshelfAPI,
+        api: AudiobookshelfClient,
         player: AudioPlayer,
         downloadManager: DownloadManager,
         onBookSelected: @escaping () -> Void

@@ -5,7 +5,7 @@ struct DownloadsViewModelFactory {
     static func create(
         downloadManager: DownloadManager,
         player: AudioPlayer,
-        api: AudiobookshelfAPI,
+        api: AudiobookshelfClient,
         appState: AppStateManager,
         onBookSelected: @escaping () -> Void
     ) -> DownloadsViewModel {

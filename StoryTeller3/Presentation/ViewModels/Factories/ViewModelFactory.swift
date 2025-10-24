@@ -4,7 +4,7 @@ import Foundation
 class ViewModelFactory {
     
     // MARK: - Shared Dependencies
-    private let api: AudiobookshelfAPI
+    private let api: AudiobookshelfClient
     private let downloadManager: DownloadManager
     private let player: AudioPlayer
     
@@ -39,7 +39,7 @@ class ViewModelFactory {
     
     // MARK: - Initialization
     
-    init(api: AudiobookshelfAPI, downloadManager: DownloadManager, player: AudioPlayer) {
+    init(api: AudiobookshelfClient, downloadManager: DownloadManager, player: AudioPlayer) {
         self.api = api
         self.downloadManager = downloadManager
         self.player = player

@@ -102,7 +102,7 @@ class AppStateManager: ObservableObject {
     // MARK: - Published Properties
     @Published var loadingState: AppLoadingState = .initial
     @Published var isFirstLaunch: Bool = false
-    @Published var apiClient: AudiobookshelfAPI?
+    @Published var apiClient: AudiobookshelfClient?
     @Published var showingWelcome = false
     @Published var showingSettings = false
     

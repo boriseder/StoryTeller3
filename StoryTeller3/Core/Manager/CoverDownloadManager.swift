@@ -16,7 +16,7 @@ actor CoverDownloadManager {
     
     private init() {}
     
-    func downloadCover(for book: Book, api: AudiobookshelfAPI) async throws -> UIImage? {
+    func downloadCover(for book: Book, api: AudiobookshelfClient) async throws -> UIImage? {
         let cacheKey = "online_\(book.id)"
         
         // Check if already downloading
@@ -50,7 +50,7 @@ actor CoverDownloadManager {
         downloadTasks.removeValue(forKey: cacheKey)
     }
     
-    private func performDownload(for book: Book, api: AudiobookshelfAPI) async throws -> UIImage? {
+    private func performDownload(for book: Book, api: AudiobookshelfClient) async throws -> UIImage? {
         // Use the standard Audiobookshelf cover endpoint
         let coverURLString = "\(api.baseURLString)/api/items/\(book.id)/cover"
         guard let url = URL(string: coverURLString) else {

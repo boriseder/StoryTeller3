@@ -70,7 +70,7 @@ class DownloadManager: ObservableObject {
     
     // MARK: - Public API (Delegates to Repository)
     
-    func downloadBook(_ book: Book, api: AudiobookshelfAPI) async {
+    func downloadBook(_ book: Book, api: AudiobookshelfClient) async {
         guard let repository = repository else {
             AppLogger.general.error("[DownloadManager] Repository not initialized")
             return

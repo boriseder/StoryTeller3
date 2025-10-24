@@ -41,7 +41,7 @@ class SettingsViewModel: ObservableObject {
     
     let downloadManager: DownloadManager
     
-    private var apiClient: AudiobookshelfAPI?
+    private var apiClient: AudiobookshelfClient?
     
     // MARK: - Computed Properties
     var canTestConnection: Bool {
@@ -190,7 +190,7 @@ class SettingsViewModel: ObservableObject {
                 
                 await saveCredentials(token: token)
                 
-                apiClient = AudiobookshelfAPI(baseURL: baseURL, apiKey: token)
+                apiClient = AudiobookshelfClient(baseURL: baseURL, authToken: token)
                 
                 await fetchLibraries()
                 
@@ -331,9 +331,9 @@ class SettingsViewModel: ObservableObject {
             isLoggedIn = true
             connectionState = .authenticated
             
-            apiClient = AudiobookshelfAPI(
+            apiClient = AudiobookshelfClient(
                 baseURL: credentials.baseURL,
-                apiKey: credentials.token
+                authToken: credentials.token
             )
             
             await fetchLibraries()

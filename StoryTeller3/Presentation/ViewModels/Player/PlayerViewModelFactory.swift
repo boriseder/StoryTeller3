@@ -4,7 +4,7 @@ struct PlayerViewModelFactory {
     @MainActor
     static func create(
         player: AudioPlayer,
-        api: AudiobookshelfAPI
+        api: AudiobookshelfClient
     ) -> PlayerViewModel {
         return PlayerViewModel(player: player, api: api)
     }

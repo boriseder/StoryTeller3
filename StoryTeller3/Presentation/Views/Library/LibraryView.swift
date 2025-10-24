@@ -8,7 +8,7 @@ struct LibraryView: View {
     @State private var selectedSeries: Book?
     @State private var bookCardVMs: [BookCardStateViewModel] = []
     
-    init(player: AudioPlayer, api: AudiobookshelfAPI, downloadManager: DownloadManager, onBookSelected: @escaping () -> Void) {
+    init(player: AudioPlayer, api: AudiobookshelfClient, downloadManager: DownloadManager, onBookSelected: @escaping () -> Void) {
         self._viewModel = StateObject(wrappedValue: LibraryViewModelFactory.create(
             api: api,
             player: player,

@@ -1,7 +1,7 @@
 import Foundation
 
 protocol DownloadBookUseCaseProtocol {
-    func execute(book: Book, api: AudiobookshelfAPI) async
+    func execute(book: Book, api: AudiobookshelfClient) async
     func cancel(bookId: String)
     func delete(bookId: String)
 }
@@ -13,7 +13,7 @@ class DownloadBookUseCase: DownloadBookUseCaseProtocol {
         self.downloadManager = downloadManager
     }
     
-    func execute(book: Book, api: AudiobookshelfAPI) async {
+    func execute(book: Book, api: AudiobookshelfClient) async {
         await downloadManager.downloadBook(book, api: api)
     }
     

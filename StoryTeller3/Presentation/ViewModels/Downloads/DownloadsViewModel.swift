@@ -18,7 +18,7 @@ class DownloadsViewModel: ObservableObject {
     
     let downloadManager: DownloadManager
     let player: AudioPlayer
-    let api: AudiobookshelfAPI
+    let api: AudiobookshelfClient
     let appState: AppStateManager
     let onBookSelected: () -> Void
     
@@ -62,7 +62,7 @@ class DownloadsViewModel: ObservableObject {
     init(
         downloadManager: DownloadManager,
         player: AudioPlayer,
-        api: AudiobookshelfAPI,
+        api: AudiobookshelfClient,
         appState: AppStateManager,
         storageMonitor: StorageMonitor = StorageMonitor(),
         onBookSelected: @escaping () -> Void

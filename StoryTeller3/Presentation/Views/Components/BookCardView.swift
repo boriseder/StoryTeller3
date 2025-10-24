@@ -34,7 +34,7 @@ enum BookCardStyle {
 // MARK: - Book Card View
 struct BookCardView: View {
     let viewModel: BookCardStateViewModel
-    let api: AudiobookshelfAPI?
+    let api: AudiobookshelfClient?
     let onTap: () -> Void
     let onDownload: () -> Void
     let onDelete: () -> Void

@@ -8,7 +8,7 @@ struct SeriesQuickAccessView: View {
     init(
         seriesBook: Book,
         player: AudioPlayer,
-        api: AudiobookshelfAPI,
+        api: AudiobookshelfClient,
         downloadManager: DownloadManager,
         onBookSelected: @escaping () -> Void
     ) {

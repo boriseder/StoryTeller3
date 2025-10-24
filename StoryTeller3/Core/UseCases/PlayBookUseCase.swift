@@ -31,7 +31,7 @@ enum PlayBookError: LocalizedError {
 protocol PlayBookUseCaseProtocol {
     func execute(
         book: Book,
-        api: AudiobookshelfAPI,
+        api: AudiobookshelfClient,
         player: AudioPlayer,
         downloadManager: DownloadManager,
         appState: AppStateManager,
@@ -43,7 +43,7 @@ class PlayBookUseCase: PlayBookUseCaseProtocol {
     
     func execute(
         book: Book,
-        api: AudiobookshelfAPI,
+        api: AudiobookshelfClient,
         player: AudioPlayer,
         downloadManager: DownloadManager,
         appState: AppStateManager,
@@ -61,14 +61,14 @@ class PlayBookUseCase: PlayBookUseCaseProtocol {
             } catch {
                 AppLogger.general.debug("[PlayBookUseCase] Failed to load local metadata, trying online: \(error)")
                 do {
-                    fullBook = try await api.fetchBookDetails(bookId: book.id)
+                    fullBook = try await api.books.fetchBookDetails(bookId: book.id, retryCount: 3)
                 } catch {
                     throw PlayBookError.fetchFailed(error)
                 }
             }
         } else {
             do {
-                fullBook = try await api.fetchBookDetails(bookId: book.id)
+                fullBook = try await api.books.fetchBookDetails(bookId: book.id, retryCount: 3)
             } catch {
                 throw PlayBookError.fetchFailed(error)
             }

@@ -1,11 +1,11 @@
 import Foundation
 
 protocol FetchLibrariesUseCaseProtocol {
-    func execute(api: AudiobookshelfAPI) async throws -> [Library]
+    func execute(api: AudiobookshelfClient) async throws -> [Library]
 }
 
 class FetchLibrariesUseCase: FetchLibrariesUseCaseProtocol {
-    func execute(api: AudiobookshelfAPI) async throws -> [Library] {
-        return try await api.fetchLibraries()
+    func execute(api: AudiobookshelfClient) async throws -> [Library] {
+        return try await api.libraries.fetchLibraries()
     }
 }

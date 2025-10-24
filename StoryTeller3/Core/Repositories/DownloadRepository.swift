@@ -5,7 +5,7 @@ import Foundation
 /// Repository for managing download data and operations
 protocol DownloadRepository {
     /// Downloads a book
-    func downloadBook(_ book: Book, api: AudiobookshelfAPI) async throws
+    func downloadBook(_ book: Book, api: AudiobookshelfClient) async throws
     
     /// Cancels a download
     func cancelDownload(for bookId: String)
@@ -91,7 +91,7 @@ final class DefaultDownloadRepository: DownloadRepository {
     
     // MARK: - DownloadRepository
     
-    func downloadBook(_ book: Book, api: AudiobookshelfAPI) async throws {
+    func downloadBook(_ book: Book, api: AudiobookshelfClient) async throws {
         guard storageService.checkAvailableStorage(requiredSpace: 500_000_000) else {
             throw DownloadError.insufficientStorage
         }

@@ -260,7 +260,7 @@ class CoverCacheManager: ObservableObject {
     }
     
     // MARK: - Preloading
-    func preloadCovers(for books: [Book], api: AudiobookshelfAPI?, downloadManager: DownloadManager?) {
+    func preloadCovers(for books: [Book], api: AudiobookshelfClient?, downloadManager: DownloadManager?) {
         Task { @MainActor in
             for book in books.prefix(10) { // Limit preloading
                 let loader = BookCoverLoader(book: book, api: api, downloadManager: downloadManager)

@@ -9,7 +9,7 @@ import SwiftUI
 // MARK: - Book Cover View
 struct BookCoverView: View {
     let book: Book
-    let api: AudiobookshelfAPI?
+    let api: AudiobookshelfClient?
     let downloadManager: DownloadManager?
     let size: CGSize
     let showLoadingProgress: Bool
@@ -18,7 +18,7 @@ struct BookCoverView: View {
     
     init(
         book: Book,
-        api: AudiobookshelfAPI? = nil,
+        api: AudiobookshelfClient? = nil,
         downloadManager: DownloadManager? = nil,
         size: CGSize,
         showLoadingProgress: Bool = false
@@ -121,7 +121,7 @@ extension BookCoverView {
     static func square(
         book: Book,
         size: CGFloat,
-        api: AudiobookshelfAPI? = nil,
+        api: AudiobookshelfClient? = nil,
         downloadManager: DownloadManager? = nil,
         showProgress: Bool = false
     ) -> BookCoverView {
@@ -138,7 +138,7 @@ extension BookCoverView {
     static func bookAspect(
         book: Book,
         width: CGFloat,
-        api: AudiobookshelfAPI? = nil,
+        api: AudiobookshelfClient? = nil,
         downloadManager: DownloadManager? = nil,
         showProgress: Bool = false
     ) -> BookCoverView {

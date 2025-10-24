@@ -4,14 +4,14 @@ struct ContinueReadingSection: View {
     @StateObject private var viewModel: ContinueReadingViewModel
     
     let player: AudioPlayer
-    let api: AudiobookshelfAPI
+    let api: AudiobookshelfClient
     let downloadManager: DownloadManager
     let onBookSelected: () -> Void
     
     init(
         viewModel: ContinueReadingViewModel,
         player: AudioPlayer,
-        api: AudiobookshelfAPI,
+        api: AudiobookshelfClient,
         downloadManager: DownloadManager,
         onBookSelected: @escaping () -> Void
     ) {
@@ -129,7 +129,7 @@ struct ContinueReadingSection: View {
     
     private func resumeBook(_ state: PlaybackState) async {
         do {
-            let book = try await api.fetchBookDetails(bookId: state.bookId)
+            let book = try await api.books.fetchBookDetails(bookId: state.bookId, retryCount: 3)
             player.configure(baseURL: api.baseURLString, authToken: api.authToken, downloadManager: downloadManager)
             
             let isOffline = downloadManager.isBookDownloaded(book.id)
@@ -157,7 +157,7 @@ struct ContinueReadingSection: View {
 struct ContinueReadingCard: View {
     let state: PlaybackState
     let player: AudioPlayer
-    let api: AudiobookshelfAPI
+    let api: AudiobookshelfClient
     let downloadManager: DownloadManager
     let viewModel: ContinueReadingViewModel
     let onTap: () -> Void
@@ -246,7 +246,7 @@ struct ContinueReadingCard: View {
     
     private func loadBookInfo() async {
         do {
-            let loadedBook = try await api.fetchBookDetails(bookId: state.bookId)
+            let loadedBook = try await api.books.fetchBookDetails(bookId: state.bookId, retryCount: 3)
             await MainActor.run {
                 self.book = loadedBook
             }

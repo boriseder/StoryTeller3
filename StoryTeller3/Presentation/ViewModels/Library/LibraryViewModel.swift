@@ -19,7 +19,7 @@ class LibraryViewModel: ObservableObject {
     private let downloadRepository: DownloadRepository
     private let libraryRepository: LibraryRepositoryProtocol
     
-    let api: AudiobookshelfAPI
+    let api: AudiobookshelfClient
     let downloadManager: DownloadManager
     let player: AudioPlayer
     let onBookSelected: () -> Void
@@ -75,7 +75,7 @@ class LibraryViewModel: ObservableObject {
         fetchBooksUseCase: FetchBooksUseCaseProtocol,
         downloadRepository: DownloadRepository,
         libraryRepository: LibraryRepositoryProtocol,
-        api: AudiobookshelfAPI,
+        api: AudiobookshelfClient,
         downloadManager: DownloadManager,
         player: AudioPlayer,
         onBookSelected: @escaping () -> Void

@@ -5,7 +5,7 @@ struct SeriesView: View {
     @EnvironmentObject var appState: AppStateManager
     @EnvironmentObject var theme: ThemeManager
 
-    init(player: AudioPlayer, api: AudiobookshelfAPI, downloadManager: DownloadManager, onBookSelected: @escaping () -> Void) {
+    init(player: AudioPlayer, api: AudiobookshelfClient, downloadManager: DownloadManager, onBookSelected: @escaping () -> Void) {
         self._viewModel = StateObject(wrappedValue: SeriesViewModelFactory.create(
             api: api,
             player: player,

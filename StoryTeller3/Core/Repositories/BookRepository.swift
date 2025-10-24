@@ -40,10 +40,10 @@ enum RepositoryError: LocalizedError {
 // MARK: - Book Repository Implementation
 class BookRepository: BookRepositoryProtocol {
     
-    private let api: AudiobookshelfAPI
+    private let api: AudiobookshelfClient
     private let cache: BookCacheProtocol?
     
-    init(api: AudiobookshelfAPI, cache: BookCacheProtocol? = nil) {
+    init(api: AudiobookshelfClient, cache: BookCacheProtocol? = nil) {
         self.api = api
         self.cache = cache
     }
@@ -52,16 +52,14 @@ class BookRepository: BookRepositoryProtocol {
     
     func fetchBooks(libraryId: String, collapseSeries: Bool) async throws -> [Book] {
         do {
-            let books = try await api.fetchBooks(
-                from: libraryId,
+            let books = try await api.books.fetchBooks(
+                libraryId: libraryId,
                 limit: 0,
                 collapseSeries: collapseSeries
             )
             
             cache?.cacheBooks(books, for: libraryId)
-            
             AppLogger.general.debug("[BookRepository] Fetched \(books.count) books from library \(libraryId)")
-            
             return books
             
         } catch let decodingError as DecodingError {
@@ -88,15 +86,13 @@ class BookRepository: BookRepositoryProtocol {
             throw RepositoryError.networkError(error)
         }
     }
-    
+
     func fetchBookDetails(bookId: String) async throws -> Book {
         do {
-            let book = try await api.fetchBookDetails(bookId: bookId)
+            let book = try await api.books.fetchBookDetails(bookId: bookId, retryCount: 3)
             
             cache?.cacheBook(book)
-            
             AppLogger.general.debug("[BookRepository] Fetched details for book: \(book.title)")
-            
             return book
             
         } catch let decodingError as DecodingError {
@@ -115,6 +111,57 @@ class BookRepository: BookRepositoryProtocol {
                 return cachedBook
             }
             
+            throw RepositoryError.networkError(urlError)
+            
+        } catch {
+            throw RepositoryError.networkError(error)
+        }
+    }
+
+    func fetchSeries(libraryId: String) async throws -> [Series] {
+        do {
+            let series = try await api.series.fetchSeries(libraryId: libraryId, limit: 1000)
+            AppLogger.general.debug("[BookRepository] Fetched \(series.count) series")
+            return series
+            
+        } catch let decodingError as DecodingError {
+            throw RepositoryError.decodingError(decodingError)
+            
+        } catch let urlError as URLError {
+            throw RepositoryError.networkError(urlError)
+            
+        } catch {
+            throw RepositoryError.networkError(error)
+        }
+    }
+
+    func fetchSeriesBooks(libraryId: String, seriesId: String) async throws -> [Book] {
+        do {
+            let books = try await api.series.fetchSeriesBooks(libraryId: libraryId, seriesId: seriesId)
+            AppLogger.general.debug("[BookRepository] Fetched \(books.count) books for series \(seriesId)")
+            return books
+            
+        } catch let decodingError as DecodingError {
+            throw RepositoryError.decodingError(decodingError)
+            
+        } catch let urlError as URLError {
+            throw RepositoryError.networkError(urlError)
+            
+        } catch {
+            throw RepositoryError.networkError(error)
+        }
+    }
+
+    func fetchPersonalizedSections(libraryId: String) async throws -> [PersonalizedSection] {
+        do {
+            let sections = try await api.personalized.fetchPersonalizedSections(libraryId: libraryId, limit: 10)
+            AppLogger.general.debug("[BookRepository] Fetched \(sections.count) personalized sections")
+            return sections
+            
+        } catch let decodingError as DecodingError {
+            throw RepositoryError.decodingError(decodingError)
+            
+        } catch let urlError as URLError {
             throw RepositoryError.networkError(urlError)
             
         } catch {
@@ -141,63 +188,6 @@ class BookRepository: BookRepositoryProtocol {
             
         } catch {
             throw error
-        }
-    }
-    
-    func fetchSeries(libraryId: String) async throws -> [Series] {
-        do {
-            let series = try await api.fetchSeries(from: libraryId)
-            
-            AppLogger.general.debug("[BookRepository] Fetched \(series.count) series")
-            
-            return series
-            
-        } catch let decodingError as DecodingError {
-            throw RepositoryError.decodingError(decodingError)
-            
-        } catch let urlError as URLError {
-            throw RepositoryError.networkError(urlError)
-            
-        } catch {
-            throw RepositoryError.networkError(error)
-        }
-    }
-    
-    func fetchSeriesBooks(libraryId: String, seriesId: String) async throws -> [Book] {
-        do {
-            let books = try await api.fetchSeriesSingle(from: libraryId, seriesId: seriesId)
-            
-            AppLogger.general.debug("[BookRepository] Fetched \(books.count) books for series \(seriesId)")
-            
-            return books
-            
-        } catch let decodingError as DecodingError {
-            throw RepositoryError.decodingError(decodingError)
-            
-        } catch let urlError as URLError {
-            throw RepositoryError.networkError(urlError)
-            
-        } catch {
-            throw RepositoryError.networkError(error)
-        }
-    }
-    
-    func fetchPersonalizedSections(libraryId: String) async throws -> [PersonalizedSection] {
-        do {
-            let sections = try await api.fetchPersonalizedSections(from: libraryId)
-            
-            AppLogger.general.debug("[BookRepository] Fetched \(sections.count) personalized sections")
-            
-            return sections
-            
-        } catch let decodingError as DecodingError {
-            throw RepositoryError.decodingError(decodingError)
-            
-        } catch let urlError as URLError {
-            throw RepositoryError.networkError(urlError)
-            
-        } catch {
-            throw RepositoryError.networkError(error)
         }
     }
 }

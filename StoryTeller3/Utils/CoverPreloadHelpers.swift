@@ -26,7 +26,7 @@ enum CoverPreloadHelpers {
     ///   - limit: Maximum number of covers to preload (default: 6)
     static func preloadIfNeeded(
         books: [Book],
-        api: AudiobookshelfAPI?,
+        api: AudiobookshelfClient?,
         downloadManager: DownloadManager?,
         limit: Int = 6
     ) {
@@ -47,7 +47,7 @@ enum CoverPreloadHelpers {
     ///   - downloadManager: Download manager for checking offline status
     static func preloadIfNeeded(
         book: Book,
-        api: AudiobookshelfAPI?,
+        api: AudiobookshelfClient?,
         downloadManager: DownloadManager?
     ) {
         preloadIfNeeded(

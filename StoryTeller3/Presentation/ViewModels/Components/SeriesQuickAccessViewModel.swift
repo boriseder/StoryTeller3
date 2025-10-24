@@ -9,7 +9,7 @@ class SeriesQuickAccessViewModel: ObservableObject {
     
     let seriesBook: Book
     let player: AudioPlayer
-    let api: AudiobookshelfAPI
+    let api: AudiobookshelfClient
     let downloadManager: DownloadManager
     let onBookSelected: () -> Void
     var onDismiss: (() -> Void)?
@@ -24,7 +24,7 @@ class SeriesQuickAccessViewModel: ObservableObject {
     init(
         seriesBook: Book,
         player: AudioPlayer,
-        api: AudiobookshelfAPI,
+        api: AudiobookshelfClient,
         downloadManager: DownloadManager,
         onBookSelected: @escaping () -> Void
     ) {

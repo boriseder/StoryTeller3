@@ -3,7 +3,7 @@ import Foundation
 struct LibraryViewModelFactory {
     @MainActor
     static func create(
-        api: AudiobookshelfAPI,
+        api: AudiobookshelfClient,
         player: AudioPlayer,
         downloadManager: DownloadManager,
         onBookSelected: @escaping () -> Void

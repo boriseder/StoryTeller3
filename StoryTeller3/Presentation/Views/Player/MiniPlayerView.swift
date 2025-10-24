@@ -2,7 +2,7 @@ import SwiftUI
 
 struct MiniPlayerView: View {
     @ObservedObject var player: AudioPlayer
-    let api: AudiobookshelfAPI?
+    let api: AudiobookshelfClient?
     let onTap: () -> Void
     let onDismiss: () -> Void
     

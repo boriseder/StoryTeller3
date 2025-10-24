@@ -4,7 +4,7 @@ import AVKit
 struct PlayerView: View {
     @StateObject private var viewModel: PlayerViewModel
     
-    init(player: AudioPlayer, api: AudiobookshelfAPI) {
+    init(player: AudioPlayer, api: AudiobookshelfClient) {
         self._viewModel = StateObject(wrappedValue: PlayerViewModel(
             player: player,
             api: api

@@ -19,7 +19,7 @@ class SeriesViewModel: ObservableObject {
     private let downloadRepository: DownloadRepository
     private let libraryRepository: LibraryRepositoryProtocol
     
-    let api: AudiobookshelfAPI
+    let api: AudiobookshelfClient
     let downloadManager: DownloadManager
     let player: AudioPlayer
     let onBookSelected: () -> Void
@@ -35,7 +35,7 @@ class SeriesViewModel: ObservableObject {
         fetchSeriesUseCase: FetchSeriesUseCaseProtocol,
         downloadRepository: DownloadRepository,
         libraryRepository: LibraryRepositoryProtocol,
-        api: AudiobookshelfAPI,
+        api: AudiobookshelfClient,
         downloadManager: DownloadManager,
         player: AudioPlayer,
         onBookSelected: @escaping () -> Void
@@ -112,7 +112,7 @@ class SeriesViewModel: ObservableObject {
     }
     
     func convertLibraryItemToBook(_ item: LibraryItem) -> Book? {
-        return api.convertLibraryItemToBook(item)
+        return api.converter.convertLibraryItemToBook(item)
     }
     
     // MARK: - Error Handling

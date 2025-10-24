@@ -6,7 +6,7 @@ class BookCardViewModel: ObservableObject {
     let book: Book
     let player: AudioPlayer
     let downloadManager: DownloadManager
-    let api: AudiobookshelfAPI?
+    let api: AudiobookshelfClient?
     private let downloadUseCase: DownloadBookUseCase
     
     var isCurrentBook: Bool {
@@ -54,7 +54,7 @@ class BookCardViewModel: ObservableObject {
         book: Book,
         player: AudioPlayer,
         downloadManager: DownloadManager,
-        api: AudiobookshelfAPI?
+        api: AudiobookshelfClient?
     ) {
         self.book = book
         self.player = player

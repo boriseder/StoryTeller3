@@ -11,12 +11,12 @@ protocol LibraryRepositoryProtocol {
 // MARK: - Library Repository Implementation
 class LibraryRepository: LibraryRepositoryProtocol {
     
-    private let api: AudiobookshelfAPI
+    private let api: AudiobookshelfClient
     private let settingsRepository: SettingsRepositoryProtocol
     private var cachedLibraries: [Library]?
     
     init(
-        api: AudiobookshelfAPI,
+        api: AudiobookshelfClient,
         settingsRepository: SettingsRepositoryProtocol = SettingsRepository()
     ) {
         self.api = api
@@ -32,7 +32,7 @@ class LibraryRepository: LibraryRepositoryProtocol {
         }
         
         do {
-            let libraries = try await api.fetchLibraries()
+            let libraries = try await api.libraries.fetchLibraries()
             cachedLibraries = libraries
             
             AppLogger.general.debug("[LibraryRepository] Fetched \(libraries.count) libraries")

@@ -27,12 +27,12 @@ class BookCoverLoader: ObservableObject {
     @Published var downloadProgress: Double = 0.0
     
     private let book: Book
-    private let api: AudiobookshelfAPI?
+    private let api: AudiobookshelfClient?
     private let downloadManager: DownloadManager?
     private let cacheManager = CoverCacheManager.shared
     private var loadTask: Task<Void, Never>?
     
-    init(book: Book, api: AudiobookshelfAPI? = nil, downloadManager: DownloadManager? = nil) {
+    init(book: Book, api: AudiobookshelfClient? = nil, downloadManager: DownloadManager? = nil) {
         self.book = book
         self.api = api
         self.downloadManager = downloadManager

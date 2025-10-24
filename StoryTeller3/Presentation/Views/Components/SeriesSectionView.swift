@@ -8,7 +8,7 @@ struct SeriesSectionView: View {
     init(
         series: Series,
         player: AudioPlayer,
-        api: AudiobookshelfAPI,
+        api: AudiobookshelfClient,
         downloadManager: DownloadManager,
         onBookSelected: @escaping () -> Void
     ) {

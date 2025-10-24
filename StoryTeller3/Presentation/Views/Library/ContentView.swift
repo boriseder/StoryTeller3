@@ -227,7 +227,7 @@ struct ContentView: View {
                 DownloadsView(
                     downloadManager: downloadManager,
                     player: player,
-                    api: AudiobookshelfAPI(baseURL: "", apiKey: ""),
+                    api: AudiobookshelfClient(baseURL: "", authToken: ""),
                     appState: appState,
                     onBookSelected: { openFullscreenPlayer() }
                 )
@@ -266,7 +266,7 @@ struct ContentView: View {
             
             do {
                 let token = try KeychainService.shared.getToken(for: username)
-                let client = AudiobookshelfAPI(baseURL: baseURL, apiKey: token)
+                let client = AudiobookshelfClient(baseURL: baseURL, authToken: token,)
                 
                 let connectionResult = await testConnection(client: client)
                 
@@ -286,7 +286,11 @@ struct ContentView: View {
                 case .networkError(let issueType):
                     appState.isServerReachable = false
                     appState.loadingState = .networkError(issueType)
-                    
+                
+                case .failed:
+                    appState.isServerReachable = false
+                    appState.loadingState = .networkError(ConnectionIssueType.serverError)      // Boris: Technical debt!! Basically 2 parallel error handling strageies. Here and then in Audiobookshelf and no communication between them.
+                
                 case .authenticationError:
                     appState.loadingState = .authenticationError
                 }
@@ -299,7 +303,7 @@ struct ContentView: View {
     }
     
     // ✅ CORRECTED: Use Repository Pattern
-    private func loadInitialData(client: AudiobookshelfAPI) async {
+    private func loadInitialData(client: AudiobookshelfClient) async {
         AppLogger.general.debug("[ContentView] Loading initial data via Repository...")
         
         // Create repository instance
@@ -352,25 +356,21 @@ struct ContentView: View {
     
     // MARK: - Connection Testing
     
-    enum ConnectionTestResult {
-        case success
-        case networkError(ConnectionIssueType)
-        case authenticationError
-    }
+
     
-    private func testConnection(client: AudiobookshelfAPI) async -> ConnectionTestResult {
+    private func testConnection(client: AudiobookshelfClient) async -> ConnectionTestResult {
         guard appState.isDeviceOnline else {
             return .networkError(.noInternet)
         }
         
-        let isHealthy = await client.checkConnectionHealth()
+        let isHealthy = await client.connection.checkHealth()
         
         guard isHealthy else {
             return .networkError(.serverUnreachable)
         }
         
         do {
-            _ = try await client.fetchLibraries()
+            _ = try await client.libraries.fetchLibraries()
             return .success
         } catch AudiobookshelfError.unauthorized {
             return .authenticationError
@@ -501,4 +501,11 @@ struct WelcomePageView: View {
         }
         .padding()
     }
+}
+
+enum ConnectionTestResult {
+    case success
+    case networkError(ConnectionIssueType)
+    case authenticationError
+    case failed
 }
