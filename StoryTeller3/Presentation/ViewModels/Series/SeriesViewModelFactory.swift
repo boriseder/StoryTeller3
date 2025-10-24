@@ -10,7 +10,11 @@ struct SeriesViewModelFactory {
     ) -> SeriesViewModel {
         let bookRepository = BookRepository(api: api, cache: BookCache())
         let fetchSeriesUseCase = FetchSeriesUseCase(bookRepository: bookRepository)
-        let downloadRepository = DownloadRepository(downloadManager: downloadManager)
+
+        guard let downloadRepository = downloadManager.repository else {
+            fatalError("DownloadManager repository not initialized")
+        }
+
         let libraryRepository = LibraryRepository(api: api)
         
         return SeriesViewModel(

@@ -16,7 +16,7 @@ class LibraryViewModel: ObservableObject {
     // MARK: - Dependencies (Use Cases & Repositories)
     private let fetchBooksUseCase: FetchBooksUseCaseProtocol
     private let playBookUseCase: PlayBookUseCase
-    private let downloadRepository: DownloadRepositoryProtocol
+    private let downloadRepository: DownloadRepository
     private let libraryRepository: LibraryRepositoryProtocol
     
     let api: AudiobookshelfAPI
@@ -73,7 +73,7 @@ class LibraryViewModel: ObservableObject {
     // MARK: - Init with DI
     init(
         fetchBooksUseCase: FetchBooksUseCaseProtocol,
-        downloadRepository: DownloadRepositoryProtocol,
+        downloadRepository: DownloadRepository,
         libraryRepository: LibraryRepositoryProtocol,
         api: AudiobookshelfAPI,
         downloadManager: DownloadManager,

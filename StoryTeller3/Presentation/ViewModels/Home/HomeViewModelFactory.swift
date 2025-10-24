@@ -9,7 +9,12 @@ struct HomeViewModelFactory {
     ) -> HomeViewModel {
         let bookRepository = BookRepository(api: api, cache: BookCache())
         let fetchPersonalizedSectionsUseCase = FetchPersonalizedSectionsUseCase(bookRepository: bookRepository)
-        let downloadRepository = DownloadRepository(downloadManager: downloadManager)
+        
+        // Access the repository from downloadManager instead of trying to instantiate the protocol
+        guard let downloadRepository = downloadManager.repository else {
+            fatalError("DownloadManager repository not initialized. Ensure DownloadManager is fully set up before creating ViewModels.")
+        }
+        
         let libraryRepository = LibraryRepository(api: api)
         
         return HomeViewModel(

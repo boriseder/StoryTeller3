@@ -17,7 +17,7 @@ class HomeViewModel: ObservableObject {
     // MARK: - Dependencies (Use Cases & Repositories)
     private let fetchPersonalizedSectionsUseCase: FetchPersonalizedSectionsUseCaseProtocol
     private let playBookUseCase: PlayBookUseCase
-    private let downloadRepository: DownloadRepositoryProtocol
+    private let downloadRepository: DownloadRepository
     private let libraryRepository: LibraryRepositoryProtocol
     
     let api: AudiobookshelfAPI
@@ -50,7 +50,7 @@ class HomeViewModel: ObservableObject {
     // MARK: - Init with DI
     init(
         fetchPersonalizedSectionsUseCase: FetchPersonalizedSectionsUseCaseProtocol,
-        downloadRepository: DownloadRepositoryProtocol,
+        downloadRepository: DownloadRepository,
         libraryRepository: LibraryRepositoryProtocol,
         api: AudiobookshelfAPI,
         downloadManager: DownloadManager,

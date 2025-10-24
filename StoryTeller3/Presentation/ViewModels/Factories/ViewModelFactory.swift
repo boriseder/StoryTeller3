@@ -13,9 +13,12 @@ class ViewModelFactory {
         BookRepository(api: api, cache: BookCache())
     }()
     
-    private lazy var downloadRepository: DownloadRepositoryProtocol = {
-        DownloadRepository(downloadManager: downloadManager)
-    }()
+    private var downloadRepository: DownloadRepository {
+        guard let repo = downloadManager.repository else {
+            fatalError("DownloadManager repository not initialized. Check initialization order.")
+        }
+        return repo
+    }
     
     private lazy var libraryRepository: LibraryRepositoryProtocol = {
         LibraryRepository(api: api)
