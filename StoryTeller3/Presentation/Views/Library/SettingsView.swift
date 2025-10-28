@@ -1,12 +1,17 @@
 import SwiftUI
 
 struct SettingsView: View {
-    @StateObject private var viewModel = SettingsViewModelFactory.create()
+    @StateObject private var viewModel = SettingsViewModelFactory.create
+    @EnvironmentObject private var container: DependencyContainer
     @EnvironmentObject var theme: ThemeManager
 
     @State private var selectedColor: Color = .blue
     let colors: [Color] = [.red, .orange, .green, .blue, .purple, .pink]
 
+    init(viewModel: SettingsViewModel) {
+        self._viewModel = StateObject(wrappedValue: viewModel)
+    }
+    
     var body: some View {
         NavigationStack {
             formContent

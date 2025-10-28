@@ -3,24 +3,14 @@ import Foundation
 struct DownloadsViewModelFactory {
     @MainActor
     static func create(
-        downloadManager: DownloadManager,
-        player: AudioPlayer,
-        api: AudiobookshelfClient,
-        appState: AppStateManager,
+        container: DependencyContainer,
         onBookSelected: @escaping () -> Void
     ) -> DownloadsViewModel {
-        // Create Use Cases
-        let playBookUseCase = PlayBookUseCase(
-            api: api,
-            player: player,
-            downloadManager: downloadManager
-        )
-        
-        return DownloadsViewModel(
-            downloadManager: downloadManager,
-            playBookUseCase: playBookUseCase,
-            appState: appState,
-            storageMonitor: StorageMonitor(),
+        DownloadsViewModel(
+            downloadManager: container.downloadManager,
+            playBookUseCase: container.playBookUseCase,
+            appState: container.appStateManager,
+            storageMonitor: container.networkMonitor,
             onBookSelected: onBookSelected
         )
     }

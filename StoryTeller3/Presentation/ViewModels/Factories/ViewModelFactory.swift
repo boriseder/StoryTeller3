@@ -3,126 +3,83 @@ import Foundation
 @MainActor
 class ViewModelFactory {
     
-    // MARK: - Shared Dependencies (Infrastructure only)
-    private let api: AudiobookshelfClient
-    private let downloadManager: DownloadManager
-    private let player: AudioPlayer
-    
-    // MARK: - Repositories
-    private lazy var bookRepository: BookRepositoryProtocol = {
-        BookRepository(api: api, cache: BookCache())
-    }()
-    
-    private var downloadRepository: DownloadRepository {
-        guard let repo = downloadManager.repository else {
-            fatalError("DownloadManager repository not initialized. Check initialization order.")
-        }
-        return repo
-    }
-    
-    private lazy var libraryRepository: LibraryRepositoryProtocol = {
-        LibraryRepository(api: api)
-    }()
-    
-    // MARK: - Use Cases
-    private lazy var fetchBooksUseCase: FetchBooksUseCaseProtocol = {
-        FetchBooksUseCase(bookRepository: bookRepository)
-    }()
-    
-    private lazy var fetchPersonalizedSectionsUseCase: FetchPersonalizedSectionsUseCaseProtocol = {
-        FetchPersonalizedSectionsUseCase(bookRepository: bookRepository)
-    }()
-    
-    private lazy var fetchSeriesUseCase: FetchSeriesUseCaseProtocol = {
-        FetchSeriesUseCase(bookRepository: bookRepository)
-    }()
-    
-    private lazy var fetchSeriesBooksUseCase: FetchSeriesBooksUseCaseProtocol = {
-        FetchSeriesBooksUseCase(bookRepository: bookRepository)
-    }()
-    
-    private lazy var fetchLibraryStatsUseCase: FetchLibraryStatsUseCaseProtocol = {
-        FetchLibraryStatsUseCase(api: api)
-    }()
-    
-    private lazy var searchBooksByAuthorUseCase: SearchBooksByAuthorUseCaseProtocol = {
-        SearchBooksByAuthorUseCase(bookRepository: bookRepository)
-    }()
-    
-    private lazy var playBookUseCase: PlayBookUseCaseProtocol = {
-        PlayBookUseCase(
-            api: api,
-            player: player,
-            downloadManager: downloadManager
-        )
-    }()
-    
-    private lazy var coverPreloadUseCase: CoverPreloadUseCaseProtocol = {
-        CoverPreloadUseCase(
-            api: api,
-            downloadManager: downloadManager
-        )
-    }()
-    
-    private lazy var convertLibraryItemUseCase: ConvertLibraryItemUseCaseProtocol = {
-        ConvertLibraryItemUseCase(converter: api.converter)
-    }()
+    // MARK: - Dependency Container
+    private let container: DependencyContainer
     
     // MARK: - Initialization
-    
-    init(api: AudiobookshelfClient, downloadManager: DownloadManager, player: AudioPlayer) {
-        self.api = api
-        self.downloadManager = downloadManager
-        self.player = player
+    init(container: DependencyContainer) {
+        self.container = container
     }
     
     // MARK: - ViewModel Factories
     
     func makeLibraryViewModel(onBookSelected: @escaping () -> Void) -> LibraryViewModel {
         LibraryViewModel(
-            fetchBooksUseCase: fetchBooksUseCase,
-            playBookUseCase: playBookUseCase,
-            coverPreloadUseCase: coverPreloadUseCase,
-            downloadRepository: downloadRepository,
-            libraryRepository: libraryRepository,
+            fetchBooksUseCase: container.fetchBooksUseCase,
+            playBookUseCase: container.playBookUseCase,
+            coverPreloadUseCase: container.coverPreloadUseCase,
+            downloadRepository: container.downloadRepository,
+            libraryRepository: container.libraryRepository,
             onBookSelected: onBookSelected
         )
     }
     
     func makeHomeViewModel(onBookSelected: @escaping () -> Void) -> HomeViewModel {
         HomeViewModel(
-            fetchPersonalizedSectionsUseCase: fetchPersonalizedSectionsUseCase,
-            fetchLibraryStatsUseCase: fetchLibraryStatsUseCase,
-            fetchSeriesBooksUseCase: fetchSeriesBooksUseCase,
-            searchBooksByAuthorUseCase: searchBooksByAuthorUseCase,
-            playBookUseCase: playBookUseCase,
-            coverPreloadUseCase: coverPreloadUseCase,
-            convertLibraryItemUseCase: convertLibraryItemUseCase,
-            downloadRepository: downloadRepository,
-            libraryRepository: libraryRepository,
+            fetchPersonalizedSectionsUseCase: container.fetchPersonalizedSectionsUseCase,
+            fetchLibraryStatsUseCase: container.fetchLibraryStatsUseCase,
+            fetchSeriesBooksUseCase: container.fetchSeriesBooksUseCase,
+            searchBooksByAuthorUseCase: container.searchBooksByAuthorUseCase,
+            playBookUseCase: container.playBookUseCase,
+            coverPreloadUseCase: container.coverPreloadUseCase,
+            convertLibraryItemUseCase: container.convertLibraryItemUseCase,
+            downloadRepository: container.downloadRepository,
+            libraryRepository: container.libraryRepository,
             onBookSelected: onBookSelected
         )
     }
     
     func makeSeriesViewModel(onBookSelected: @escaping () -> Void) -> SeriesViewModel {
         SeriesViewModel(
-            fetchSeriesUseCase: fetchSeriesUseCase,
-            playBookUseCase: playBookUseCase,
-            convertLibraryItemUseCase: convertLibraryItemUseCase,
-            downloadRepository: downloadRepository,
-            libraryRepository: libraryRepository,
+            fetchSeriesUseCase: container.fetchSeriesUseCase,
+            playBookUseCase: container.playBookUseCase,
+            convertLibraryItemUseCase: container.convertLibraryItemUseCase,
+            downloadRepository: container.downloadRepository,
+            libraryRepository: container.libraryRepository,
             onBookSelected: onBookSelected
         )
     }
     
     func makePlayerViewModel() -> PlayerViewModel {
         PlayerViewModel(
-            player: player,
-            api: api
+            player: container.audioPlayer,
+            api: container.audiobookshelfClient
         )
     }
     
     func makeSleepTimerViewModel() -> SleepTimerViewModel {
-        SleepTimerViewModel(player: player)
+        SleepTimerViewModel(player: container.audioPlayer)
+    }
+    
+    func makeDownloadsViewModel(onBookSelected: @escaping () -> Void) -> DownloadsViewModel {
+        DownloadsViewModel(
+            downloadManager: container.downloadManager,
+            playBookUseCase: container.playBookUseCase,
+            appState: container.appStateManager,
+            storageMonitor: container.networkMonitor,
+            onBookSelected: onBookSelected
+        )
+    }
+    
+    func makeSettingsViewModel() -> SettingsViewModel {
+        SettingsViewModel(
+            testConnectionUseCase: container.testConnectionUseCase,
+            authenticationUseCase: container.authenticationUseCase,
+            loadCredentialsUseCase: container.loadCredentialsUseCase,
+            saveCredentialsUseCase: container.saveCredentialsUseCase,
+            logoutUseCase: container.logoutUseCase,
+            calculateStorageUseCase: container.calculateStorageUseCase,
+            clearCacheUseCase: container.clearCacheUseCase
+        )
     }
 }

@@ -9,31 +9,13 @@ import SwiftUI
 // MARK: - Book Cover View
 struct BookCoverView: View {
     let book: Book
-    let api: AudiobookshelfClient?
-    let downloadManager: DownloadManager?
     let size: CGSize
     let showLoadingProgress: Bool
     
     @StateObject private var loader: BookCoverLoader
-    
-    init(
-        book: Book,
-        api: AudiobookshelfClient? = nil,
-        downloadManager: DownloadManager? = nil,
-        size: CGSize,
-        showLoadingProgress: Bool = false
-    ) {
-        self.book = book
-        self.api = api
-        self.downloadManager = downloadManager
-        self.size = size
-        self.showLoadingProgress = showLoadingProgress
-        self._loader = StateObject(wrappedValue: BookCoverLoader(
-            book: book,
-            api: api,
-            downloadManager: downloadManager
-        ))
-    }
+    @EnvironmentObject var container: DependencyContainer
+
+    init(book: Book) {}
     
     var body: some View {
         ZStack {
@@ -121,14 +103,10 @@ extension BookCoverView {
     static func square(
         book: Book,
         size: CGFloat,
-        api: AudiobookshelfClient? = nil,
-        downloadManager: DownloadManager? = nil,
         showProgress: Bool = false
     ) -> BookCoverView {
         BookCoverView(
             book: book,
-            api: api,
-            downloadManager: downloadManager,
             size: CGSize(width: size, height: size),
             showLoadingProgress: showProgress
         )
@@ -138,15 +116,11 @@ extension BookCoverView {
     static func bookAspect(
         book: Book,
         width: CGFloat,
-        api: AudiobookshelfClient? = nil,
-        downloadManager: DownloadManager? = nil,
         showProgress: Bool = false
     ) -> BookCoverView {
         let height = width * 4/3
         return BookCoverView(
             book: book,
-            api: api,
-            downloadManager: downloadManager,
             size: CGSize(width: width, height: height),
             showLoadingProgress: showProgress
         )

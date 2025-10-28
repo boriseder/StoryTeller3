@@ -1,43 +1,18 @@
-//
-//  SeriesQuickAccessViewModelFactory.swift
-//  StoryTeller3
-//
-
 import Foundation
 
 struct SeriesQuickAccessViewModelFactory {
     @MainActor
     static func create(
         seriesBook: Book,
-        api: AudiobookshelfClient,
-        player: AudioPlayer,
-        downloadManager: DownloadManager,
+        container: DependencyContainer,
         onBookSelected: @escaping () -> Void
     ) -> SeriesQuickAccessViewModel {
-        // Create Repositories
-        let bookRepository = BookRepository(api: api, cache: BookCache())
-        let downloadRepository = downloadManager.repository!
-        
-        // Create Use Cases
-        let fetchSeriesBooksUseCase = FetchSeriesBooksUseCase(
-            bookRepository: bookRepository
-        )
-        let playBookUseCase = PlayBookUseCase(
-            api: api,
-            player: player,
-            downloadManager: downloadManager
-        )
-        let coverPreloadUseCase = CoverPreloadUseCase(
-            api: api,
-            downloadManager: downloadManager
-        )
-        
-        return SeriesQuickAccessViewModel(
+        SeriesQuickAccessViewModel(
             seriesBook: seriesBook,
-            fetchSeriesBooksUseCase: fetchSeriesBooksUseCase,
-            playBookUseCase: playBookUseCase,
-            coverPreloadUseCase: coverPreloadUseCase,
-            downloadRepository: downloadRepository,
+            fetchSeriesBooksUseCase: container.fetchSeriesBooksUseCase,
+            playBookUseCase: container.playBookUseCase,
+            coverPreloadUseCase: container.coverPreloadUseCase,
+            downloadRepository: container.downloadRepository,
             onBookSelected: onBookSelected
         )
     }

@@ -4,30 +4,8 @@ struct SeriesSectionView: View {
     @StateObject private var viewModel: SeriesSectionViewModel
     @EnvironmentObject var appState: AppStateManager
     @EnvironmentObject var theme: ThemeManager
+    @EnvironmentObject var container: DependencyContainer
 
-    // ✅ Infrastructure for UI components only
-    private let player: AudioPlayer
-    private let api: AudiobookshelfClient
-    private let downloadManager: DownloadManager
-    
-    init(
-        series: Series,
-        player: AudioPlayer,
-        api: AudiobookshelfClient,
-        downloadManager: DownloadManager,
-        onBookSelected: @escaping () -> Void
-    ) {
-        // Store for UI rendering
-        self.player = player
-        self.api = api
-        self.downloadManager = downloadManager
-        
-        // Create ViewModel via Factory
-        self._viewModel = StateObject(wrappedValue: SeriesSectionViewModelFactory.create(
-            series: series,
-            onBookSelected: onBookSelected
-        ))
-    }
     
     var body: some View {
         VStack {
@@ -46,6 +24,7 @@ struct SeriesSectionView: View {
                     }
                 }
             )
+            .environmentObject(container)
         }
         .padding(.vertical, DSLayout.elementPadding)
 

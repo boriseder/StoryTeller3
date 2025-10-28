@@ -34,7 +34,6 @@ enum BookCardStyle {
 // MARK: - Book Card View
 struct BookCardView: View {
     let viewModel: BookCardStateViewModel
-    let api: AudiobookshelfClient?
     let onTap: () -> Void
     let onDownload: () -> Void
     let onDelete: () -> Void
@@ -42,6 +41,7 @@ struct BookCardView: View {
     
     @State private var isPressed = false
     @EnvironmentObject var theme: ThemeManager
+    @EnvironmentObject var container: DependencyContainer
 
     private var dimensions: (width: CGFloat, height: CGFloat, infoHeight: CGFloat) {
         style.dimensions
@@ -95,7 +95,7 @@ struct BookCardView: View {
             BookCoverView.square(
                 book: viewModel.book,
                 size: style.coverSize,
-                api: api,
+                api: container.audiobookshelfClient,
                 downloadManager: nil,
                 showProgress: false
             )
@@ -338,7 +338,7 @@ struct BookCardView: View {
                 }
             }
             
-            if !viewModel.isDownloaded && style == .library && api != nil {
+            if !container.downloadManager.isDownloaded && style == .library && container.audiobookshelfClient != nil {
                 Button(action: onDownload) {
                     if viewModel.book.isCollapsedSeries {
                         Label("Serie herunterladen", systemImage: "arrow.down.circle")

@@ -2,19 +2,14 @@ import SwiftUI
 
 struct DownloadsView: View {
     @StateObject private var viewModel: DownloadsViewModel
+    @EnvironmentObject private var container: DependencyContainer
     @EnvironmentObject private var appState: AppStateManager
     @EnvironmentObject private var theme: ThemeManager
 
     @State private var showingStorageInfo = false
     
-    init(downloadManager: DownloadManager, player: AudioPlayer, api: AudiobookshelfClient, appState: AppStateManager, onBookSelected: @escaping () -> Void) {
-        self._viewModel = StateObject(wrappedValue: DownloadsViewModelFactory.create(
-            downloadManager: downloadManager,
-            player: player,
-            api: api,
-            appState: appState,
-            onBookSelected: onBookSelected
-        ))
+    init(viewModel: DownloadsViewModel) {
+        self._viewModel = StateObject(wrappedValue: viewModel)
     }
     
     var body: some View {

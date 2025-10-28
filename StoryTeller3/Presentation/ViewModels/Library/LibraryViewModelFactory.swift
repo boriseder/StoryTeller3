@@ -3,39 +3,15 @@ import Foundation
 struct LibraryViewModelFactory {
     @MainActor
     static func create(
-        api: AudiobookshelfClient,
-        player: AudioPlayer,
-        downloadManager: DownloadManager,
+        container: DependencyContainer,
         onBookSelected: @escaping () -> Void
     ) -> LibraryViewModel {
-        // Create Repositories
-        let bookRepository = BookRepository(api: api, cache: BookCache())
-        let libraryRepository = LibraryRepository(api: api)
-        
-        guard let downloadRepository = downloadManager.repository else {
-            fatalError("DownloadManager repository not initialized. Ensure DownloadManager is fully set up before creating ViewModels.")
-        }
-        
-        // Create Use Cases
-        let fetchBooksUseCase = FetchBooksUseCase(bookRepository: bookRepository)
-        
-        let playBookUseCase = PlayBookUseCase(
-            api: api,
-            player: player,
-            downloadManager: downloadManager
-        )
-        
-        let coverPreloadUseCase = CoverPreloadUseCase(
-            api: api,
-            downloadManager: downloadManager
-        )
-        
-        return LibraryViewModel(
-            fetchBooksUseCase: fetchBooksUseCase,
-            playBookUseCase: playBookUseCase,
-            coverPreloadUseCase: coverPreloadUseCase,
-            downloadRepository: downloadRepository,
-            libraryRepository: libraryRepository,
+        LibraryViewModel(
+            fetchBooksUseCase: container.fetchBooksUseCase,
+            playBookUseCase: container.playBookUseCase,
+            coverPreloadUseCase: container.coverPreloadUseCase,
+            downloadRepository: container.downloadRepository,
+            libraryRepository: container.libraryRepository,
             onBookSelected: onBookSelected
         )
     }

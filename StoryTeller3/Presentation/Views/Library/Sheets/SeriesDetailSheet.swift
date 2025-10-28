@@ -11,34 +11,10 @@ struct SeriesDetailSheet: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var theme: ThemeManager
     @EnvironmentObject var appState: AppStateManager
-    
-    // ✅ CORRECT: Only infrastructure needed for pure UI rendering
-    private let api: AudiobookshelfClient?
-    private let downloadManager: DownloadManager?
-    private let player: AudioPlayer
-    
-    init(
-        series: Series,
-        api: AudiobookshelfClient,
-        player: AudioPlayer,
-        downloadManager: DownloadManager,
-        onBookSelected: @escaping () -> Void
-    ) {
-        // Store minimal infrastructure for UI components only
-        self.api = api
-        self.downloadManager = downloadManager
-        self.player = player
-        
-        // ViewModel created via Factory with UseCases
-        self._viewModel = StateObject(wrappedValue: SeriesDetailViewModelFactory.create(
-            series: series,
-            api: api,
-            player: player,
-            downloadManager: downloadManager,
-            onBookSelected: onBookSelected
-        ))
-    }
-    
+    @EnvironmentObject var container: DependencyContainer
+
+    init(series: Series, onBookSelected: @escaping () -> Void) {}
+
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
@@ -88,8 +64,8 @@ struct SeriesDetailSheet: View {
                 BookCoverView.square(
                     book: firstBook,
                     size: 80,
-                    api: api,
-                    downloadManager: downloadManager
+                    api: container.audiobookshelfClient,
+                    downloadManager: container.downloadManager
                 )
                 .clipShape(RoundedRectangle(cornerRadius: 12))
                 .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
@@ -214,13 +190,13 @@ struct SeriesDetailSheet: View {
                 ForEach(viewModel.seriesBooks) { book in
                     let cardViewModel = BookCardStateViewModel(
                         book: book,
-                        player: player,
-                        downloadManager: downloadManager ?? DownloadManager()
+                        player: container.audioPlayer,
+                        downloadManager: container.downloadManager ?? DownloadManager()
                     )
                     
                     BookCardView(
                         viewModel: cardViewModel,
-                        api: api,
+                        api: container.audiobookshelfClient,
                         onTap: {
                             Task {
                                 await viewModel.playBook(book, appState: appState)

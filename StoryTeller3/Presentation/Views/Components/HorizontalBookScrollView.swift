@@ -3,29 +3,18 @@ import SwiftUI
 // MARK: - Horizontal Book Scroll View
 struct HorizontalBookScrollView: View {
     let books: [Book]
-    let player: AudioPlayer
-    let api: AudiobookshelfClient
-    let downloadManager: DownloadManager
     let onBookSelected: (Book) -> Void
     let cardStyle: BookCardStyle
     
     @State private var bookCardVMs: [BookCardStateViewModel] = []
     @State private var updateTimer: Timer?
-    
-    init(
-        books: [Book],
-        player: AudioPlayer,
-        api: AudiobookshelfClient,
-        downloadManager: DownloadManager,
-        cardStyle: BookCardStyle = .library,
-        onBookSelected: @escaping (Book) -> Void
-    ) {
+    @EnvironmentObject var container: DependencyContainer
+
+    init(books: [Book], cardStyle: BookCardStyle, onBookSelected: @escaping (Book) -> Void)
+    {
         self.books = books
-        self.player = player
-        self.api = api
-        self.downloadManager = downloadManager
-        self.cardStyle = cardStyle
         self.onBookSelected = onBookSelected
+        self.cardStyle = cardStyle
     }
     
     var body: some View {
@@ -34,17 +23,16 @@ struct HorizontalBookScrollView: View {
                 ForEach(bookCardVMs) { bookVM in
                     BookCardView(
                         viewModel: bookVM,
-                        api: api,
                         onTap: {
                             onBookSelected(bookVM.book)
                         },
                         onDownload: {
                             Task {
-                                await downloadManager.downloadBook(bookVM.book, api: api)
+                                await container.downloadManager.downloadBook(bookVM.book, api: container.audiobookshelfClient)
                             }
                         },
                         onDelete: {
-                            downloadManager.deleteBook(bookVM.book.id)
+                            container.downloadManager.deleteBook(bookVM.book.id)
                         },
                         style: cardStyle
                     )
@@ -64,8 +52,8 @@ struct HorizontalBookScrollView: View {
         let newVMs = books.map { book in
             BookCardStateViewModel(
                 book: book,
-                player: player,
-                downloadManager: downloadManager
+                player: container.audioPlayer,
+                downloadManager: container.downloadManager
             )
         }
         

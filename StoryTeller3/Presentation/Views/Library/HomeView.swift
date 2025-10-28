@@ -1,35 +1,19 @@
 //
-//  HomeView.swift
-//  StoryTeller3
-//
-//  ✅ CLEAN ARCHITECTURE FIXED
+// HomeView.swift
+// ✅ MIGRATED - No Infrastructure Props
 
 import SwiftUI
 
 struct HomeView: View {
+    @EnvironmentObject private var container: DependencyContainer
+    @EnvironmentObject private var appState: AppStateManager
+    @EnvironmentObject private var theme: ThemeManager
     @StateObject private var viewModel: HomeViewModel
-    @EnvironmentObject var appState: AppStateManager
-    @EnvironmentObject var theme: ThemeManager
-
     @State private var selectedSeries: Series?
     @State private var selectedAuthor: IdentifiableString?
     
-    // ✅ Infrastructure for UI components only
-    private let player: AudioPlayer
-    private let api: AudiobookshelfClient
-    private let downloadManager: DownloadManager
-    
-    init(player: AudioPlayer, api: AudiobookshelfClient, downloadManager: DownloadManager, onBookSelected: @escaping () -> Void) {
-        self.player = player
-        self.api = api
-        self.downloadManager = downloadManager
-        
-        self._viewModel = StateObject(wrappedValue: HomeViewModelFactory.create(
-            api: api,
-            player: player,
-            downloadManager: downloadManager,
-            onBookSelected: onBookSelected
-        ))
+    init(viewModel: HomeViewModel) {
+        self._viewModel = StateObject(wrappedValue: viewModel)
     }
 
     var body: some View {
@@ -39,16 +23,11 @@ struct HomeView: View {
             }
           
             switch viewModel.uiState {
-            case .loading:
-                LoadingView(message: "Loading")
-            case .error(let message):
-                ErrorView(error: message)
-            case .empty:
-                EmptyStateView()
-            case .noDownloads:
-                NoDownloadsView()
-            case .content:
-                contentView
+            case .loading: LoadingView(message: "Loading")
+            case .error(let message): ErrorView(error: message)
+            case .empty: EmptyStateView()
+            case .noDownloads: NoDownloadsView()
+            case .content: contentView
             }
         }
         .navigationTitle("Explore & listen")
@@ -58,407 +37,108 @@ struct HomeView: View {
         .toolbarColorScheme(theme.colorScheme, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
-                settingsButton
+                Button(action: { NotificationCenter.default.post(name: .init("ShowSettings"), object: nil) }) {
+                    Image(systemName: "gearshape.fill").font(.system(size: 16))
+                }
             }
         }
-        .refreshable {
-            await viewModel.loadPersonalizedSections()
-        }
-        .alert("Error", isPresented: $viewModel.showingErrorAlert) {
-            Button("OK") { }
-            Button("Retry") {
-                Task { await viewModel.loadPersonalizedSections() }
-            }
-        } message: {
-            Text(viewModel.errorMessage ?? "Unknown Error")
-        }
-        .task {
-            await viewModel.loadPersonalizedSectionsIfNeeded()
-        }
-        // ✅ Sheets get own ViewModels via Factory
+        .refreshable { await viewModel.loadPersonalizedSections() }
+        .task { await viewModel.loadPersonalizedSectionsIfNeeded() }
         .sheet(item: $selectedSeries) { series in
-            SeriesDetailSheet(
-                series: series,
-                api: api,
-                player: player,
-                downloadManager: downloadManager,
-                onBookSelected: viewModel.onBookSelected
-            )
-            .environmentObject(appState)
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
+            SeriesDetailSheet(series: series, onBookSelected: viewModel.onBookSelected)
+                .environmentObject(appState).presentationDetents([.medium, .large])
+                .environmentObject(container)
         }
         .sheet(item: $selectedAuthor) { authorWrapper in
-            AuthorDetailSheet(
-                authorName: authorWrapper.value,
-                api: api,
-                player: player,
-                downloadManager: downloadManager,
-                onBookSelected: viewModel.onBookSelected
-            )
-            .environmentObject(appState)
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
+            AuthorDetailSheet(authorName: authorWrapper.value, onBookSelected: viewModel.onBookSelected)
+                .environmentObject(appState).presentationDetents([.medium, .large])
+                .environmentObject(container)
         }
     }
     
     private var contentView: some View {
-        ZStack {
-            ScrollView {
-                LazyVStack(spacing: DSLayout.contentGap) {
-                    homeHeaderView
-                        .opacity(viewModel.sectionsLoaded ? 1 : 0)
-                        .animation(.easeInOut(duration: 0.3).delay(0.1), value: viewModel.sectionsLoaded)
-                    
-                    ForEach(Array(viewModel.personalizedSections.enumerated()), id: \.element.id) { index, section in
-                        // ✅ UI component gets infrastructure for rendering only
-                        PersonalizedSectionView(
-                            section: section,
-                            player: player,
-                            api: api,
-                            downloadManager: downloadManager,
-                            onBookSelected: { book in
-                                Task { await viewModel.playBook(book, appState: appState) }
-                            },
-                            onSeriesSelected: { series in
-                                selectedSeries = series
-                            },
-                            onAuthorSelected: { authorName in
-                                selectedAuthor = authorName.asIdentifiable()
-                            }
-                        )
-                        .environmentObject(appState)
-                        .opacity(viewModel.sectionsLoaded ? 1 : 0)
-                        .animation(
-                            .easeInOut(duration: 0.4).delay(0.1 + Double(index) * 0.1),
-                            value: viewModel.sectionsLoaded
-                        )
-                    }
+        ScrollView {
+            LazyVStack(spacing: DSLayout.contentGap) {
+                homeHeaderView
+                ForEach(Array(viewModel.personalizedSections.enumerated()), id: \.element.id) { index, section in
+                    PersonalizedSectionView(
+                        section: section,
+                        onBookSelected: { book in Task { await viewModel.playBook(book, appState: appState) } },
+                        onSeriesSelected: { selectedSeries = $0 },
+                        onAuthorSelected: { selectedAuthor = $0.asIdentifiable() }
+                    )
                 }
-                Spacer()
-                    .frame(height: DSLayout.miniPlayerHeight)
-            }
-            .scrollIndicators(.hidden)
-            .padding(.horizontal, DSLayout.screenPadding)
-        }
-        .opacity(viewModel.contentLoaded ? 1 : 0)
-        .animation(.easeInOut(duration: 0.5), value: viewModel.contentLoaded)
-        .animation(.easeInOut(duration: 0.3), value: viewModel.uiState)
-        .onAppear {
-            viewModel.contentLoaded = true
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                viewModel.sectionsLoaded = true
-            }
+            }.padding(.horizontal, DSLayout.screenPadding)
         }
     }
     
     private var homeHeaderView: some View {
-        VStack(spacing: DSLayout.elementGap) {
-            HStack(spacing: DSLayout.contentGap) {
-                HomeStatCard(
-                    icon: "books.vertical.fill",
-                    title: "Books in library",
-                    value: "\(viewModel.totalItemsCount)",
-                    color: .blue
-                )
-                
-                Divider()
-                    .frame(height: 40)
-                
-                HomeStatCard(
-                    icon: "arrow.down.circle.fill",
-                    title: "Downloaded",
-                    value: "\(viewModel.downloadedCount)",
-                    color: .green
-                )
-            }
+        HStack {
+            HomeStatCard(icon: "books.vertical.fill", title: "Books", value: "\(viewModel.totalItemsCount)", color: .blue)
+            Divider().frame(height: 40)
+            HomeStatCard(icon: "arrow.down.circle.fill", title: "Downloaded", value: "\(viewModel.downloadedCount)", color: .green)
         }
-        .padding(DSLayout.contentGap)
-        .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: DSCorners.element))
-        .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
-    }
-    
-    private var settingsButton: some View {
-        Button(action: {
-            NotificationCenter.default.post(name: .init("ShowSettings"), object: nil)
-        }) {
-            Image(systemName: "gearshape.fill")
-                .font(.system(size: 16))
-                .foregroundColor(.primary)
-        }
+        .padding().background(.regularMaterial).clipShape(RoundedRectangle(cornerRadius: DSCorners.element))
     }
 }
 
-// MARK: - Supporting Views (remain unchanged - they are pure UI components)
-
-
-// MARK: - Personalized Section View
 struct PersonalizedSectionView: View {
     let section: PersonalizedSection
-    @ObservedObject var player: AudioPlayer
-    let api: AudiobookshelfClient
-    @ObservedObject var downloadManager: DownloadManager
     let onBookSelected: (Book) -> Void
     let onSeriesSelected: (Series) -> Void
     let onAuthorSelected: (String) -> Void
-    
-    @EnvironmentObject var theme: ThemeManager
+    @EnvironmentObject private var container: DependencyContainer
     
     var body: some View {
         VStack(alignment: .leading) {
-            // Section Header
-            sectionHeader
-            
-            // Section Content based on type
+            Text(section.label).font(DSText.itemTitle)
             switch section.type {
-            case "book":
-                bookSection
-
-            case "series":
-                seriesSection
-
-            case "authors":
-                authorsSection
-
-            default:
-                // Fallback for unknown types - treat as books
-                bookSection
+            case "book": bookSection
+            case "series": seriesSection
+            default: bookSection
             }
         }
     }
-    
-    private var sectionHeader: some View {
-        HStack(alignment: .firstTextBaseline){
-                Image(systemName: sectionIcon)
-                    .font(DSText.itemTitle)
-                    .foregroundColor(theme.textColor)
-                
-                Text(section.label)
-                    .font(DSText.itemTitle)
-                    .fontWeight(.semibold)
-                    .foregroundColor(theme.textColor)
-            
-                Spacer()
-            /*
-            if section.total > section.entities.count {
-                Text("\(section.entities.count) of \(section.total)")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            } else {
-                Text("\(section.entities.count)")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-             */
-        }
-        .padding(.top, DSLayout.contentPadding)
-
-    }
-    
-    private var sectionIcon: String {
-        switch section.id {
-        case "continue-listening":
-            return "play.circle.fill"
-        case "recently-added":
-            return "clock.fill"
-        case "recent-series":
-            return "rectangle.stack.fill"
-        case "discover":
-            return "sparkles"
-        case "newest-authors":
-            return "person.2.fill"
-        default:
-            return "books.vertical.fill"
-        }
-    }
-    
-    // MARK: - Section Content Types
     
     private var bookSection: some View {
         let books = section.entities.compactMap { entity -> Book? in
-            guard let libraryItem = entity.asLibraryItem else { return nil }
-            return api.converter.convertLibraryItemToBook(libraryItem)
+            guard let item = entity.asLibraryItem else { return nil }
+            return container.audiobookshelfClient.converter.convertLibraryItemToBook(item)
         }
-        
-        return HorizontalBookScrollView(
-            books: books,
-            player: player,
-            api: api,
-            downloadManager: downloadManager,
-            cardStyle: .series,
-            onBookSelected: onBookSelected
-        )
+        return HorizontalBookScrollView(books: books, cardStyle: .series, onBookSelected: onBookSelected)
     }
     
     private var seriesSection: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
+        ScrollView(.horizontal) {
             HStack {
                 ForEach(section.entities.indices, id: \.self) { index in
-                    let entity = section.entities[index]
-                    
-                    SeriesCardView(
-                        entity: entity,
-                        api: api,
-                        downloadManager: downloadManager,
-                        onTap: {
-                            if let series = entity.asSeries {
-                                onSeriesSelected(series)
-                            }
-                        }
-                    )
+                    SeriesCardView(entity: section.entities[index], onTap: {
+                        if let series = section.entities[index].asSeries { onSeriesSelected(series) }
+                    })
                 }
             }
         }
-    }
-    
-    private var authorsSection: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack{
-                ForEach(extractAuthors(), id: \.self) { authorName in
-                    AuthorCardView(
-                        authorName: authorName,
-                        onTap: {
-                            onAuthorSelected(authorName)
-                        }
-                    )
-                }
-            }
-        }
-    }
-    
-    // MARK: - Helper Methods
-    
-    private func convertToSeries() -> [Series] {
-        // Convert entities to Series objects
-        return section.entities.compactMap { entity -> Series? in
-            return entity.asSeries
-        }
-    }
-    
-    private func extractAuthors() -> [String] {
-        return section.entities.compactMap { entity -> String? in
-            // For author sections, the name should be the author name
-            if let name = entity.name {
-                return name
-            }
-            // Fallback: extract from book metadata
-            if let libraryItem = entity.asLibraryItem {
-                return libraryItem.media.metadata.author
-            }
-            return nil
-        }
-        .uniqued() // Remove duplicates
     }
 }
 
-// MARK: - Series Card View
 struct SeriesCardView: View {
     let entity: PersonalizedEntity
-    let api: AudiobookshelfClient
-    let downloadManager: DownloadManager
     let onTap: () -> Void
-    
-    private let cardStyle: BookCardStyle = .series
-    @EnvironmentObject var theme: ThemeManager
-
+    @EnvironmentObject private var container: DependencyContainer
     
     var body: some View {
         Button(action: onTap) {
-            VStack(alignment: .leading, spacing: DSLayout.tightGap) {
-                Group {
-                    if let series = entity.asSeries,
-                       let firstBook = series.books.first,
-                       let coverBook = api.converter.convertLibraryItemToBook(firstBook) {
-                        
-                        BookCoverView.square(
-                            book: coverBook,
-                            size: cardStyle.coverSize,
-                            api: api,
-                            downloadManager: downloadManager
-                        )
-                        .clipShape(RoundedRectangle(cornerRadius: DSCorners.content))
-                    }
+            VStack {
+                if let series = entity.asSeries, let book = series.books.first,
+                   let coverBook = container.audiobookshelfClient.converter.convertLibraryItemToBook(book) {
+                    BookCoverView.square(book: coverBook, size: 120)
                 }
-                .padding(.top, DSLayout.elementGap)
-                .padding(.horizontal, DSLayout.elementGap)
-
-                Text(displayName)
-                    .font(DSText.emphasized)
-                    .foregroundColor(theme.textColor)
-                    .lineLimit(1)
-                    .frame(maxWidth: cardStyle.coverSize, alignment: .leading)
-                    .fixedSize(horizontal: true, vertical: true)
-                    .padding(.vertical, DSLayout.elementPadding)
-                    .padding(.horizontal, DSLayout.elementPadding)
-
+                Text(entity.name ?? "Unknown").lineLimit(1)
             }
-            .scaleEffect(1.0)
-            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: 1)
-            .animation(.easeInOut(duration: 0.2), value: 1)
-
         }
-        .buttonStyle(.plain)
-    }
-        
-    private var displayName: String {
-        return entity.name ?? entity.asSeries?.name ?? "Unknown Series"
-    }
-    
-    private var displayAuthor: String? {
-        if let series = entity.asSeries {
-            return series.author
-        }
-        if let libraryItem = entity.asLibraryItem {
-            return libraryItem.media.metadata.author
-        }
-        return nil
-    }
-    
-    private var displayBookCount: String {
-        if let series = entity.asSeries {
-            return "\(series.bookCount) books"
-        }
-        if let numBooks = entity.numBooks {
-            return "\(numBooks) books"
-        }
-        return "Series"
     }
 }
 
-// MARK: - Author Card View
-struct AuthorCardView: View {
-    let authorName: String
-    let onTap: () -> Void
-    
-    @EnvironmentObject var theme: ThemeManager
-
-    var body: some View {
-        Button(action: onTap) {
-            VStack(spacing: 8) {
-                // Author Avatar
-                Circle()
-                    .fill(Color.accentColor.opacity(0.2))
-                    .frame(width: 80, height: 80)
-                    .overlay(
-                        Text(String(authorName.prefix(2).uppercased()))
-                            .font(.system(size: 24, weight: .semibold))
-                            .foregroundColor(.accentColor)
-                    )
-                
-                Text(authorName)
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(theme.textColor)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.center)
-                    .frame(width: 80)
-            }
-        }
-        .buttonStyle(.plain)
-    }
-}
-
-// MARK: - Home Stat Card Component
 struct HomeStatCard: View {
     let icon: String
     let title: String
@@ -466,31 +146,16 @@ struct HomeStatCard: View {
     let color: Color
     
     var body: some View {
-        HStack(spacing: DSLayout.elementGap) {
-            Image(systemName: icon)
-                .font(.system(size: DSLayout.icon))
-                .foregroundColor(color)
-                .frame(width: DSLayout.icon, height: DSLayout.icon)
-                .background(color.opacity(0.1))
-               // .clipShape(Circle())
-            
-            VStack(alignment: .leading, spacing: DSLayout.tightGap) {
-                Text(title)
-                    .font(DSText.footnote)
-                    .foregroundColor(.secondary)
-                
-                Text(value)
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.primary)
+        HStack {
+            Image(systemName: icon).font(.system(size: 24)).foregroundColor(color)
+            VStack(alignment: .leading) {
+                Text(title).font(.caption).foregroundColor(.secondary)
+                Text(value).font(.subheadline).fontWeight(.semibold)
             }
-            
-            Spacer()
         }
     }
 }
 
-// MARK: - Array Extension for Unique
 extension Array where Element: Hashable {
     func uniqued() -> [Element] {
         var seen = Set<Element>()

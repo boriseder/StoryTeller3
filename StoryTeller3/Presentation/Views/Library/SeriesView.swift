@@ -2,29 +2,14 @@ import SwiftUI
 
 struct SeriesView: View {
     @StateObject private var viewModel: SeriesViewModel
+    @EnvironmentObject private var container: DependencyContainer
     @EnvironmentObject var appState: AppStateManager
     @EnvironmentObject var theme: ThemeManager
 
-    // ✅ Infrastructure for UI components only
-    private let player: AudioPlayer
-    private let api: AudiobookshelfClient
-    private let downloadManager: DownloadManager
-    
-    init(player: AudioPlayer, api: AudiobookshelfClient, downloadManager: DownloadManager, onBookSelected: @escaping () -> Void) {
-        // Store for UI rendering
-        self.player = player
-        self.api = api
-        self.downloadManager = downloadManager
-        
-        // Create ViewModel via Factory
-        self._viewModel = StateObject(wrappedValue: SeriesViewModelFactory.create(
-            api: api,
-            player: player,
-            downloadManager: downloadManager,
-            onBookSelected: onBookSelected
-        ))
+    init(viewModel: SeriesViewModel) {
+        self._viewModel = StateObject(wrappedValue: viewModel)
     }
-
+    
     var body: some View {
         ZStack {
             if theme.backgroundStyle == .dynamic {
@@ -87,14 +72,16 @@ struct SeriesView: View {
                         // ✅ UI component gets infrastructure for rendering
                         SeriesSectionView(
                             series: series,
-                            player: player,
-                            api: api,
-                            downloadManager: downloadManager,
+                            player: container.audioPlayer,
+                            api: container.audiobookshelfClient,
+                            downloadManager: container.downloadManager,
                             onBookSelected: {
                                 // Book selection is handled inside SeriesSectionView
                             }
                         )
                         .environmentObject(appState)
+                        .environmentObject(container)
+
                     }
                 }
                 Spacer()

@@ -2,31 +2,17 @@ import SwiftUI
 
 struct LibraryView: View {
     @StateObject var viewModel: LibraryViewModel
+    @EnvironmentObject private var container: DependencyContainer
     @EnvironmentObject var appState: AppStateManager
     @EnvironmentObject var theme: ThemeManager
 
     @State private var selectedSeries: Book?
     @State private var bookCardVMs: [BookCardStateViewModel] = []
-    
-    // ✅ Infrastructure for UI components only
-    private let player: AudioPlayer
-    private let api: AudiobookshelfClient
-    private let downloadManager: DownloadManager
-    
-    init(player: AudioPlayer, api: AudiobookshelfClient, downloadManager: DownloadManager, onBookSelected: @escaping () -> Void) {
-        // Store for UI rendering
-        self.player = player
-        self.api = api
-        self.downloadManager = downloadManager
-        
-        // Create ViewModel via Factory
-        self._viewModel = StateObject(wrappedValue: LibraryViewModelFactory.create(
-            api: api,
-            player: player,
-            downloadManager: downloadManager,
-            onBookSelected: onBookSelected
-        ))
+   
+    init(viewModel: LibraryViewModel) {
+        self._viewModel = StateObject(wrappedValue: viewModel)
     }
+
     
     var body: some View {
         ZStack {

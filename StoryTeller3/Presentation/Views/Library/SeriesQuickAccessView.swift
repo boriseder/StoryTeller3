@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SeriesQuickAccessView: View {
     @StateObject private var viewModel: SeriesQuickAccessViewModel
+    @EnvironmentObject private var container: DependencyContainer
     @EnvironmentObject var appState: AppStateManager
     @Environment(\.dismiss) private var dismiss
     
@@ -10,27 +11,10 @@ struct SeriesQuickAccessView: View {
     private let api: AudiobookshelfClient
     private let downloadManager: DownloadManager
     
-    init(
-        seriesBook: Book,
-        player: AudioPlayer,
-        api: AudiobookshelfClient,
-        downloadManager: DownloadManager,
-        onBookSelected: @escaping () -> Void
-    ) {
-        // Store for UI components
-        self.player = player
-        self.api = api
-        self.downloadManager = downloadManager
-        
-        // Create ViewModel via Factory
-        self._viewModel = StateObject(wrappedValue: SeriesQuickAccessViewModelFactory.create(
-            seriesBook: seriesBook,
-            api: api,
-            player: player,
-            downloadManager: downloadManager,
-            onBookSelected: onBookSelected
-        ))
+    init(viewModel: SeriesQuickAccessViewModel) {
+        self._viewModel = StateObject(wrappedValue: viewModel)
     }
+    
     
     var body: some View {
         Group {
