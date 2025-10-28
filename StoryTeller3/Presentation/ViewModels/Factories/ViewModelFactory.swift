@@ -3,7 +3,7 @@ import Foundation
 @MainActor
 class ViewModelFactory {
     
-    // MARK: - Shared Dependencies
+    // MARK: - Shared Dependencies (Infrastructure only)
     private let api: AudiobookshelfClient
     private let downloadManager: DownloadManager
     private let player: AudioPlayer
@@ -37,6 +37,37 @@ class ViewModelFactory {
         FetchSeriesUseCase(bookRepository: bookRepository)
     }()
     
+    private lazy var fetchSeriesBooksUseCase: FetchSeriesBooksUseCaseProtocol = {
+        FetchSeriesBooksUseCase(bookRepository: bookRepository)
+    }()
+    
+    private lazy var fetchLibraryStatsUseCase: FetchLibraryStatsUseCaseProtocol = {
+        FetchLibraryStatsUseCase(api: api)
+    }()
+    
+    private lazy var searchBooksByAuthorUseCase: SearchBooksByAuthorUseCaseProtocol = {
+        SearchBooksByAuthorUseCase(bookRepository: bookRepository)
+    }()
+    
+    private lazy var playBookUseCase: PlayBookUseCaseProtocol = {
+        PlayBookUseCase(
+            api: api,
+            player: player,
+            downloadManager: downloadManager
+        )
+    }()
+    
+    private lazy var coverPreloadUseCase: CoverPreloadUseCaseProtocol = {
+        CoverPreloadUseCase(
+            api: api,
+            downloadManager: downloadManager
+        )
+    }()
+    
+    private lazy var convertLibraryItemUseCase: ConvertLibraryItemUseCaseProtocol = {
+        ConvertLibraryItemUseCase(converter: api.converter)
+    }()
+    
     // MARK: - Initialization
     
     init(api: AudiobookshelfClient, downloadManager: DownloadManager, player: AudioPlayer) {
@@ -50,11 +81,10 @@ class ViewModelFactory {
     func makeLibraryViewModel(onBookSelected: @escaping () -> Void) -> LibraryViewModel {
         LibraryViewModel(
             fetchBooksUseCase: fetchBooksUseCase,
+            playBookUseCase: playBookUseCase,
+            coverPreloadUseCase: coverPreloadUseCase,
             downloadRepository: downloadRepository,
             libraryRepository: libraryRepository,
-            api: api,
-            downloadManager: downloadManager,
-            player: player,
             onBookSelected: onBookSelected
         )
     }
@@ -62,11 +92,14 @@ class ViewModelFactory {
     func makeHomeViewModel(onBookSelected: @escaping () -> Void) -> HomeViewModel {
         HomeViewModel(
             fetchPersonalizedSectionsUseCase: fetchPersonalizedSectionsUseCase,
+            fetchLibraryStatsUseCase: fetchLibraryStatsUseCase,
+            fetchSeriesBooksUseCase: fetchSeriesBooksUseCase,
+            searchBooksByAuthorUseCase: searchBooksByAuthorUseCase,
+            playBookUseCase: playBookUseCase,
+            coverPreloadUseCase: coverPreloadUseCase,
+            convertLibraryItemUseCase: convertLibraryItemUseCase,
             downloadRepository: downloadRepository,
             libraryRepository: libraryRepository,
-            api: api,
-            downloadManager: downloadManager,
-            player: player,
             onBookSelected: onBookSelected
         )
     }
@@ -74,11 +107,10 @@ class ViewModelFactory {
     func makeSeriesViewModel(onBookSelected: @escaping () -> Void) -> SeriesViewModel {
         SeriesViewModel(
             fetchSeriesUseCase: fetchSeriesUseCase,
+            playBookUseCase: playBookUseCase,
+            convertLibraryItemUseCase: convertLibraryItemUseCase,
             downloadRepository: downloadRepository,
             libraryRepository: libraryRepository,
-            api: api,
-            downloadManager: downloadManager,
-            player: player,
             onBookSelected: onBookSelected
         )
     }

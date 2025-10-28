@@ -31,21 +31,28 @@ enum PlayBookError: LocalizedError {
 protocol PlayBookUseCaseProtocol {
     func execute(
         book: Book,
-        api: AudiobookshelfClient,
-        player: AudioPlayer,
-        downloadManager: DownloadManager,
         appState: AppStateManager,
         restoreState: Bool
     ) async throws
 }
 
 class PlayBookUseCase: PlayBookUseCaseProtocol {
+    private let api: AudiobookshelfClient
+    private let player: AudioPlayer
+    private let downloadManager: DownloadManager
+    
+    init(
+        api: AudiobookshelfClient,
+        player: AudioPlayer,
+        downloadManager: DownloadManager
+    ) {
+        self.api = api
+        self.player = player
+        self.downloadManager = downloadManager
+    }
     
     func execute(
         book: Book,
-        api: AudiobookshelfClient,
-        player: AudioPlayer,
-        downloadManager: DownloadManager,
         appState: AppStateManager,
         restoreState: Bool = true
     ) async throws {

@@ -9,20 +9,15 @@ class SeriesViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var errorMessage: String?
     @Published var showingErrorAlert = false
-    
-    // For smooth transistions
     @Published var contentLoaded = false
 
-    // MARK: - Dependencies
+    // MARK: - Dependencies (Use Cases & Repositories ONLY)
     private let fetchSeriesUseCase: FetchSeriesUseCaseProtocol
-    private let playBookUseCase: PlayBookUseCase
+    private let playBookUseCase: PlayBookUseCaseProtocol
+    private let convertLibraryItemUseCase: ConvertLibraryItemUseCaseProtocol
     private let downloadRepository: DownloadRepository
     private let libraryRepository: LibraryRepositoryProtocol
-    
-    let api: AudiobookshelfClient
-    let downloadManager: DownloadManager
-    let player: AudioPlayer
-    let onBookSelected: () -> Void
+    private let onBookSelected: () -> Void
     
     // MARK: - Computed Properties for UI
     var filteredAndSortedSeries: [Series] {
@@ -33,20 +28,17 @@ class SeriesViewModel: ObservableObject {
     // MARK: - Init with DI
     init(
         fetchSeriesUseCase: FetchSeriesUseCaseProtocol,
+        playBookUseCase: PlayBookUseCaseProtocol,
+        convertLibraryItemUseCase: ConvertLibraryItemUseCaseProtocol,
         downloadRepository: DownloadRepository,
         libraryRepository: LibraryRepositoryProtocol,
-        api: AudiobookshelfClient,
-        downloadManager: DownloadManager,
-        player: AudioPlayer,
         onBookSelected: @escaping () -> Void
     ) {
         self.fetchSeriesUseCase = fetchSeriesUseCase
-        self.playBookUseCase = PlayBookUseCase()
+        self.playBookUseCase = playBookUseCase
+        self.convertLibraryItemUseCase = convertLibraryItemUseCase
         self.downloadRepository = downloadRepository
         self.libraryRepository = libraryRepository
-        self.api = api
-        self.downloadManager = downloadManager
-        self.player = player
         self.onBookSelected = onBookSelected
     }
     
@@ -69,7 +61,6 @@ class SeriesViewModel: ObservableObject {
                 return
             }
 
-            //libraryName = "\(selectedLibrary.name) - Serien"
             libraryName = "Series"
 
             let fetchedSeries = try await fetchSeriesUseCase.execute(
@@ -96,9 +87,6 @@ class SeriesViewModel: ObservableObject {
         do {
             try await playBookUseCase.execute(
                 book: book,
-                api: api,
-                player: player,
-                downloadManager: downloadManager,
                 appState: appState,
                 restoreState: restoreState
             )
@@ -112,7 +100,7 @@ class SeriesViewModel: ObservableObject {
     }
     
     func convertLibraryItemToBook(_ item: LibraryItem) -> Book? {
-        return api.converter.convertLibraryItemToBook(item)
+        return convertLibraryItemUseCase.execute(item: item)
     }
     
     // MARK: - Error Handling

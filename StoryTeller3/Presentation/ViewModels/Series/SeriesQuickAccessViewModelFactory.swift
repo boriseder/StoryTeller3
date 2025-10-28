@@ -1,41 +1,43 @@
+//
+//  SeriesQuickAccessViewModelFactory.swift
+//  StoryTeller3
+//
+
 import Foundation
 
-struct LibraryViewModelFactory {
+struct SeriesQuickAccessViewModelFactory {
     @MainActor
     static func create(
+        seriesBook: Book,
         api: AudiobookshelfClient,
         player: AudioPlayer,
         downloadManager: DownloadManager,
         onBookSelected: @escaping () -> Void
-    ) -> LibraryViewModel {
+    ) -> SeriesQuickAccessViewModel {
         // Create Repositories
         let bookRepository = BookRepository(api: api, cache: BookCache())
-        let libraryRepository = LibraryRepository(api: api)
-        
-        guard let downloadRepository = downloadManager.repository else {
-            fatalError("DownloadManager repository not initialized. Ensure DownloadManager is fully set up before creating ViewModels.")
-        }
+        let downloadRepository = downloadManager.repository!
         
         // Create Use Cases
-        let fetchBooksUseCase = FetchBooksUseCase(bookRepository: bookRepository)
-        
+        let fetchSeriesBooksUseCase = FetchSeriesBooksUseCase(
+            bookRepository: bookRepository
+        )
         let playBookUseCase = PlayBookUseCase(
             api: api,
             player: player,
             downloadManager: downloadManager
         )
-        
         let coverPreloadUseCase = CoverPreloadUseCase(
             api: api,
             downloadManager: downloadManager
         )
         
-        return LibraryViewModel(
-            fetchBooksUseCase: fetchBooksUseCase,
+        return SeriesQuickAccessViewModel(
+            seriesBook: seriesBook,
+            fetchSeriesBooksUseCase: fetchSeriesBooksUseCase,
             playBookUseCase: playBookUseCase,
             coverPreloadUseCase: coverPreloadUseCase,
             downloadRepository: downloadRepository,
-            libraryRepository: libraryRepository,
             onBookSelected: onBookSelected
         )
     }

@@ -9,10 +9,16 @@ struct DownloadsViewModelFactory {
         appState: AppStateManager,
         onBookSelected: @escaping () -> Void
     ) -> DownloadsViewModel {
+        // Create Use Cases
+        let playBookUseCase = PlayBookUseCase(
+            api: api,
+            player: player,
+            downloadManager: downloadManager
+        )
+        
         return DownloadsViewModel(
             downloadManager: downloadManager,
-            player: player,
-            api: api,
+            playBookUseCase: playBookUseCase,
             appState: appState,
             storageMonitor: StorageMonitor(),
             onBookSelected: onBookSelected

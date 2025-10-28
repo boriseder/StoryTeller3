@@ -5,13 +5,16 @@ protocol FetchSeriesBooksUseCaseProtocol {
 }
 
 class FetchSeriesBooksUseCase: FetchSeriesBooksUseCaseProtocol {
-    private let api: AudiobookshelfClient
+    private let bookRepository: BookRepositoryProtocol
     
-    init(api: AudiobookshelfClient) {
-        self.api = api
+    init(bookRepository: BookRepositoryProtocol) {
+        self.bookRepository = bookRepository
     }
     
     func execute(libraryId: String, seriesId: String) async throws -> [Book] {
-        return try await api.series.fetchSeriesBooks(libraryId: libraryId, seriesId: seriesId)
+        return try await bookRepository.fetchSeriesBooks(
+            libraryId: libraryId,
+            seriesId: seriesId
+        )
     }
 }

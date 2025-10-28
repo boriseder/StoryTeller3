@@ -2,41 +2,46 @@ import SwiftUI
 
 @MainActor
 class SeriesQuickAccessViewModel: ObservableObject {
+    // MARK: - Published UI State
     @Published var seriesBooks: [Book] = []
     @Published var isLoading = false
     @Published var errorMessage: String?
     @Published var showingErrorAlert = false
     
+    // MARK: - Public Properties (for View access only)
     let seriesBook: Book
-    let player: AudioPlayer
-    let api: AudiobookshelfClient
-    let downloadManager: DownloadManager
     let onBookSelected: () -> Void
     var onDismiss: (() -> Void)?
     
+    // MARK: - Dependencies (UseCases & Repositories ONLY)
     private let fetchSeriesBooksUseCase: FetchSeriesBooksUseCaseProtocol
-    private let playBookUseCase: PlayBookUseCase
+    private let playBookUseCase: PlayBookUseCaseProtocol
+    private let coverPreloadUseCase: CoverPreloadUseCaseProtocol
+    private let downloadRepository: DownloadRepository
     
+    // MARK: - Computed Properties
     var downloadedCount: Int {
-        seriesBooks.filter { downloadManager.isBookDownloaded($0.id) }.count
+        seriesBooks.filter { downloadRepository.getDownloadStatus(for: $0.id).isDownloaded }.count
     }
     
+    // MARK: - Init with DI
     init(
         seriesBook: Book,
-        player: AudioPlayer,
-        api: AudiobookshelfClient,
-        downloadManager: DownloadManager,
+        fetchSeriesBooksUseCase: FetchSeriesBooksUseCaseProtocol,
+        playBookUseCase: PlayBookUseCaseProtocol,
+        coverPreloadUseCase: CoverPreloadUseCaseProtocol,
+        downloadRepository: DownloadRepository,
         onBookSelected: @escaping () -> Void
     ) {
         self.seriesBook = seriesBook
-        self.player = player
-        self.api = api
-        self.downloadManager = downloadManager
+        self.fetchSeriesBooksUseCase = fetchSeriesBooksUseCase
+        self.playBookUseCase = playBookUseCase
+        self.coverPreloadUseCase = coverPreloadUseCase
+        self.downloadRepository = downloadRepository
         self.onBookSelected = onBookSelected
-        self.fetchSeriesBooksUseCase = FetchSeriesBooksUseCase(api: api)
-        self.playBookUseCase = PlayBookUseCase()
     }
     
+    // MARK: - Actions
     func loadSeriesBooks() async {
         guard let seriesId = seriesBook.collapsedSeries?.id,
               let libraryId = LibraryHelpers.getCurrentLibraryId() else {
@@ -50,6 +55,7 @@ class SeriesQuickAccessViewModel: ObservableObject {
         showingErrorAlert = false
         
         do {
+            // ✅ CORRECT: libraryId is required parameter
             let books = try await fetchSeriesBooksUseCase.execute(
                 libraryId: libraryId,
                 seriesId: seriesId
@@ -59,15 +65,13 @@ class SeriesQuickAccessViewModel: ObservableObject {
                 seriesBooks = books
             }
             
-            CoverPreloadHelpers.preloadIfNeeded(
-                books: books,
-                api: api,
-                downloadManager: downloadManager
-            )
+            // ✅ CORRECT: execute method name
+            await coverPreloadUseCase.execute(books: books, limit: 10)
             
         } catch {
             errorMessage = error.localizedDescription
             showingErrorAlert = true
+            AppLogger.general.error("[SeriesQuickAccessVM] Load error: \(error)")
         }
         
         isLoading = false
@@ -79,9 +83,6 @@ class SeriesQuickAccessViewModel: ObservableObject {
         do {
             try await playBookUseCase.execute(
                 book: book,
-                api: api,
-                player: player,
-                downloadManager: downloadManager,
                 appState: appState,
                 restoreState: true
             )
@@ -90,6 +91,7 @@ class SeriesQuickAccessViewModel: ObservableObject {
         } catch {
             errorMessage = error.localizedDescription
             showingErrorAlert = true
+            AppLogger.general.error("[SeriesQuickAccessVM] Play error: \(error)")
         }
         
         isLoading = false

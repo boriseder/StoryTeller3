@@ -8,7 +8,18 @@ struct LibraryView: View {
     @State private var selectedSeries: Book?
     @State private var bookCardVMs: [BookCardStateViewModel] = []
     
+    // ✅ Infrastructure for UI components only
+    private let player: AudioPlayer
+    private let api: AudiobookshelfClient
+    private let downloadManager: DownloadManager
+    
     init(player: AudioPlayer, api: AudiobookshelfClient, downloadManager: DownloadManager, onBookSelected: @escaping () -> Void) {
+        // Store for UI rendering
+        self.player = player
+        self.api = api
+        self.downloadManager = downloadManager
+        
+        // Create ViewModel via Factory
         self._viewModel = StateObject(wrappedValue: LibraryViewModelFactory.create(
             api: api,
             player: player,
@@ -19,11 +30,9 @@ struct LibraryView: View {
     
     var body: some View {
         ZStack {
-            
             if theme.backgroundStyle == .dynamic {
                 Color.accent.ignoresSafeArea()
             }
-
             
             switch viewModel.uiState {
             case .loading:
@@ -44,10 +53,7 @@ struct LibraryView: View {
         .navigationBarTitleDisplayMode(.large)
         .toolbarBackground(.visible, for: .navigationBar)
         .toolbarBackground(.clear, for: .navigationBar)
-        .toolbarColorScheme(
-            theme.colorScheme,
-            for: .navigationBar
-        )
+        .toolbarColorScheme(theme.colorScheme, for: .navigationBar)
         .searchable(
             text: $viewModel.filterState.searchText,
             placement: .automatic,
@@ -77,12 +83,13 @@ struct LibraryView: View {
             await viewModel.loadBooksIfNeeded()
             updateBookCardViewModels()
         }
+        // ✅ Sheet gets own ViewModel via Factory
         .sheet(item: $selectedSeries) { series in
             SeriesQuickAccessView(
                 seriesBook: series,
-                player: viewModel.player,
-                api: viewModel.api,
-                downloadManager: viewModel.downloadManager,
+                player: player,
+                api: api,
+                downloadManager: downloadManager,
                 onBookSelected: viewModel.onBookSelected
             )
             .environmentObject(viewModel)
@@ -92,10 +99,11 @@ struct LibraryView: View {
         .onChange(of: viewModel.filteredAndSortedBooks.count) {
             updateBookCardViewModels()
         }
-        .onReceive(viewModel.player.$currentTime.throttle(for: .seconds(2), scheduler: RunLoop.main, latest: true)) { _ in
+        // ✅ Use local properties instead of viewModel
+        .onReceive(player.$currentTime.throttle(for: .seconds(2), scheduler: RunLoop.main, latest: true)) { _ in
             updateCurrentBookOnly()
         }
-        .onReceive(viewModel.downloadManager.$downloadProgress.throttle(for: .milliseconds(500), scheduler: RunLoop.main, latest: true)) { _ in
+        .onReceive(downloadManager.$downloadProgress.throttle(for: .milliseconds(500), scheduler: RunLoop.main, latest: true)) { _ in
             updateDownloadingBooksOnly()
         }
     }
@@ -125,9 +133,10 @@ struct LibraryView: View {
                 ScrollView {
                     LazyVGrid(columns: DSGridColumns.two) {
                         ForEach(bookCardVMs) { bookVM in
+                            // ✅ UI component gets infrastructure for rendering
                             BookCardView(
                                 viewModel: bookVM,
-                                api: viewModel.api,
+                                api: api,
                                 onTap: {
                                     handleBookTap(bookVM.book)
                                 },
@@ -139,13 +148,12 @@ struct LibraryView: View {
                                 },
                                 style: .library
                             )
-
                         }
                         .padding(.bottom, DSLayout.elementPadding)
                     }
 
                     Spacer()
-                    .frame(height: DSLayout.miniPlayerHeight)
+                        .frame(height: DSLayout.miniPlayerHeight)
                 }
                 .scrollIndicators(.hidden)
                 .padding(.horizontal, DSLayout.screenPadding)
@@ -161,15 +169,14 @@ struct LibraryView: View {
     
     private func updateBookCardViewModels() {
         let books = viewModel.filteredAndSortedBooks
-        let player = viewModel.player
-        let downloadManager = viewModel.downloadManager
         
         Task.detached(priority: .userInitiated) {
+            // ✅ Use local properties
             let newVMs = books.map { book in
                 BookCardStateViewModel(
                     book: book,
-                    player: player,
-                    downloadManager: downloadManager
+                    player: self.player,
+                    downloadManager: self.downloadManager
                 )
             }
             
@@ -180,15 +187,15 @@ struct LibraryView: View {
     }
     
     private func updateCurrentBookOnly() {
-        guard let currentBookId = viewModel.player.book?.id,
+        guard let currentBookId = player.book?.id,
               let index = bookCardVMs.firstIndex(where: { $0.id == currentBookId }) else {
             return
         }
         
         let updatedVM = BookCardStateViewModel(
             book: bookCardVMs[index].book,
-            player: viewModel.player,
-            downloadManager: viewModel.downloadManager
+            player: player,
+            downloadManager: downloadManager
         )
         
         if bookCardVMs[index] != updatedVM {
@@ -197,14 +204,14 @@ struct LibraryView: View {
     }
     
     private func updateDownloadingBooksOnly() {
-        let downloadingIds = Set(viewModel.downloadManager.downloadProgress.keys)
+        let downloadingIds = Set(downloadManager.downloadProgress.keys)
         
         for (index, vm) in bookCardVMs.enumerated() {
             if downloadingIds.contains(vm.id) {
                 let updatedVM = BookCardStateViewModel(
                     book: vm.book,
-                    player: viewModel.player,
-                    downloadManager: viewModel.downloadManager
+                    player: player,
+                    downloadManager: downloadManager
                 )
                 
                 if bookCardVMs[index] != updatedVM {
@@ -228,12 +235,13 @@ struct LibraryView: View {
     
     private func startDownload(_ book: Book) {
         Task {
-            await viewModel.downloadManager.downloadBook(book, api: viewModel.api)
+            // ✅ Use local api property
+            await downloadManager.downloadBook(book, api: api)
         }
     }
     
     private func deleteDownload(_ book: Book) {
-        viewModel.downloadManager.deleteBook(book.id)
+        downloadManager.deleteBook(book.id)
     }
 
     // MARK: - Toolbar Components
@@ -321,7 +329,7 @@ struct LibraryView: View {
     }
 }
 
-// MARK: - Filter Status Banner Component
+// MARK: - Supporting Components (unchanged)
 struct FilterStatusBannerView: View {
     let count: Int
     let totalDownloaded: Int
@@ -357,7 +365,6 @@ struct FilterStatusBannerView: View {
     }
 }
 
-// MARK: - Series Status Banner Component
 struct SeriesStatusBannerView: View {
     let books: [Book]
     let onDismiss: () -> Void
@@ -410,7 +417,6 @@ struct SeriesStatusBannerView: View {
     }
 }
 
-// MARK: - Library Stats Component
 struct LibraryStatsView: View {
     let viewModel: LibraryViewModel
     let isSeriesMode: Bool

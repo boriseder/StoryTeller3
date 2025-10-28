@@ -6,19 +6,15 @@ class DownloadsViewModel: ObservableObject {
     @Published var progressState = DownloadProgressState()
     @Published var errorMessage: String?
     @Published var showingErrorAlert = false
-    
-    // For smooth transistions
     @Published var contentLoaded = false
 
-    // MARK: - Dependencies
+    // MARK: - Dependencies (Use Cases & Repositories ONLY)
     private let downloadUseCase: DownloadBookUseCase
-    private let playBookUseCase: PlayBookUseCase
+    private let playBookUseCase: PlayBookUseCaseProtocol
     private let storageMonitor: StorageMonitor
     private var storageUpdateTimer: Timer?
     
-    let downloadManager: DownloadManager
-    let player: AudioPlayer
-    let api: AudiobookshelfClient
+    let downloadManager: DownloadManager // Needed for downloaded books list
     let appState: AppStateManager
     let onBookSelected: () -> Void
     
@@ -61,19 +57,16 @@ class DownloadsViewModel: ObservableObject {
     // MARK: - Init with DI
     init(
         downloadManager: DownloadManager,
-        player: AudioPlayer,
-        api: AudiobookshelfClient,
+        playBookUseCase: PlayBookUseCaseProtocol,
         appState: AppStateManager,
         storageMonitor: StorageMonitor = StorageMonitor(),
         onBookSelected: @escaping () -> Void
     ) {
         self.downloadManager = downloadManager
-        self.player = player
-        self.api = api
+        self.playBookUseCase = playBookUseCase
         self.appState = appState
         self.storageMonitor = storageMonitor
         self.downloadUseCase = DownloadBookUseCase(downloadManager: downloadManager)
-        self.playBookUseCase = PlayBookUseCase()
         self.onBookSelected = onBookSelected
         
         updateStorageInfo()
@@ -122,9 +115,6 @@ class DownloadsViewModel: ObservableObject {
         do {
             try await playBookUseCase.execute(
                 book: book,
-                api: api,
-                player: player,
-                downloadManager: downloadManager,
                 appState: appState,
                 restoreState: true
             )

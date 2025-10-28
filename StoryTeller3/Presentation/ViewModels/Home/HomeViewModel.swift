@@ -9,21 +9,20 @@ class HomeViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var errorMessage: String?
     @Published var showingErrorAlert = false
-    
-    // For smooth transistions
     @Published var contentLoaded = false
     @Published var sectionsLoaded = false
     
-    // MARK: - Dependencies (Use Cases & Repositories)
+    // MARK: - Dependencies (Use Cases & Repositories ONLY)
     private let fetchPersonalizedSectionsUseCase: FetchPersonalizedSectionsUseCaseProtocol
-    private let playBookUseCase: PlayBookUseCase
+    private let fetchLibraryStatsUseCase: FetchLibraryStatsUseCaseProtocol
+    private let fetchSeriesBooksUseCase: FetchSeriesBooksUseCaseProtocol
+    private let searchBooksByAuthorUseCase: SearchBooksByAuthorUseCaseProtocol
+    private let playBookUseCase: PlayBookUseCaseProtocol
+    private let coverPreloadUseCase: CoverPreloadUseCaseProtocol
+    private let convertLibraryItemUseCase: ConvertLibraryItemUseCaseProtocol
     private let downloadRepository: DownloadRepository
     private let libraryRepository: LibraryRepositoryProtocol
-    
-    let api: AudiobookshelfClient
-    let downloadManager: DownloadManager
-    let player: AudioPlayer
-    let onBookSelected: () -> Void
+    private let onBookSelected: () -> Void
     
     // MARK: - Computed Properties for UI
     var totalItemsCount: Int {
@@ -50,20 +49,25 @@ class HomeViewModel: ObservableObject {
     // MARK: - Init with DI
     init(
         fetchPersonalizedSectionsUseCase: FetchPersonalizedSectionsUseCaseProtocol,
+        fetchLibraryStatsUseCase: FetchLibraryStatsUseCaseProtocol,
+        fetchSeriesBooksUseCase: FetchSeriesBooksUseCaseProtocol,
+        searchBooksByAuthorUseCase: SearchBooksByAuthorUseCaseProtocol,
+        playBookUseCase: PlayBookUseCaseProtocol,
+        coverPreloadUseCase: CoverPreloadUseCaseProtocol,
+        convertLibraryItemUseCase: ConvertLibraryItemUseCaseProtocol,
         downloadRepository: DownloadRepository,
         libraryRepository: LibraryRepositoryProtocol,
-        api: AudiobookshelfClient,
-        downloadManager: DownloadManager,
-        player: AudioPlayer,
         onBookSelected: @escaping () -> Void
     ) {
         self.fetchPersonalizedSectionsUseCase = fetchPersonalizedSectionsUseCase
-        self.playBookUseCase = PlayBookUseCase()
+        self.fetchLibraryStatsUseCase = fetchLibraryStatsUseCase
+        self.fetchSeriesBooksUseCase = fetchSeriesBooksUseCase
+        self.searchBooksByAuthorUseCase = searchBooksByAuthorUseCase
+        self.playBookUseCase = playBookUseCase
+        self.coverPreloadUseCase = coverPreloadUseCase
+        self.convertLibraryItemUseCase = convertLibraryItemUseCase
         self.downloadRepository = downloadRepository
         self.libraryRepository = libraryRepository
-        self.api = api
-        self.downloadManager = downloadManager
-        self.player = player
         self.onBookSelected = onBookSelected
     }
     
@@ -87,14 +91,15 @@ class HomeViewModel: ObservableObject {
                 return
             }
 
-            // libraryName = "\(selectedLibrary.name) - Home"
             libraryName = "Explore & listen"
 
-            // Fetch sections and stats in parallel
+            // Fetch sections and stats in parallel using use cases
             async let sectionsTask = fetchPersonalizedSectionsUseCase.execute(
                 libraryId: selectedLibrary.id
             )
-            async let statsTask = api.libraries.fetchLibraryStats(libraryId: selectedLibrary.id)
+            async let statsTask = fetchLibraryStatsUseCase.execute(
+                libraryId: selectedLibrary.id
+            )
             
             let (fetchedSections, totalBooks) = try await (sectionsTask, statsTask)
             
@@ -103,12 +108,8 @@ class HomeViewModel: ObservableObject {
                 totalBooksInLibrary = totalBooks
             }
             
-            CoverPreloadHelpers.preloadIfNeeded(
-                books: getAllBooksFromSections(),
-                api: api,
-                downloadManager: downloadManager,
-                limit: 10
-            )
+            // Use the use case instead of direct helper
+            await coverPreloadUseCase.execute(books: getAllBooksFromSections(), limit: 10)
             
         } catch let error as RepositoryError {
             errorMessage = error.localizedDescription
@@ -128,9 +129,6 @@ class HomeViewModel: ObservableObject {
         do {
             try await playBookUseCase.execute(
                 book: book,
-                api: api,
-                player: player,
-                downloadManager: downloadManager,
                 appState: appState,
                 restoreState: restoreState
             )
@@ -153,8 +151,8 @@ class HomeViewModel: ObservableObject {
                 return
             }
             
-            let bookRepository = BookRepository(api: api, cache: BookCache())
-            let seriesBooks = try await bookRepository.fetchSeriesBooks(
+            // Use the use case instead of creating repository directly
+            let seriesBooks = try await fetchSeriesBooksUseCase.execute(
                 libraryId: library.id,
                 seriesId: series.id
             )
@@ -180,15 +178,11 @@ class HomeViewModel: ObservableObject {
                 return
             }
             
-            let bookRepository = BookRepository(api: api, cache: BookCache())
-            let allBooks = try await bookRepository.fetchBooks(
+            // Use the use case instead of creating repository directly
+            let authorBooks = try await searchBooksByAuthorUseCase.execute(
                 libraryId: library.id,
-                collapseSeries: false
+                authorName: authorName
             )
-            
-            let authorBooks = allBooks.filter { book in
-                book.author?.localizedCaseInsensitiveContains(authorName) == true
-            }
             
             if let firstBook = authorBooks.first {
                 await playBook(firstBook, appState: appState)
@@ -211,7 +205,7 @@ class HomeViewModel: ObservableObject {
         for section in personalizedSections {
             let sectionBooks = section.entities
                 .compactMap { $0.asLibraryItem }
-                .compactMap { api.converter.convertLibraryItemToBook($0) }
+                .compactMap { convertLibraryItemUseCase.execute(item: $0) }
             
             allBooks.append(contentsOf: sectionBooks)
         }

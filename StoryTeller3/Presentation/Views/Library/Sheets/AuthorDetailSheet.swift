@@ -2,34 +2,45 @@
 //  AuthorDetailSheet.swift
 //  StoryTeller3
 //
-//  Created by Boris Eder on 24.09.25.
-//
-
-
-//
-//  AuthorDetailSheet.swift
-//  StoryTeller3
-//
+//  ✅ CLEAN ARCHITECTURE: View with ViewModel using UseCases
 
 import SwiftUI
 
 struct AuthorDetailSheet: View {
-    let authorName: String
-    @ObservedObject var player: AudioPlayer
-    let api: AudiobookshelfClient
-    @ObservedObject var downloadManager: DownloadManager
-    let onBookSelected: () -> Void
-    
+    @StateObject private var viewModel: AuthorDetailViewModel
     @Environment(\.dismiss) private var dismiss
-    @State private var authorBooks: [Book] = []
-    @State private var isLoading = false
-    @State private var errorMessage: String?
-    @State private var showingErrorAlert = false
+    @EnvironmentObject var appState: AppStateManager
+    
+    // ✅ Infrastructure for UI components only
+    private let player: AudioPlayer
+    private let api: AudiobookshelfClient
+    private let downloadManager: DownloadManager
+    
+    init(
+        authorName: String,
+        api: AudiobookshelfClient,
+        player: AudioPlayer,
+        downloadManager: DownloadManager,
+        onBookSelected: @escaping () -> Void
+    ) {
+        // Store for UI rendering
+        self.api = api
+        self.player = player
+        self.downloadManager = downloadManager
+        
+        // Create ViewModel via Factory
+        self._viewModel = StateObject(wrappedValue: AuthorDetailViewModelFactory.create(
+            authorName: authorName,
+            api: api,
+            player: player,
+            downloadManager: downloadManager,
+            onBookSelected: onBookSelected
+        ))
+    }
     
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                // Author Header
                 authorHeaderView
                     .padding(.horizontal, 20)
                     .padding(.top, 16)
@@ -37,13 +48,12 @@ struct AuthorDetailSheet: View {
                 
                 Divider()
                 
-                // Content
                 Group {
-                    if isLoading {
+                    if viewModel.isLoading {
                         loadingView
-                    } else if let error = errorMessage {
+                    } else if let error = viewModel.errorMessage {
                         errorView(error)
-                    } else if authorBooks.isEmpty {
+                    } else if viewModel.authorBooks.isEmpty {
                         emptyStateView
                     } else {
                         booksGridView
@@ -54,15 +64,15 @@ struct AuthorDetailSheet: View {
             .navigationTitle("")
             .navigationBarHidden(true)
             .task {
-                await loadAuthorBooks()
+                await viewModel.loadAuthorBooks()
             }
-            .alert("Error", isPresented: $showingErrorAlert) {
+            .alert("Error", isPresented: $viewModel.showingErrorAlert) {
                 Button("OK") { }
                 Button("Retry") {
-                    Task { await loadAuthorBooks() }
+                    Task { await viewModel.loadAuthorBooks() }
                 }
             } message: {
-                Text(errorMessage ?? "Unknown error")
+                Text(viewModel.errorMessage ?? "Unknown error")
             }
         }
     }
@@ -70,17 +80,15 @@ struct AuthorDetailSheet: View {
     // MARK: - Author Header
     private var authorHeaderView: some View {
         HStack(spacing: 16) {
-            // Author Avatar
             Circle()
                 .fill(Color.accentColor.opacity(0.2))
                 .frame(width: 80, height: 80)
                 .overlay(
-                    Text(String(authorName.prefix(2).uppercased()))
+                    Text(String(viewModel.authorName.prefix(2).uppercased()))
                         .font(.system(size: 28, weight: .semibold))
                         .foregroundColor(.accentColor)
                 )
             
-            // Author Info
             VStack(alignment: .leading, spacing: 6) {
                 Button(action: { dismiss() }) {
                     HStack {
@@ -93,33 +101,25 @@ struct AuthorDetailSheet: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 
-                Text(authorName)
+                Text(viewModel.authorName)
                     .font(.title2)
                     .fontWeight(.semibold)
                     .lineLimit(2)
                 
-                // Author Stats
-                if !authorBooks.isEmpty {
+                if !viewModel.authorBooks.isEmpty {
                     HStack(spacing: 12) {
-                        Text("\(authorBooks.count) books")
+                        Text("\(viewModel.authorBooks.count) books")
                             .font(.caption)
                             .foregroundColor(.secondary)
                         
-                        let downloadedCount = authorBooks.filter { downloadManager.isBookDownloaded($0.id) }.count
-                        if downloadedCount > 0 {
-                            Text("• \(downloadedCount) downloaded")
+                        if viewModel.downloadedCount > 0 {
+                            Text("• \(viewModel.downloadedCount) downloaded")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
                         
-                        let totalDuration = authorBooks.reduce(0.0) { total, book in
-                            total + (book.chapters.reduce(0.0) { chapterTotal, chapter in
-                                chapterTotal + ((chapter.end ?? 0) - (chapter.start ?? 0))
-                            })
-                        }
-                        
-                        if totalDuration > 0 {
-                            Text("• \(TimeFormatter.formatTimeCompact(totalDuration))")
+                        if viewModel.totalDuration > 0 {
+                            Text("• \(TimeFormatter.formatTimeCompact(viewModel.totalDuration))")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
@@ -138,7 +138,7 @@ struct AuthorDetailSheet: View {
             ProgressView()
                 .scaleEffect(1.2)
             
-            Text("Loading books by \(authorName)...")
+            Text("Loading books by \(viewModel.authorName)...")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
         }
@@ -164,7 +164,7 @@ struct AuthorDetailSheet: View {
             }
             
             Button(action: {
-                Task { await loadAuthorBooks() }
+                Task { await viewModel.loadAuthorBooks() }
             }) {
                 Text("Retry")
                     .font(.headline)
@@ -189,7 +189,7 @@ struct AuthorDetailSheet: View {
                 .font(.headline)
                 .foregroundColor(.secondary)
             
-            Text("No books by \(authorName) were found in your library")
+            Text("No books by \(viewModel.authorName) were found in your library")
                 .font(.body)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
@@ -199,22 +199,22 @@ struct AuthorDetailSheet: View {
     }
     
     private var booksGridView: some View {
-        
-        return ScrollView {
+        ScrollView {
             LazyVGrid(columns: DSGridColumns.two) {
-                ForEach(authorBooks) { book in
-                    let viewModel = BookCardStateViewModel(
+                ForEach(viewModel.authorBooks) { book in
+                    let cardViewModel = BookCardStateViewModel(
                         book: book,
                         player: player,
                         downloadManager: downloadManager
                     )
                     
                     BookCardView(
-                        viewModel: viewModel,
+                        viewModel: cardViewModel,
                         api: api,
                         onTap: {
                             Task {
-                                await playBook(book)
+                                await viewModel.playBook(book, appState: appState)
+                                dismiss()
                             }
                         },
                         onDownload: {
@@ -233,73 +233,4 @@ struct AuthorDetailSheet: View {
             .padding(.vertical, 16)
         }
     }
-    
-    // MARK: - Data Loading
-    
-    @MainActor
-    private func loadAuthorBooks() async {
-        guard let libraryId = LibraryHelpers.getCurrentLibraryId() else {            errorMessage = "No library selected"
-            showingErrorAlert = true
-            return
-        }
-        
-        isLoading = true
-        errorMessage = nil
-        
-        do {
-            // Fetch all books and filter by author
-            let allBooks = try await api.books.fetchBooks(libraryId: libraryId, limit: 0, collapseSeries: false)
-            let filteredBooks = allBooks.filter { book in
-                book.author?.localizedCaseInsensitiveContains(authorName) == true
-            }
-            
-            // Sort books by title
-            let sortedBooks = filteredBooks.sorted { book1, book2 in
-                book1.title.localizedCompare(book2.title) == .orderedAscending
-            }
-            
-            withAnimation(.easeInOut(duration: 0.3)) {
-                authorBooks = sortedBooks
-            }
-            
-            // Preload covers for better performance
-            CoverPreloadHelpers.preloadIfNeeded(
-                books: sortedBooks,
-                api: api,
-                downloadManager: downloadManager
-            )
-            
-        } catch {
-            errorMessage = error.localizedDescription
-            showingErrorAlert = true
-            AppLogger.general.debug("Error loading author books: \(error)")
-        }
-        
-        isLoading = false
-    }
-    
-    @MainActor
-    private func playBook(_ book: Book) async {
-        isLoading = true
-        errorMessage = nil
-        
-        do {
-            let fetchedBook = try await api.books.fetchBookDetails(bookId: book.id, retryCount: 3)
-            player.configure(baseURL: api.baseURLString, authToken: api.authToken, downloadManager: downloadManager)
-            
-            let isOffline = downloadManager.isBookDownloaded(fetchedBook.id)
-            player.load(book: fetchedBook, isOffline: isOffline, restoreState: true)
-            
-            dismiss()
-            onBookSelected()
-            
-            AppLogger.general.debug("[AuthorDetailSheet] Loaded book: \(fetchedBook.title)")
-            
-        } catch {
-            errorMessage = "Could not load '\(book.title)': \(error.localizedDescription)"
-            showingErrorAlert = true
-            AppLogger.general.debug("[AuthorDetailSheet] Failed to load book: \(error)")
-        }
-        
-        isLoading = false
-    }}
+}

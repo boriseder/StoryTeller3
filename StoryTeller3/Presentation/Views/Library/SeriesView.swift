@@ -5,7 +5,18 @@ struct SeriesView: View {
     @EnvironmentObject var appState: AppStateManager
     @EnvironmentObject var theme: ThemeManager
 
+    // ✅ Infrastructure for UI components only
+    private let player: AudioPlayer
+    private let api: AudiobookshelfClient
+    private let downloadManager: DownloadManager
+    
     init(player: AudioPlayer, api: AudiobookshelfClient, downloadManager: DownloadManager, onBookSelected: @escaping () -> Void) {
+        // Store for UI rendering
+        self.player = player
+        self.api = api
+        self.downloadManager = downloadManager
+        
+        // Create ViewModel via Factory
         self._viewModel = StateObject(wrappedValue: SeriesViewModelFactory.create(
             api: api,
             player: player,
@@ -16,7 +27,6 @@ struct SeriesView: View {
 
     var body: some View {
         ZStack {
-            
             if theme.backgroundStyle == .dynamic {
                 Color.accent.ignoresSafeArea()
             }
@@ -35,10 +45,7 @@ struct SeriesView: View {
         .navigationBarTitleDisplayMode(.large)
         .toolbarBackground(.visible, for: .navigationBar)
         .toolbarBackground(.clear, for: .navigationBar)
-        .toolbarColorScheme(
-            theme.colorScheme,
-            for: .navigationBar
-        )
+        .toolbarColorScheme(theme.colorScheme, for: .navigationBar)
         .searchable(text: $viewModel.filterState.searchText, prompt: "Serien durchsuchen...")
         .refreshable {
             await viewModel.loadSeries()
@@ -77,11 +84,12 @@ struct SeriesView: View {
             ScrollView {
                 LazyVStack(spacing: DSLayout.contentGap) {
                     ForEach(viewModel.filteredAndSortedSeries) { series in
+                        // ✅ UI component gets infrastructure for rendering
                         SeriesSectionView(
                             series: series,
-                            player: viewModel.player,
-                            api: viewModel.api,
-                            downloadManager: viewModel.downloadManager,
+                            player: player,
+                            api: api,
+                            downloadManager: downloadManager,
                             onBookSelected: {
                                 // Book selection is handled inside SeriesSectionView
                             }
@@ -90,7 +98,7 @@ struct SeriesView: View {
                     }
                 }
                 Spacer()
-                .frame(height: DSLayout.miniPlayerHeight)
+                    .frame(height: DSLayout.miniPlayerHeight)
             }
             .scrollIndicators(.hidden)
             .padding(.horizontal, DSLayout.screenPadding)
@@ -98,7 +106,6 @@ struct SeriesView: View {
         .opacity(viewModel.contentLoaded ? 1 : 0)
         .animation(.easeInOut(duration: 0.5), value: viewModel.contentLoaded)
         .onAppear { viewModel.contentLoaded = true }
-
     }
     
     // MARK: - Toolbar Components

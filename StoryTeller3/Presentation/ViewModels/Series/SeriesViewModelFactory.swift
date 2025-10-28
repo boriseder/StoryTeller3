@@ -8,22 +8,29 @@ struct SeriesViewModelFactory {
         downloadManager: DownloadManager,
         onBookSelected: @escaping () -> Void
     ) -> SeriesViewModel {
+        // Create Repositories
         let bookRepository = BookRepository(api: api, cache: BookCache())
-        let fetchSeriesUseCase = FetchSeriesUseCase(bookRepository: bookRepository)
-
+        let libraryRepository = LibraryRepository(api: api)
+        
         guard let downloadRepository = downloadManager.repository else {
             fatalError("DownloadManager repository not initialized")
         }
-
-        let libraryRepository = LibraryRepository(api: api)
+        
+        // Create Use Cases
+        let fetchSeriesUseCase = FetchSeriesUseCase(bookRepository: bookRepository)
+        let playBookUseCase = PlayBookUseCase(
+            api: api,
+            player: player,
+            downloadManager: downloadManager
+        )
+        let convertLibraryItemUseCase = ConvertLibraryItemUseCase(converter: api.converter)
         
         return SeriesViewModel(
             fetchSeriesUseCase: fetchSeriesUseCase,
+            playBookUseCase: playBookUseCase,
+            convertLibraryItemUseCase: convertLibraryItemUseCase,
             downloadRepository: downloadRepository,
             libraryRepository: libraryRepository,
-            api: api,
-            downloadManager: downloadManager,
-            player: player,
             onBookSelected: onBookSelected
         )
     }

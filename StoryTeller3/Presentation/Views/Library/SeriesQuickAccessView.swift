@@ -5,6 +5,11 @@ struct SeriesQuickAccessView: View {
     @EnvironmentObject var appState: AppStateManager
     @Environment(\.dismiss) private var dismiss
     
+    // ✅ Infrastructure stored at View level for UI components
+    private let player: AudioPlayer
+    private let api: AudiobookshelfClient
+    private let downloadManager: DownloadManager
+    
     init(
         seriesBook: Book,
         player: AudioPlayer,
@@ -12,10 +17,16 @@ struct SeriesQuickAccessView: View {
         downloadManager: DownloadManager,
         onBookSelected: @escaping () -> Void
     ) {
-        self._viewModel = StateObject(wrappedValue: SeriesQuickAccessViewModel(
+        // Store for UI components
+        self.player = player
+        self.api = api
+        self.downloadManager = downloadManager
+        
+        // Create ViewModel via Factory
+        self._viewModel = StateObject(wrappedValue: SeriesQuickAccessViewModelFactory.create(
             seriesBook: seriesBook,
-            player: player,
             api: api,
+            player: player,
             downloadManager: downloadManager,
             onBookSelected: onBookSelected
         ))
@@ -71,11 +82,12 @@ struct SeriesQuickAccessView: View {
     
     private var seriesHeaderView: some View {
         HStack(spacing: 16) {
+            // ✅ UI component gets infrastructure for rendering
             BookCoverView.square(
                 book: viewModel.seriesBook,
                 size: 64,
-                api: viewModel.api,
-                downloadManager: viewModel.downloadManager
+                api: api,
+                downloadManager: downloadManager
             )
             .clipShape(RoundedRectangle(cornerRadius: 10))
             .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
@@ -124,11 +136,12 @@ struct SeriesQuickAccessView: View {
             .padding(.horizontal, 20)
             .padding(.vertical, 12)
             
+            // ✅ UI component gets infrastructure for rendering
             HorizontalBookScrollView(
                 books: viewModel.seriesBooks,
-                player: viewModel.player,
-                api: viewModel.api,
-                downloadManager: viewModel.downloadManager,
+                player: player,
+                api: api,
+                downloadManager: downloadManager,
                 cardStyle: .series,
                 onBookSelected: { book in
                     Task {

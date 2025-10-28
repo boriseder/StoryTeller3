@@ -9,19 +9,15 @@ class LibraryViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var errorMessage: String?
     @Published var showingErrorAlert = false
-    
-    // For smooth transistions
     @Published var contentLoaded = false
 
-    // MARK: - Dependencies (Use Cases & Repositories)
+    // MARK: - Dependencies (Use Cases & Repositories ONLY)
     private let fetchBooksUseCase: FetchBooksUseCaseProtocol
-    private let playBookUseCase: PlayBookUseCase
+    private let playBookUseCase: PlayBookUseCaseProtocol
+    private let coverPreloadUseCase: CoverPreloadUseCaseProtocol
     private let downloadRepository: DownloadRepository
     private let libraryRepository: LibraryRepositoryProtocol
     
-    let api: AudiobookshelfClient
-    let downloadManager: DownloadManager
-    let player: AudioPlayer
     let onBookSelected: () -> Void
     
     // MARK: - Computed Properties for UI
@@ -73,20 +69,17 @@ class LibraryViewModel: ObservableObject {
     // MARK: - Init with DI
     init(
         fetchBooksUseCase: FetchBooksUseCaseProtocol,
+        playBookUseCase: PlayBookUseCaseProtocol,
+        coverPreloadUseCase: CoverPreloadUseCaseProtocol,
         downloadRepository: DownloadRepository,
         libraryRepository: LibraryRepositoryProtocol,
-        api: AudiobookshelfClient,
-        downloadManager: DownloadManager,
-        player: AudioPlayer,
         onBookSelected: @escaping () -> Void
     ) {
         self.fetchBooksUseCase = fetchBooksUseCase
-        self.playBookUseCase = PlayBookUseCase()
+        self.playBookUseCase = playBookUseCase
+        self.coverPreloadUseCase = coverPreloadUseCase
         self.downloadRepository = downloadRepository
         self.libraryRepository = libraryRepository
-        self.api = api
-        self.downloadManager = downloadManager
-        self.player = player
         self.onBookSelected = onBookSelected
         
         filterState.loadFromDefaults()
@@ -111,7 +104,6 @@ class LibraryViewModel: ObservableObject {
                 return
             }
             
-            // libraryName = library.name
             libraryName = "Library"
 
             let fetchedBooks = try await fetchBooksUseCase.execute(
@@ -123,12 +115,8 @@ class LibraryViewModel: ObservableObject {
                 books = fetchedBooks
             }
             
-            CoverPreloadHelpers.preloadIfNeeded(
-                books: fetchedBooks,
-                api: api,
-                downloadManager: downloadManager,
-                limit: 10
-            )
+            // Use the use case instead of direct helper
+            await coverPreloadUseCase.execute(books: fetchedBooks, limit: 10)
             
         } catch let error as RepositoryError {
             handleRepositoryError(error)
@@ -146,9 +134,6 @@ class LibraryViewModel: ObservableObject {
         do {
             try await playBookUseCase.execute(
                 book: book,
-                api: api,
-                player: player,
-                downloadManager: downloadManager,
                 appState: appState,
                 restoreState: restoreState
             )

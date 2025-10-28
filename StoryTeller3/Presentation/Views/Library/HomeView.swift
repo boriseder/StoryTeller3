@@ -1,8 +1,8 @@
 //
-//  Enhanced HomeView.swift
+//  HomeView.swift
 //  StoryTeller3
 //
-//  Updated to handle all personalized sections
+//  ✅ CLEAN ARCHITECTURE FIXED
 
 import SwiftUI
 
@@ -14,7 +14,16 @@ struct HomeView: View {
     @State private var selectedSeries: Series?
     @State private var selectedAuthor: IdentifiableString?
     
+    // ✅ Infrastructure for UI components only
+    private let player: AudioPlayer
+    private let api: AudiobookshelfClient
+    private let downloadManager: DownloadManager
+    
     init(player: AudioPlayer, api: AudiobookshelfClient, downloadManager: DownloadManager, onBookSelected: @escaping () -> Void) {
+        self.player = player
+        self.api = api
+        self.downloadManager = downloadManager
+        
         self._viewModel = StateObject(wrappedValue: HomeViewModelFactory.create(
             api: api,
             player: player,
@@ -25,13 +34,11 @@ struct HomeView: View {
 
     var body: some View {
         ZStack {
-            
             if theme.backgroundStyle == .dynamic {
                 Color.accent.ignoresSafeArea()
             }
           
             switch viewModel.uiState {
-
             case .loading:
                 LoadingView(message: "Loading")
             case .error(let message):
@@ -48,10 +55,7 @@ struct HomeView: View {
         .navigationBarTitleDisplayMode(.large)
         .toolbarBackground(.visible, for: .navigationBar)
         .toolbarBackground(.clear, for: .navigationBar)
-        .toolbarColorScheme(
-            theme.colorScheme,
-            for: .navigationBar
-        )
+        .toolbarColorScheme(theme.colorScheme, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 settingsButton
@@ -71,42 +75,35 @@ struct HomeView: View {
         .task {
             await viewModel.loadPersonalizedSectionsIfNeeded()
         }
+        // ✅ Sheets get own ViewModels via Factory
         .sheet(item: $selectedSeries) { series in
-        SeriesDetailSheet(
-            series: series,
-            player: viewModel.player,
-            api: viewModel.api,
-            downloadManager: viewModel.downloadManager,
-            onBookSelected: viewModel.onBookSelected
-        )
-        .environmentObject(appState)
-        .presentationDetents([.medium, .large])
-        .presentationDragIndicator(.visible)
-    }
+            SeriesDetailSheet(
+                series: series,
+                api: api,
+                player: player,
+                downloadManager: downloadManager,
+                onBookSelected: viewModel.onBookSelected
+            )
+            .environmentObject(appState)
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+        }
         .sheet(item: $selectedAuthor) { authorWrapper in
-        AuthorDetailSheet(
-            authorName: authorWrapper.value,
-            player: viewModel.player,
-            api: viewModel.api,
-            downloadManager: viewModel.downloadManager,
-            onBookSelected: viewModel.onBookSelected
-        )
-        .environmentObject(appState)
-        .presentationDetents([.medium, .large])
-        .presentationDragIndicator(.visible)
+            AuthorDetailSheet(
+                authorName: authorWrapper.value,
+                api: api,
+                player: player,
+                downloadManager: downloadManager,
+                onBookSelected: viewModel.onBookSelected
+            )
+            .environmentObject(appState)
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+        }
     }
-    }
-    
-    // MARK: - Content View
     
     private var contentView: some View {
         ZStack {
-            /*
-            if theme.backgroundStyle == .dynamic {
-                DynamicBackground()
-            }
-            Color.clear.ignoresSafeArea()
-*/
             ScrollView {
                 LazyVStack(spacing: DSLayout.contentGap) {
                     homeHeaderView
@@ -114,11 +111,12 @@ struct HomeView: View {
                         .animation(.easeInOut(duration: 0.3).delay(0.1), value: viewModel.sectionsLoaded)
                     
                     ForEach(Array(viewModel.personalizedSections.enumerated()), id: \.element.id) { index, section in
+                        // ✅ UI component gets infrastructure for rendering only
                         PersonalizedSectionView(
                             section: section,
-                            player: viewModel.player,
-                            api: viewModel.api,
-                            downloadManager: viewModel.downloadManager,
+                            player: player,
+                            api: api,
+                            downloadManager: downloadManager,
                             onBookSelected: { book in
                                 Task { await viewModel.playBook(book, appState: appState) }
                             },
@@ -136,11 +134,9 @@ struct HomeView: View {
                             value: viewModel.sectionsLoaded
                         )
                     }
-
                 }
                 Spacer()
-                .frame(height: DSLayout.miniPlayerHeight)
-
+                    .frame(height: DSLayout.miniPlayerHeight)
             }
             .scrollIndicators(.hidden)
             .padding(.horizontal, DSLayout.screenPadding)
@@ -158,7 +154,6 @@ struct HomeView: View {
     
     private var homeHeaderView: some View {
         VStack(spacing: DSLayout.elementGap) {
-            
             HStack(spacing: DSLayout.contentGap) {
                 HomeStatCard(
                     icon: "books.vertical.fill",
@@ -194,6 +189,9 @@ struct HomeView: View {
         }
     }
 }
+
+// MARK: - Supporting Views (remain unchanged - they are pure UI components)
+
 
 // MARK: - Personalized Section View
 struct PersonalizedSectionView: View {

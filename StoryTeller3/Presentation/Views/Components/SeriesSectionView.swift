@@ -5,6 +5,11 @@ struct SeriesSectionView: View {
     @EnvironmentObject var appState: AppStateManager
     @EnvironmentObject var theme: ThemeManager
 
+    // ✅ Infrastructure for UI components only
+    private let player: AudioPlayer
+    private let api: AudiobookshelfClient
+    private let downloadManager: DownloadManager
+    
     init(
         series: Series,
         player: AudioPlayer,
@@ -12,11 +17,14 @@ struct SeriesSectionView: View {
         downloadManager: DownloadManager,
         onBookSelected: @escaping () -> Void
     ) {
-        self._viewModel = StateObject(wrappedValue: SeriesSectionViewModel(
+        // Store for UI rendering
+        self.player = player
+        self.api = api
+        self.downloadManager = downloadManager
+        
+        // Create ViewModel via Factory
+        self._viewModel = StateObject(wrappedValue: SeriesSectionViewModelFactory.create(
             series: series,
-            api: api,
-            player: player,
-            downloadManager: downloadManager,
             onBookSelected: onBookSelected
         ))
     }
@@ -25,11 +33,12 @@ struct SeriesSectionView: View {
         VStack {
             seriesHeader
             
+            // ✅ UI component gets infrastructure for rendering
             HorizontalBookScrollView(
                 books: viewModel.books,
-                player: viewModel.player,
-                api: viewModel.api,
-                downloadManager: viewModel.downloadManager,
+                player: player,
+                api: api,
+                downloadManager: downloadManager,
                 cardStyle: .series,
                 onBookSelected: { book in
                     Task {
@@ -77,4 +86,3 @@ struct SeriesSectionView: View {
             .padding(.trailing, DSLayout.contentPadding)
     }
 }
-
