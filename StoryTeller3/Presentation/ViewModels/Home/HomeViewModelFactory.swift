@@ -3,27 +3,21 @@ import Foundation
 struct HomeViewModelFactory {
     @MainActor static func create(
         api: AudiobookshelfClient,
-        player: AudioPlayer,
-        downloadManager: DownloadManager,
-        onBookSelected: @escaping () -> Void
+        onBookSelected: @escaping () -> Void,
+        container: DependencyContainer? = nil
     ) -> HomeViewModel {
-        let bookRepository = BookRepository(api: api, cache: BookCache())
-        let fetchPersonalizedSectionsUseCase = FetchPersonalizedSectionsUseCase(bookRepository: bookRepository)
-        
-        // Access the repository from downloadManager instead of trying to instantiate the protocol
-        guard let downloadRepository = downloadManager.repository else {
-            fatalError("DownloadManager repository not initialized. Ensure DownloadManager is fully set up before creating ViewModels.")
-        }
-        
-        let libraryRepository = LibraryRepository(api: api)
+        let container = container ?? DependencyContainer.shared
+        let fetchPersonalizedSectionsUseCase = container.makeFetchPersonalizedSectionsUseCase(api: api)
+        let downloadRepository = container.makeDownloadRepository()
+        let libraryRepository = container.makeLibraryRepository(api: api)
         
         return HomeViewModel(
             fetchPersonalizedSectionsUseCase: fetchPersonalizedSectionsUseCase,
             downloadRepository: downloadRepository,
             libraryRepository: libraryRepository,
             api: api,
-            downloadManager: downloadManager,
-            player: player,
+            downloadManager: container.downloadManager,
+            player: container.player,
             onBookSelected: onBookSelected
         )
     }

@@ -14,11 +14,9 @@ struct HomeView: View {
     @State private var selectedSeries: Series?
     @State private var selectedAuthor: IdentifiableString?
     
-    init(player: AudioPlayer, api: AudiobookshelfClient, downloadManager: DownloadManager, onBookSelected: @escaping () -> Void) {
+    init(api: AudiobookshelfClient, onBookSelected: @escaping () -> Void) {
         self._viewModel = StateObject(wrappedValue: HomeViewModelFactory.create(
             api: api,
-            player: player,
-            downloadManager: downloadManager,
             onBookSelected: onBookSelected
         ))
     }
@@ -285,11 +283,9 @@ struct PersonalizedSectionView: View {
         
         return HorizontalBookScrollView(
             books: books,
-            player: player,
             api: api,
-            downloadManager: downloadManager,
-            cardStyle: .series,
-            onBookSelected: onBookSelected
+            onBookSelected: onBookSelected,
+            cardStyle: .series
         )
     }
     

@@ -1,19 +1,21 @@
 import SwiftUI
 import Combine
 
+// REFACTORED VERSION - Clean Dependency Injection
 struct ContentView: View {
     // MARK: - Environment
     @EnvironmentObject private var appState: AppStateManager
     @EnvironmentObject private var theme: ThemeManager
-
-    // MARK: - State Objects
-    @StateObject private var player = AudioPlayer()
-    @StateObject private var downloadManager = DownloadManager()
-    @StateObject private var playerStateManager = PlayerStateManager()
+    @EnvironmentObject private var dependencies: DependencyContainer
 
     // MARK: - State Variables
     @State private var selectedTab: TabIndex = .home
     @State private var cancellables = Set<AnyCancellable>()
+    
+    // MARK: - Computed Properties for Dependencies
+    private var player: AudioPlayer { dependencies.player }
+    private var downloadManager: DownloadManager { dependencies.downloadManager }
+    private var playerStateManager: PlayerStateManager { dependencies.playerStateManager }
     
     // MARK: - Tab Enum
     enum TabIndex: Hashable {
@@ -25,18 +27,15 @@ struct ContentView: View {
             Color.accent.ignoresSafeArea()
 
             switch appState.loadingState {
-            
             case .initial, .loadingCredentials, .credentialsFoundValidating:
                 LoadingView(message: "Loading")
-                    .padding(.top, 56)   // avoid jumping from contentView to homeView
+                    .padding(.top, 56)
 
             case .noCredentialsSaved:
                 Color.clear
                     .onAppear {
                         if UserDefaults.standard.string(forKey: "stored_username") != nil {
-                            Task {
-                                setupApp()
-                            }
+                            Task { setupApp() }
                         } else if appState.isFirstLaunch {
                             appState.showingWelcome = true
                         } else {
@@ -48,30 +47,20 @@ struct ContentView: View {
                 NetworkErrorView(
                     issueType: issueType,
                     downloadedBooksCount: downloadManager.downloadedBooks.count,
-                    onRetry: {
-                        Task {
-                            setupApp()
-                        }
-                    },
+                    onRetry: { Task { setupApp() } },
                     onViewDownloads: {
                         selectedTab = .downloads
                         appState.loadingState = .ready
                     },
-                    onSettings: {
-                        appState.showingSettings = true
-                    }
+                    onSettings: { appState.showingSettings = true }
                 )
                     
             case .authenticationError:
-                AuthErrorView(
-                    onReLogin: {
-                        appState.showingSettings = true
-                    }
-                )
+                AuthErrorView(onReLogin: { appState.showingSettings = true })
                     
             case .loadingData:
                 LoadingView(message: "Loading")
-                    .padding(.top, 56)   // avoid jumping from contentView to homeView
+                    .padding(.top, 56)
 
             case .ready:
                 mainContent
@@ -80,16 +69,12 @@ struct ContentView: View {
         .onAppear(perform: setupApp)
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)) { _ in
             if UserDefaults.standard.bool(forKey: "auto_cache_cleanup") {
-                Task {
-                    await CoverCacheManager.shared.optimizeCache()
-                }
+                Task { await CoverCacheManager.shared.optimizeCache() }
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .init("ServerSettingsChanged"))) { _ in
             appState.clearConnectionIssue()
-            Task {
-                setupApp()
-            }
+            Task { setupApp() }
         }
         .onReceive(NotificationCenter.default.publisher(for: .init("ShowSettings"))) { _ in
             appState.showingSettings = true
@@ -115,9 +100,7 @@ struct ContentView: View {
                         ToolbarItem(placement: .navigationBarLeading) {
                             Button("Done") {
                                 appState.showingSettings = false
-                                Task {
-                                    setupApp()
-                                }
+                                Task { setupApp() }
                             }
                         }
                     }
@@ -146,24 +129,20 @@ struct ContentView: View {
                 downloadsTab
             }
             .accentColor(theme.accent)
-            .id(theme.accent) // zwingt SwiftUI, die TabView neu zu rendern, wenn sich die Farbe ändert
+            .id(theme.accent)
         }
     }
     
-    
-    // MARK: - Tab Views
+    // MARK: - Tab Views - REFACTORED
     
     private var homeTab: some View {
         NavigationStack {
             ZStack {
                 if let api = appState.apiClient {
                     HomeView(
-                        player: player,
                         api: api,
-                        downloadManager: downloadManager,
                         onBookSelected: { openFullscreenPlayer() }
                     )
-                    .environmentObject(appState)
                 }
             }
         }
@@ -178,12 +157,9 @@ struct ContentView: View {
         NavigationStack {
             if let api = appState.apiClient {
                 LibraryView(
-                    player: player,
                     api: api,
-                    downloadManager: downloadManager,
                     onBookSelected: { openFullscreenPlayer() }
                 )
-                .environmentObject(appState)
             }
         }
         .tabItem {
@@ -197,12 +173,9 @@ struct ContentView: View {
         NavigationStack {
             if let api = appState.apiClient {
                 SeriesView(
-                    player: player,
                     api: api,
-                    downloadManager: downloadManager,
                     onBookSelected: { openFullscreenPlayer() }
                 )
-                .environmentObject(appState)
             }
         }
         .tabItem {
@@ -216,22 +189,16 @@ struct ContentView: View {
         NavigationStack {
             if let api = appState.apiClient {
                 DownloadsView(
-                    downloadManager: downloadManager,
-                    player: player,
                     api: api,
                     appState: appState,
                     onBookSelected: { openFullscreenPlayer() }
                 )
-                .environmentObject(appState)
             } else {
                 DownloadsView(
-                    downloadManager: downloadManager,
-                    player: player,
                     api: AudiobookshelfClient(baseURL: "", authToken: ""),
                     appState: appState,
                     onBookSelected: { openFullscreenPlayer() }
                 )
-                .environmentObject(appState)
             }
         }
         .tabItem {
@@ -242,16 +209,12 @@ struct ContentView: View {
         .tag(TabIndex.downloads)
     }
 
-    
     // MARK: - Helper Functions
-
     private func openFullscreenPlayer() {
         playerStateManager.showFullscreen()
     }
     
-    
     // MARK: - Setup Methods
-    
     private func setupApp() {
         Task { @MainActor in
             appState.loadingState = .loadingCredentials
@@ -266,7 +229,7 @@ struct ContentView: View {
             
             do {
                 let token = try KeychainService.shared.getToken(for: username)
-                let client = AudiobookshelfClient(baseURL: baseURL, authToken: token,)
+                let client = AudiobookshelfClient(baseURL: baseURL, authToken: token)
                 
                 let connectionResult = await testConnection(client: client)
                 
@@ -276,10 +239,7 @@ struct ContentView: View {
                     player.configure(baseURL: baseURL, authToken: token, downloadManager: downloadManager)
                     
                     appState.loadingState = .loadingData
-                    
-                    // ✅ USE REPOSITORY instead of direct API call
                     await loadInitialData(client: client)
-                    
                     appState.loadingState = .ready
                     appState.isServerReachable = true
                     
@@ -289,7 +249,7 @@ struct ContentView: View {
                 
                 case .failed:
                     appState.isServerReachable = false
-                    appState.loadingState = .networkError(ConnectionIssueType.serverError)      // Boris: Technical debt!! Basically 2 parallel error handling strageies. Here and then in Audiobookshelf and no communication between them.
+                    appState.loadingState = .networkError(ConnectionIssueType.serverError)
                 
                 case .authenticationError:
                     appState.loadingState = .authenticationError
@@ -302,26 +262,20 @@ struct ContentView: View {
         }
     }
     
-    // ✅ CORRECTED: Use Repository Pattern
     private func loadInitialData(client: AudiobookshelfClient) async {
-        AppLogger.general.debug("[ContentView] Loading initial data via Repository...")
-        
-        // Create repository instance
-        let libraryRepository = LibraryRepository(
+        let libraryRepository = dependencies.makeLibraryRepository(
             api: client,
-            settingsRepository: SettingsRepository()
+            settingsRepository: dependencies.makeSettingsRepository()
         )
-        
+
         do {
-            // Let repository handle all the logic
             let selectedLibrary = try await libraryRepository.initializeLibrarySelection()
             
             if let library = selectedLibrary {
-                AppLogger.general.info("[ContentView] ✓ Library initialized: \(library.name)")
+                AppLogger.general.info("[ContentView] Library initialized: \(library.name)")
             } else {
-                AppLogger.general.warn("[ContentView] No libraries available (valid for new servers)")
+                AppLogger.general.warn("[ContentView] No libraries available")
             }
-            
         } catch let error as RepositoryError {
             handleRepositoryError(error)
         } catch {
@@ -329,7 +283,6 @@ struct ContentView: View {
         }
     }
     
-    // Handle repository-specific errors
     private func handleRepositoryError(_ error: RepositoryError) {
         switch error {
         case .networkError(let urlError as URLError):
@@ -352,11 +305,6 @@ struct ContentView: View {
             AppLogger.general.error("[ContentView] Repository error: \(error)")
         }
     }
-
-    
-    // MARK: - Connection Testing
-    
-
     
     private func testConnection(client: AudiobookshelfClient) async -> ConnectionTestResult {
         guard appState.isDeviceOnline else {
@@ -364,7 +312,6 @@ struct ContentView: View {
         }
         
         let isHealthy = await client.connection.checkHealth()
-        
         guard isHealthy else {
             return .networkError(.serverUnreachable)
         }
@@ -380,6 +327,39 @@ struct ContentView: View {
             return .networkError(.serverUnreachable)
         }
     }
+}
+
+// COMPARISON: Old vs New
+// ======================
+
+// OLD - ANTI-PATTERN:
+// @StateObject private var player = AudioPlayer()
+// @StateObject private var downloadManager = DownloadManager()
+// @StateObject private var playerStateManager = PlayerStateManager()
+//
+// PROBLEMS:
+// - ContentView creates managers directly
+// - Multiple instances possible
+// - No testability
+// - High coupling
+
+// NEW - CLEAN:
+// @EnvironmentObject private var dependencies: DependencyContainer
+// private var player: AudioPlayer { dependencies.player }
+// private var downloadManager: DownloadManager { dependencies.downloadManager }
+// private var playerStateManager: PlayerStateManager { dependencies.playerStateManager }
+//
+// BENEFITS:
+// - Single source of truth
+// - Testable via mock container
+// - Clear dependency flow
+// - Proper dependency injection
+
+enum ConnectionTestResult {
+    case success
+    case networkError(ConnectionIssueType)
+    case authenticationError
+    case failed
 }
 
 // MARK: - Welcome View
@@ -503,9 +483,3 @@ struct WelcomePageView: View {
     }
 }
 
-enum ConnectionTestResult {
-    case success
-    case networkError(ConnectionIssueType)
-    case authenticationError
-    case failed
-}

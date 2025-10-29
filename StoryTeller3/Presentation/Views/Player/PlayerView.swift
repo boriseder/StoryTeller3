@@ -5,7 +5,7 @@ struct PlayerView: View {
     @StateObject private var viewModel: PlayerViewModel
     
     init(player: AudioPlayer, api: AudiobookshelfClient) {
-        self._viewModel = StateObject(wrappedValue: PlayerViewModel(
+        self._viewModel = StateObject(wrappedValue: PlayerViewModelFactory.create(
             player: player,
             api: api
         ))

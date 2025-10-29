@@ -1,40 +1,52 @@
-import Foundation
+// REFACTORED: BookCardStateViewModel
+// Changes: Container injection instead of direct player/downloadManager parameters
 
-// MARK: - Book Card State View Model
-struct BookCardStateViewModel: Identifiable, Equatable {
-    let id: String
+import Foundation
+import SwiftUI
+
+@MainActor
+class BookCardStateViewModel: ObservableObject, Identifiable {
     let book: Book
-    let isCurrentBook: Bool
-    let isPlaying: Bool
-    let currentProgress: Double
-    let currentTime: Double
-    let duration: Double
-    let isDownloaded: Bool
-    let isDownloading: Bool
-    let downloadProgress: Double
-    let downloadStatus: String?
+    private let container: DependencyContainer
     
-    init(book: Book, player: AudioPlayer, downloadManager: DownloadManager) {
-        self.id = book.id
+    // Computed properties instead of stored references
+    private var player: AudioPlayer { container.player }
+    private var downloadManager: DownloadManager { container.downloadManager }
+    
+    var id: String { book.id }
+    
+    init(book: Book, container: DependencyContainer = .shared) {
         self.book = book
-        self.isCurrentBook = player.book?.id == book.id
-        self.isPlaying = isCurrentBook && player.isPlaying
-        self.currentTime = isCurrentBook ? player.currentTime : 0
-        self.duration = isCurrentBook ? player.duration : 0
-        self.currentProgress = duration > 0 ? currentTime / duration : 0
-        self.isDownloaded = downloadManager.isBookDownloaded(book.id)
-        self.isDownloading = downloadManager.isDownloadingBook(book.id)
-        self.downloadProgress = downloadManager.downloadProgress[book.id] ?? 0.0
-        self.downloadStatus = downloadManager.downloadStatus[book.id]
+        self.container = container
     }
     
-    static func == (lhs: BookCardStateViewModel, rhs: BookCardStateViewModel) -> Bool {
-        return lhs.id == rhs.id &&
-               lhs.isCurrentBook == rhs.isCurrentBook &&
-               lhs.isPlaying == rhs.isPlaying &&
-               lhs.isDownloaded == rhs.isDownloaded &&
-               lhs.isDownloading == rhs.isDownloading &&
-               abs(lhs.currentProgress - rhs.currentProgress) < 0.01 &&
-               abs(lhs.downloadProgress - rhs.downloadProgress) < 0.01
+    var isCurrentBook: Bool {
+        player.book?.id == book.id
+    }
+    
+    var isPlaying: Bool {
+        isCurrentBook && player.isPlaying
+    }
+    
+    var isDownloaded: Bool {
+        downloadManager.isBookDownloaded(book.id)
+    }
+    
+    var downloadProgress: Double {
+        downloadManager.getDownloadProgress(for: book.id)
+    }
+    
+    var isDownloading: Bool {
+        downloadManager.isDownloadingBook(book.id)
+    }
+    
+    var duration: Double {
+        guard isCurrentBook else { return 0 }
+        return player.duration
+    }
+    
+    var currentProgress: Double {
+        guard isCurrentBook, player.duration > 0 else { return 0 }
+        return player.currentTime / player.duration
     }
 }

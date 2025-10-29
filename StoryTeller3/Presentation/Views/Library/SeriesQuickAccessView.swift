@@ -126,15 +126,13 @@ struct SeriesQuickAccessView: View {
             
             HorizontalBookScrollView(
                 books: viewModel.seriesBooks,
-                player: viewModel.player,
                 api: viewModel.api,
-                downloadManager: viewModel.downloadManager,
-                cardStyle: .series,
                 onBookSelected: { book in
                     Task {
                         await viewModel.playBook(book, appState: appState)
                     }
-                }
+                },
+                cardStyle: .series
             )
         }
     }

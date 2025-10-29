@@ -1,11 +1,3 @@
-//
-//  DownloadStorageService.swift
-//  StoryTeller3
-//
-//  Created by Boris Eder on 24.10.25.
-//
-
-
 import Foundation
 
 // MARK: - Protocol
@@ -17,6 +9,12 @@ protocol DownloadStorageService {
     
     /// Saves book metadata to disk
     func saveBookMetadata(_ book: Book, to directory: URL) throws
+    
+    /// Saves audio info (technical metadata) to disk
+    func saveAudioInfo(_ audioInfo: AudioInfo, to directory: URL) throws
+    
+    /// Loads audio info from disk
+    func loadAudioInfo(for bookId: String) -> AudioInfo?
     
     /// Saves audio file data to disk
     func saveAudioFile(_ data: Data, to url: URL) throws
@@ -96,6 +94,27 @@ final class DefaultDownloadStorageService: DownloadStorageService {
         let metadataData = try JSONEncoder().encode(book)
         try metadataData.write(to: metadataURL)
         AppLogger.general.debug("[DownloadStorage] Saved metadata for book: \(book.id)")
+    }
+    
+    func saveAudioInfo(_ audioInfo: AudioInfo, to directory: URL) throws {
+        let audioInfoURL = directory.appendingPathComponent("audio_info.json")
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        let audioInfoData = try encoder.encode(audioInfo)
+        try audioInfoData.write(to: audioInfoURL)
+        AppLogger.general.debug("[DownloadStorage] Saved audio info: \(audioInfo.audioTrackCount) tracks")
+    }
+    
+    func loadAudioInfo(for bookId: String) -> AudioInfo? {
+        let audioInfoFile = bookDirectory(for: bookId).appendingPathComponent("audio_info.json")
+        
+        guard let data = try? Data(contentsOf: audioInfoFile) else {
+            return nil
+        }
+        
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return try? decoder.decode(AudioInfo.self, from: data)
     }
     
     func saveAudioFile(_ data: Data, to url: URL) throws {

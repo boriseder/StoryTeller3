@@ -1,29 +1,23 @@
 import Foundation
 
 struct SeriesViewModelFactory {
-    @MainActor
-    static func create(
+    @MainActor static func create(
         api: AudiobookshelfClient,
-        player: AudioPlayer,
-        downloadManager: DownloadManager,
-        onBookSelected: @escaping () -> Void
+        onBookSelected: @escaping () -> Void,
+        container: DependencyContainer? = nil
     ) -> SeriesViewModel {
-        let bookRepository = BookRepository(api: api, cache: BookCache())
-        let fetchSeriesUseCase = FetchSeriesUseCase(bookRepository: bookRepository)
-
-        guard let downloadRepository = downloadManager.repository else {
-            fatalError("DownloadManager repository not initialized")
-        }
-
-        let libraryRepository = LibraryRepository(api: api)
+        let container = container ?? DependencyContainer.shared
+        let fetchSeriesUseCase = container.makeFetchSeriesUseCase(api: api)
+        let downloadRepository = container.makeDownloadRepository()
+        let libraryRepository = container.makeLibraryRepository(api: api)
         
         return SeriesViewModel(
             fetchSeriesUseCase: fetchSeriesUseCase,
             downloadRepository: downloadRepository,
             libraryRepository: libraryRepository,
             api: api,
-            downloadManager: downloadManager,
-            player: player,
+            downloadManager: container.downloadManager,
+            player: container.player,
             onBookSelected: onBookSelected
         )
     }

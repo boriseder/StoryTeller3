@@ -1,47 +1,50 @@
+// REFACTORED: SeriesSectionViewModel
+// Changes: Container injection instead of direct player/downloadManager parameters
+
+import Foundation
 import SwiftUI
 
 @MainActor
 class SeriesSectionViewModel: ObservableObject {
     let series: Series
     let api: AudiobookshelfClient
-    let player: AudioPlayer
-    let downloadManager: DownloadManager
     let onBookSelected: () -> Void
+    private let container: DependencyContainer
     
-    private let playBookUseCase: PlayBookUseCase
+    // Computed properties for shared services
+    var player: AudioPlayer { container.player }
+    var downloadManager: DownloadManager { container.downloadManager }
     
-    var books: [Book] {
-        series.books.compactMap { api.converter.convertLibraryItemToBook($0) }
-    }
+    @Published var books: [Book] = []
+    @Published var isLoading = false
+    @Published var error: Error?
     
     init(
         series: Series,
         api: AudiobookshelfClient,
-        player: AudioPlayer,
-        downloadManager: DownloadManager,
-        onBookSelected: @escaping () -> Void
+        onBookSelected: @escaping () -> Void,
+        container: DependencyContainer = .shared
     ) {
         self.series = series
         self.api = api
-        self.player = player
-        self.downloadManager = downloadManager
         self.onBookSelected = onBookSelected
-        self.playBookUseCase = PlayBookUseCase()
+        self.container = container
+        
+        // Convert LibraryItems to Books
+        self.books = series.books.compactMap { libraryItem in
+            api.converter.convertLibraryItemToBook(libraryItem)
+        }
     }
     
-    func playBook(_ book: Book, appState: AppStateManager) async {
-        do {
-            try await playBookUseCase.execute(
-                book: book,
-                api: api,
-                player: player,
-                downloadManager: downloadManager,
-                appState: appState,
-                restoreState: true
-            )
-            onBookSelected()
-        } catch {
-            AppLogger.general.debug("[SeriesSectionViewModel] Failed to play book: \(error)")
-        }
+    func isBookDownloaded(_ bookId: String) -> Bool {
+        downloadManager.isBookDownloaded(bookId)
+    }
+    
+    func isCurrentBook(_ bookId: String) -> Bool {
+        player.book?.id == bookId
+    }
+    
+    func isPlaying(for bookId: String) -> Bool {
+        isCurrentBook(bookId) && player.isPlaying
     }
 }

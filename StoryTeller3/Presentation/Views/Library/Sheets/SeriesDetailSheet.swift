@@ -222,11 +222,7 @@ struct SeriesDetailSheet: View {
         return ScrollView {
             LazyVGrid(columns: columns, spacing: 12) {
                 ForEach(seriesBooks) { book in
-                    let viewModel = BookCardStateViewModel(
-                        book: book,
-                        player: player,
-                        downloadManager: downloadManager
-                    )
+                    let viewModel = BookCardStateViewModel(book: book)
                     
                     BookCardView(
                         viewModel: viewModel,

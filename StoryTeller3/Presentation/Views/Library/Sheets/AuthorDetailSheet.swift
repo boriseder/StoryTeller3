@@ -203,11 +203,7 @@ struct AuthorDetailSheet: View {
         return ScrollView {
             LazyVGrid(columns: DSGridColumns.two) {
                 ForEach(authorBooks) { book in
-                    let viewModel = BookCardStateViewModel(
-                        book: book,
-                        player: player,
-                        downloadManager: downloadManager
-                    )
+                    let viewModel = BookCardStateViewModel(book: book)
                     
                     BookCardView(
                         viewModel: viewModel,

@@ -70,12 +70,17 @@ final class DefaultDownloadOrchestrationService: DownloadOrchestrationService {
         // Stage 5: Download audio files
         onProgress(book.id, 0.25, "Downloading audio files...", .downloadingAudio)
         try await Task.sleep(nanoseconds: 200_000_000)
-        try await downloadAudioFiles(
+        let audioTrackCount = try await downloadAudioFiles(
             for: fullBook,
             api: api,
             bookDir: bookDir,
             onProgress: onProgress
         )
+        
+        // Stage 5.5: Save audio info for validation
+        let audioInfo = AudioInfo(audioTrackCount: audioTrackCount)
+        try storageService.saveAudioInfo(audioInfo, to: bookDir)
+        AppLogger.general.debug("[DownloadOrchestration] Saved audio info: \(audioTrackCount) tracks")
         
         // Stage 6: Validate
         onProgress(book.id, 0.95, "Verifying download...", .finalizing)
@@ -145,7 +150,7 @@ final class DefaultDownloadOrchestrationService: DownloadOrchestrationService {
         api: AudiobookshelfClient,
         bookDir: URL,
         onProgress: @escaping DownloadProgressCallback
-    ) async throws {
+    ) async throws -> Int {
         guard let firstChapter = book.chapters.first,
               let libraryItemId = firstChapter.libraryItemId else {
             throw DownloadError.missingLibraryItemId
@@ -174,6 +179,8 @@ final class DefaultDownloadOrchestrationService: DownloadOrchestrationService {
                 onProgress: onProgress
             )
         }
+        
+        return totalTracks
     }
     
     private func downloadAudioFileWithRetry(
@@ -187,19 +194,26 @@ final class DefaultDownloadOrchestrationService: DownloadOrchestrationService {
     ) async throws {
         var lastError: Error?
         
+        // Calculate progress range for this chapter (0.25 to 0.95 for all audio files)
+        let baseProgress = 0.25
+        let audioProgressRange = 0.70
+        let chapterStartProgress = baseProgress + (audioProgressRange * Double(currentTrack) / Double(totalTracks))
+        let chapterEndProgress = baseProgress + (audioProgressRange * Double(currentTrack + 1) / Double(totalTracks))
+        
         for attempt in 0..<retryPolicy.maxRetries {
             do {
                 let chapterNum = currentTrack + 1
                 let attemptInfo = attempt > 0 ? " (retry \(attempt))" : ""
-                onProgress(bookId, 0.0, "Downloading chapter \(chapterNum)/\(totalTracks)\(attemptInfo)...", .downloadingAudio)
+                
+                // Report start of chapter download with proper incremental progress
+                onProgress(bookId, chapterStartProgress, "Downloading chapter \(chapterNum)/\(totalTracks)\(attemptInfo)...", .downloadingAudio)
                 
                 let data = try await networkService.downloadFile(from: url, authToken: api.authToken)
                 try storageService.saveAudioFile(data, to: localURL)
                 
-                let baseProgress = 0.25
-                let audioProgress = 0.70 * (Double(currentTrack + 1) / Double(totalTracks))
+                // Report completion of chapter download
                 let percentComplete = Int((Double(chapterNum) / Double(totalTracks)) * 100)
-                onProgress(bookId, baseProgress + audioProgress, "Downloaded chapter \(chapterNum)/\(totalTracks) (\(percentComplete)%)", .downloadingAudio)
+                onProgress(bookId, chapterEndProgress, "Downloaded chapter \(chapterNum)/\(totalTracks) (\(percentComplete)%)", .downloadingAudio)
                 
                 AppLogger.general.debug("[DownloadOrchestration] Chapter \(chapterNum)/\(totalTracks) downloaded")
                 return

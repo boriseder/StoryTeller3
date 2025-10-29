@@ -5,11 +5,9 @@ struct SeriesView: View {
     @EnvironmentObject var appState: AppStateManager
     @EnvironmentObject var theme: ThemeManager
 
-    init(player: AudioPlayer, api: AudiobookshelfClient, downloadManager: DownloadManager, onBookSelected: @escaping () -> Void) {
+    init(api: AudiobookshelfClient, onBookSelected: @escaping () -> Void) {
         self._viewModel = StateObject(wrappedValue: SeriesViewModelFactory.create(
             api: api,
-            player: player,
-            downloadManager: downloadManager,
             onBookSelected: onBookSelected
         ))
     }
@@ -79,9 +77,7 @@ struct SeriesView: View {
                     ForEach(viewModel.filteredAndSortedSeries) { series in
                         SeriesSectionView(
                             series: series,
-                            player: viewModel.player,
                             api: viewModel.api,
-                            downloadManager: viewModel.downloadManager,
                             onBookSelected: {
                                 // Book selection is handled inside SeriesSectionView
                             }

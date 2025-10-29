@@ -1,30 +1,23 @@
 import Foundation
 
 struct LibraryViewModelFactory {
-    @MainActor
-    static func create(
+    @MainActor static func create(
         api: AudiobookshelfClient,
-        player: AudioPlayer,
-        downloadManager: DownloadManager,
-        onBookSelected: @escaping () -> Void
+        onBookSelected: @escaping () -> Void,
+        container: DependencyContainer? = nil
     ) -> LibraryViewModel {
-        let bookRepository = BookRepository(api: api, cache: BookCache())
-        let fetchBooksUseCase = FetchBooksUseCase(bookRepository: bookRepository)
-        
-        // Access the repository from downloadManager instead of trying to instantiate the protocol
-        guard let downloadRepository = downloadManager.repository else {
-            fatalError("DownloadManager repository not initialized. Ensure DownloadManager is fully set up before creating ViewModels.")
-        }
-        
-        let libraryRepository = LibraryRepository(api: api)
+        let container = container ?? DependencyContainer.shared
+        let fetchBooksUseCase = container.makeFetchBooksUseCase(api: api)
+        let downloadRepository = container.makeDownloadRepository()
+        let libraryRepository = container.makeLibraryRepository(api: api)
         
         return LibraryViewModel(
             fetchBooksUseCase: fetchBooksUseCase,
             downloadRepository: downloadRepository,
             libraryRepository: libraryRepository,
             api: api,
-            downloadManager: downloadManager,
-            player: player,
+            downloadManager: container.downloadManager,
+            player: container.player,
             onBookSelected: onBookSelected
         )
     }

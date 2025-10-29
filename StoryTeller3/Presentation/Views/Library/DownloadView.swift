@@ -7,10 +7,8 @@ struct DownloadsView: View {
 
     @State private var showingStorageInfo = false
     
-    init(downloadManager: DownloadManager, player: AudioPlayer, api: AudiobookshelfClient, appState: AppStateManager, onBookSelected: @escaping () -> Void) {
+    init(api: AudiobookshelfClient, appState: AppStateManager, onBookSelected: @escaping () -> Void) {
         self._viewModel = StateObject(wrappedValue: DownloadsViewModelFactory.create(
-            downloadManager: downloadManager,
-            player: player,
             api: api,
             appState: appState,
             onBookSelected: onBookSelected
@@ -88,11 +86,7 @@ struct DownloadsView: View {
                     // Books grid
                     LazyVGrid(columns: DSGridColumns.two) {
                         ForEach(viewModel.downloadedBooks) { book in
-                            let bookVM = BookCardStateViewModel(
-                                book: book,
-                                player: viewModel.player,
-                                downloadManager: viewModel.downloadManager
-                            )
+                            let bookVM = BookCardStateViewModel(book: book)
                             
                             BookCardView(
                                 viewModel: bookVM,

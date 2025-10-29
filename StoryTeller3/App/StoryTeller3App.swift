@@ -7,12 +7,15 @@ struct StoryTeller3App: App {
     @StateObject private var appState = AppStateManager()
     @StateObject private var theme = ThemeManager()
 
+    // Inject DependencyContainer
+    private let dependencies = DependencyContainer.shared
     
     var body: some Scene {
         WindowGroup {
             ContentView()
                 .environmentObject(appState)
                 .environmentObject(theme)
+                .environmentObject(dependencies)
                 .preferredColorScheme(theme.colorScheme)
                 .onAppear {
                     setupCacheManager()

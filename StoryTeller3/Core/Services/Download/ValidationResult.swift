@@ -1,11 +1,3 @@
-//
-//  ValidationResult.swift
-//  StoryTeller3
-//
-//  Created by Boris Eder on 24.10.25.
-//
-
-
 import Foundation
 
 // MARK: - Validation Result
@@ -63,17 +55,23 @@ final class DefaultDownloadValidationService: DownloadValidationService {
             return .invalid(reason: "Invalid metadata file")
         }
         
+        // Load audio info (technical metadata)
+        guard let audioInfo = storageService.loadAudioInfo(for: bookId) else {
+            return .invalid(reason: "Audio info missing")
+        }
+        
         // Validate all audio files exist and have minimum size
+        // Use audioTrackCount (physical files) instead of chapters (logical structure)
         let audioDir = storageService.audioDirectory(for: bookId)
-        for (index, _) in book.chapters.enumerated() {
+        for index in 0..<audioInfo.audioTrackCount {
             let audioFile = audioDir.appendingPathComponent("chapter_\(index).mp3")
             
             if !fileManager.fileExists(atPath: audioFile.path) {
-                return .invalid(reason: "Missing chapter \(index + 1)")
+                return .invalid(reason: "Missing audio track \(index + 1)")
             }
             
             if !validateFile(at: audioFile, minimumSize: minimumAudioSize) {
-                return .invalid(reason: "Chapter \(index + 1) is corrupted")
+                return .invalid(reason: "Audio track \(index + 1) is corrupted")
             }
         }
         

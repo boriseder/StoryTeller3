@@ -8,11 +8,9 @@ struct LibraryView: View {
     @State private var selectedSeries: Book?
     @State private var bookCardVMs: [BookCardStateViewModel] = []
     
-    init(player: AudioPlayer, api: AudiobookshelfClient, downloadManager: DownloadManager, onBookSelected: @escaping () -> Void) {
+    init(api: AudiobookshelfClient, onBookSelected: @escaping () -> Void) {
         self._viewModel = StateObject(wrappedValue: LibraryViewModelFactory.create(
             api: api,
-            player: player,
-            downloadManager: downloadManager,
             onBookSelected: onBookSelected
         ))
     }
@@ -161,21 +159,12 @@ struct LibraryView: View {
     
     private func updateBookCardViewModels() {
         let books = viewModel.filteredAndSortedBooks
-        let player = viewModel.player
-        let downloadManager = viewModel.downloadManager
         
-        Task.detached(priority: .userInitiated) {
+        Task { @MainActor in
             let newVMs = books.map { book in
-                BookCardStateViewModel(
-                    book: book,
-                    player: player,
-                    downloadManager: downloadManager
-                )
+                BookCardStateViewModel(book: book)
             }
-            
-            await MainActor.run {
-                self.bookCardVMs = newVMs
-            }
+            self.bookCardVMs = newVMs
         }
     }
     
@@ -185,15 +174,7 @@ struct LibraryView: View {
             return
         }
         
-        let updatedVM = BookCardStateViewModel(
-            book: bookCardVMs[index].book,
-            player: viewModel.player,
-            downloadManager: viewModel.downloadManager
-        )
-        
-        if bookCardVMs[index] != updatedVM {
-            bookCardVMs[index] = updatedVM
-        }
+        bookCardVMs[index] = BookCardStateViewModel(book: bookCardVMs[index].book)
     }
     
     private func updateDownloadingBooksOnly() {
@@ -201,15 +182,7 @@ struct LibraryView: View {
         
         for (index, vm) in bookCardVMs.enumerated() {
             if downloadingIds.contains(vm.id) {
-                let updatedVM = BookCardStateViewModel(
-                    book: vm.book,
-                    player: viewModel.player,
-                    downloadManager: viewModel.downloadManager
-                )
-                
-                if bookCardVMs[index] != updatedVM {
-                    bookCardVMs[index] = updatedVM
-                }
+                bookCardVMs[index] = BookCardStateViewModel(book: vm.book)
             }
         }
     }
