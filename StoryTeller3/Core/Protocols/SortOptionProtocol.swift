@@ -6,11 +6,13 @@ protocol SortOptionProtocol: CaseIterable, RawRepresentable where RawValue == St
 }
 
 // MARK: - Library Sort Options
-enum LibrarySortOption: String, CaseIterable, SortOptionProtocol {
-    case title = "Titel"
-    case author = "Autor"
-    case recent = "Zuletzt hinzugefügt"
+enum LibrarySortOption: String, CaseIterable, Hashable, Identifiable, SortOptionProtocol {
+    case title = "Title"
+    case author = "Author"
+    case recent = "Last added"
     
+    var id: String { rawValue }
+
     var systemImage: String {
         switch self {
         case .title: return "textformat.abc"

@@ -4,7 +4,7 @@ struct LibraryView: View {
     @StateObject var viewModel: LibraryViewModel
     @EnvironmentObject var appState: AppStateManager
     @EnvironmentObject var theme: ThemeManager
-
+    
     @State private var selectedSeries: Book?
     @State private var bookCardVMs: [BookCardStateViewModel] = []
     
@@ -21,7 +21,7 @@ struct LibraryView: View {
             if theme.backgroundStyle == .dynamic {
                 Color.accent.ignoresSafeArea()
             }
-
+            
             
             switch viewModel.uiState {
             case .loading:
@@ -103,7 +103,7 @@ struct LibraryView: View {
             if theme.backgroundStyle == .dynamic {
                 DynamicBackground()
             }
-
+            
             VStack(spacing: 0) {
                 if viewModel.filterState.showDownloadedOnly {
                     FilterStatusBannerView(
@@ -137,13 +137,13 @@ struct LibraryView: View {
                                 },
                                 style: .library
                             )
-
+                            
                         }
                         .padding(.bottom, DSLayout.elementPadding)
                     }
-
+                    
                     Spacer()
-                    .frame(height: DSLayout.miniPlayerHeight)
+                        .frame(height: DSLayout.miniPlayerHeight)
                 }
                 .scrollIndicators(.hidden)
                 .padding(.horizontal, DSLayout.screenPadding)
@@ -208,33 +208,49 @@ struct LibraryView: View {
     private func deleteDownload(_ book: Book) {
         viewModel.downloadManager.deleteBook(book.id)
     }
-
+    
     // MARK: - Toolbar Components
     
     private var filterAndSortMenu: some View {
         Menu {
-            Section("Sort to") {
-                ForEach(LibrarySortOption.allCases, id: \.self) { option in
-                    Button(action: {
+            // MARK: - Sort Section
+            Section("SORTING") {
+                ForEach(LibrarySortOption.allCases) { option in
+                    Button {
                         viewModel.filterState.selectedSortOption = option
-                    }) {
-                        Label(option.rawValue, systemImage: option.systemImage)
+                        viewModel.filterState.saveToDefaults()
+                    } label: {
                         if viewModel.filterState.selectedSortOption == option {
-                            Image(systemName: "checkmark")
+                            Label(option.rawValue, systemImage: "checkmark")
+                        } else {
+                            Text(option.rawValue)
                         }
                     }
+                }
+                
+                Button {
+                    viewModel.filterState.sortAscending.toggle()
+                    viewModel.filterState.saveToDefaults()
+                } label: {
+                    // Zeigt aktuelle Richtung mit Icon UND Text
+                    Label(
+                        viewModel.filterState.sortAscending ? "Ascending" : "Descending",
+                        systemImage: viewModel.filterState.sortAscending ? "arrow.up" : "arrow.down"
+                    )
                 }
             }
             
             Divider()
             
-            Section("Filter") {
-                Button(action: {
+            // MARK: - Filter Section
+            Section("FILTER") {
+                Button {
                     viewModel.toggleDownloadFilter()
-                }) {
-                    Label("Only downloaded", systemImage: "arrow.down.circle")
+                } label: {
                     if viewModel.filterState.showDownloadedOnly {
-                        Image(systemName: "checkmark")
+                        Label("Show all books", systemImage: "books.vertical")
+                    } else {
+                        Label("Downloaded only", systemImage: "arrow.down.circle")
                     }
                 }
                 
@@ -247,53 +263,75 @@ struct LibraryView: View {
             
             Divider()
             
-            Section("View") {
-                Button(action: {
+            // MARK: - View Section
+            Section("VIEW") {
+                Button {
                     viewModel.toggleSeriesMode()
-                }) {
-                    Label("Bundled series", systemImage: "rectangle.stack")
-                    if viewModel.filterState.showSeriesGrouped {
-                        Image(systemName: "checkmark")
-                    }
+                } label: {
+                    // Filled icon = ON, outline = OFF
+                    Label(
+                        "Group series",
+                        systemImage: viewModel.filterState.showSeriesGrouped
+                        ? "square.stack.3d.up.fill"
+                        : "square.stack.3d.up"
+                    )
                 }
             }
             
-            Section("Library") {
-                LibraryStatsView(
-                    viewModel: viewModel,
-                    isSeriesMode: viewModel.filterState.showSeriesGrouped
-                )
-            }
-            
-            if viewModel.filterState.showDownloadedOnly || viewModel.filterState.showSeriesGrouped || !viewModel.filterState.searchText.isEmpty {
+            // MARK: - Reset Section
+            if viewModel.filterState.hasActiveFilters {
                 Divider()
                 
-                Section {
-                    Button(action: {
+                Button(role: .destructive) {
+                    withAnimation(.spring(response: 0.3)) {
                         viewModel.resetFilters()
-                    }) {
-                        Label("Reset filter", systemImage: "arrow.counterclockwise")
                     }
+                } label: {
+                    Label("Reset all filters", systemImage: "arrow.counterclockwise")
                 }
             }
             
         } label: {
+            // MARK: - Toolbar Icon mit Badge
             ZStack {
-                Image(systemName: "line.3.horizontal.decrease.circle")
-                    .font(.system(size: 16))
-                    .foregroundColor(.primary)
+                // Background circle
+                Circle()
+                    .fill(viewModel.filterState.hasActiveFilters
+                          ? Color.accentColor.opacity(0.15)
+                          : Color.clear)
+                    .frame(width: 32, height: 32)
                 
-                if viewModel.filterState.showDownloadedOnly || viewModel.filterState.showSeriesGrouped {
+                // Main icon
+                Image(systemName: viewModel.filterState.hasActiveFilters
+                      ? "line.3.horizontal.decrease.circle.fill"
+                      : "line.3.horizontal.decrease.circle")
+                .font(.system(size: 20, weight: .medium))
+                .foregroundColor(viewModel.filterState.hasActiveFilters
+                                 ? .accentColor
+                                 : .primary)
+                
+                // Badge indicator
+                if viewModel.filterState.hasActiveFilters {
                     Circle()
-                        .fill(.orange)
-                        .frame(width: 8, height: 8)
-                        .offset(x: 8, y: -8)
+                        .fill(
+                            LinearGradient(
+                                colors: [.orange, .red],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 10, height: 10)
+                        .overlay(
+                            Circle()
+                                .stroke(Color(.systemBackground), lineWidth: 2)
+                        )
+                        .offset(x: 10, y: -10)
                 }
             }
+            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: viewModel.filterState.hasActiveFilters)
         }
     }
 }
-
 // MARK: - Filter Status Banner Component
 struct FilterStatusBannerView: View {
     let count: Int
@@ -306,7 +344,7 @@ struct FilterStatusBannerView: View {
                 .font(.system(size: 16))
                 .foregroundColor(.orange)
             
-            Text("Show \(count) von \(totalDownloaded) downloaded books")
+            Text("Show \(count) of \(totalDownloaded) downloaded books")
                 .font(.subheadline)
                 .foregroundColor(.primary)
             
@@ -399,15 +437,10 @@ struct LibraryStatsView: View {
     var body: some View {
         HStack {
             if isSeriesMode {
-                Text("Total: \(seriesCount) Series • \(booksCount) Books")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                Text("\(seriesCount) Series • \(booksCount) Books")
             } else {
-                Text("Total: \(viewModel.totalBooksCount) Books")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                Text("\(viewModel.totalBooksCount) Books")
             }
-            Spacer()
         }
     }
 }

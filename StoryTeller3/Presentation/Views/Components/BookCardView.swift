@@ -48,7 +48,7 @@ struct BookCardView: View {
     }
     
     var body: some View {
-        Button(action: onTap) {
+        ZStack {
             VStack(alignment: .leading, spacing: 0) {
                 bookCoverSection
                 
@@ -72,7 +72,8 @@ struct BookCardView: View {
             .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isPressed)
             .animation(.easeInOut(duration: 0.2), value: viewModel.isCurrentBook)
         }
-        .buttonStyle(.plain)
+        .contentShape(Rectangle())
+        .onTapGesture { onTap() }
         .contextMenu {
             contextMenuItems
         }
@@ -89,6 +90,7 @@ struct BookCardView: View {
     }
     
     // MARK: - Book Cover Section (Modern Overlays)
+
     private var bookCoverSection: some View {
         ZStack {
             // Base Cover
@@ -143,7 +145,10 @@ struct BookCardView: View {
         .animation(.spring(response: 0.35, dampingFraction: 0.75), value: viewModel.isCurrentBook)
         .animation(.spring(response: 0.35, dampingFraction: 0.75), value: viewModel.isDownloaded)
     }
+
+
     // MARK: - Info Section
+
     private var bookInfoSection: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(viewModel.book.displayTitle)
@@ -151,11 +156,9 @@ struct BookCardView: View {
                 .foregroundColor(theme.textColor)
                 .lineLimit(1)
                 .frame(maxWidth: style.coverSize, alignment: .leading)
-            
-            Spacer()
-            
+                        
             VStack(alignment: .leading, spacing: 4) {
-                Text(viewModel.book.author ?? "Unbekannter Autor")
+                Text(viewModel.book.author ?? "Unknown Author")
                     .font(.caption2)
                     .foregroundColor(theme.textColor.opacity(0.7))
                     .lineLimit(1)
@@ -163,12 +166,15 @@ struct BookCardView: View {
                 if viewModel.isCurrentBook && viewModel.duration > 0 && style == .library {
                     bookProgressIndicator
                 }
+                
+                Spacer()
             }
         }
     }
 
 
     // MARK: - Download Status Layer (Top Right, komplett gekoppelt)
+    
     private var downloadStatusView: some View {
         ZStack {
             // 1️⃣ Idle Download Button
@@ -255,7 +261,10 @@ struct BookCardView: View {
         .animation(.spring(response: 0.35, dampingFraction: 0.75), value: viewModel.isDownloading)
         .animation(.spring(response: 0.35, dampingFraction: 0.75), value: viewModel.isDownloaded)
     }
+    
+    
     // MARK: - Series Badge
+    
     private var seriesBadge: some View {
         HStack(spacing: 4) {
             Image(systemName: "books.vertical.fill")
@@ -276,7 +285,9 @@ struct BookCardView: View {
         .animation(.spring(response: 0.35, dampingFraction: 0.7), value: viewModel.book.seriesBookCount)
     }
 
+    
     // MARK: - Play/Pause Overlay
+    
     private var currentBookStatusOverlay: some View {
         HStack(spacing: 6) {
             Image(systemName: viewModel.isPlaying ? "speaker.wave.2.fill" : "pause.fill")
@@ -307,7 +318,9 @@ struct BookCardView: View {
         .animation(.spring(response: 0.35, dampingFraction: 0.75), value: viewModel.isPlaying)
     }
 
+    
     // MARK: - Reading/Listening Progress Bar
+    
     private var bookProgressIndicator: some View {
         GeometryReader { geometry in
             ZStack(alignment: .leading) {
@@ -327,28 +340,30 @@ struct BookCardView: View {
         .padding(.horizontal, 2)
         .padding(.bottom, 2)
     }
+
+    
     // MARK: - Context Menu
     private var contextMenuItems: some View {
         Group {
             Button(action: onTap) {
                 if viewModel.book.isCollapsedSeries {
-                    Label("Serie anzeigen", systemImage: "books.vertical.fill")
+                    Label("Show series", systemImage: "books.vertical.fill")
                 } else {
-                    Label("Abspielen", systemImage: "play.fill")
+                    Label("Play", systemImage: "play.fill")
                 }
             }
-            
-            if !viewModel.isDownloaded && style == .library && api != nil {
+            Divider()
+            if !viewModel.isDownloaded && api != nil {
                 Button(action: onDownload) {
                     if viewModel.book.isCollapsedSeries {
-                        Label("Serie herunterladen", systemImage: "arrow.down.circle")
+                        Label("Download series", systemImage: "arrow.down.circle")
                     } else {
-                        Label("Herunterladen", systemImage: "arrow.down.circle")
+                        Label("Download book", systemImage: "arrow.down.circle")
                     }
                 }
-            } else if viewModel.isDownloaded && style == .library {
+            } else if viewModel.isDownloaded {
                 Button(role: .destructive, action: onDelete) {
-                    Label("Download löschen", systemImage: "trash")
+                    Label("Delete download", systemImage: "trash")
                 }
             }
         }
