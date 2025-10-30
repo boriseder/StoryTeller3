@@ -24,7 +24,7 @@ enum BookCardStyle {
     
     var dimensions: (width: CGFloat, height: CGFloat, infoHeight: CGFloat) {
         let cardWidth = coverSize
-        let cardHeight = cardWidth * 1.40
+        let cardHeight = cardWidth * 1.30
         let infoHeight = cardHeight - coverSize - 3 * DSLayout.elementPadding
                   
         return (width: cardWidth, height: cardHeight, infoHeight: infoHeight)
@@ -115,6 +115,7 @@ struct BookCardView: View {
             VStack {
                 HStack(alignment: .top) {
                     // Top Left: Series Badge
+                    // if viewModel.book.isCollapsedSeries && style == .library && !viewModel.isDownloading {
                     if viewModel.book.isCollapsedSeries && style == .library && !viewModel.isDownloading {
                         seriesBadge
                             .transition(.scale.combined(with: .opacity))
@@ -123,10 +124,10 @@ struct BookCardView: View {
                     Spacer()
 
                     // Top Right: Download Status Layer (Button / Progress / Downloaded)
-                    if style == .library {
+                    //if style == .library  {
                         downloadStatusView
                             .transition(.scale.combined(with: .opacity))
-                    }
+                    //}
                 }
                 .padding(CardOverlayDesign.padding)
 
@@ -150,7 +151,7 @@ struct BookCardView: View {
     // MARK: - Info Section
 
     private var bookInfoSection: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 0) {
             Text(viewModel.book.displayTitle)
                 .font(.subheadline)
                 .foregroundColor(theme.textColor)
@@ -177,91 +178,58 @@ struct BookCardView: View {
     
     private var downloadStatusView: some View {
         ZStack {
-            // 1️⃣ Idle Download Button
-            if !viewModel.isDownloading && !viewModel.isDownloaded {
-                Button(action: onDownload) {
-                    Circle()
-                        .fill(.ultraThinMaterial)
-                        .frame(width: CardOverlayDesign.actionButtonSize,
-                               height: CardOverlayDesign.actionButtonSize)
-                        .overlay(
-                            Circle().strokeBorder(Color.white.opacity(0.2), lineWidth: 1)
-                        )
-                        .overlay(
-                            Image(systemName: "arrow.down.circle.fill")
-                                .font(.system(size: 18, weight: .medium))
-                                .foregroundStyle(LinearGradient(
-                                    colors: [.accentColor, .accentColor.opacity(0.8)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing)
-                                )
-                        )
-                        .shadow(color: .black.opacity(CardOverlayDesign.shadowOpacity), radius: 6, x: 0, y: 2)
-                }
-                .buttonStyle(.plain)
-                .transition(.scale.combined(with: .opacity))
-            }
+            // Hintergrundkreis
+            Circle()
+                .fill(.regularMaterial)
+                .frame(width: CardOverlayDesign.actionButtonSize,
+                       height: CardOverlayDesign.actionButtonSize)
+                .shadow(color: .black.opacity(CardOverlayDesign.shadowOpacity),
+                        radius: 6, x: 0, y: 2)
 
-            // 2️⃣ Morphender Download-Ring
+            // Fortschrittsring (nur sichtbar beim Download)
             if viewModel.isDownloading {
-                ZStack {
-                    Circle()
-                        .fill(.ultraThinMaterial)
-                        .frame(width: CardOverlayDesign.actionButtonSize,
-                               height: CardOverlayDesign.actionButtonSize)
-
-                    Circle()
-                        .trim(from: 0, to: viewModel.downloadProgress)
-                        .stroke(
-                            AngularGradient(
-                                gradient: Gradient(colors: [.accentColor, .accentColor.opacity(0.6)]),
-                                center: .center,
-                                startAngle: .degrees(0),
-                                endAngle: .degrees(360)
-                            ),
-                            style: StrokeStyle(lineWidth: 4, lineCap: .round)
-                        )
-                        .rotationEffect(.degrees(-90))
-                        .frame(width: CardOverlayDesign.actionButtonSize,
-                               height: CardOverlayDesign.actionButtonSize)
-                        .animation(.linear(duration: 0.2), value: viewModel.downloadProgress)
-
-                    Image(systemName: "arrow.down.circle.fill")
-                        .font(.system(size: 18, weight: .medium))
-                        .foregroundStyle(LinearGradient(
-                            colors: [.accentColor, .accentColor.opacity(0.8)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ))
-                }
-                .transition(.scale.combined(with: .opacity))
-            }
-
-            // 3️⃣ Downloaded Badge
-            if viewModel.isDownloaded {
                 Circle()
-                    .fill(LinearGradient(
-                        colors: [.green.opacity(0.85), .green],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing)
+                    .trim(from: 0, to: viewModel.downloadProgress)
+                    .stroke(
+                        AngularGradient(
+                            gradient: Gradient(colors: [.accentColor, .accentColor.opacity(0.6)]),
+                            center: .center
+                        ),
+                        style: StrokeStyle(lineWidth: 3, lineCap: .round)
                     )
+                    .rotationEffect(.degrees(-90))
                     .frame(width: CardOverlayDesign.actionButtonSize,
                            height: CardOverlayDesign.actionButtonSize)
-                    .overlay(
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundColor(.white)
-                    )
-                    .shadow(color: .black.opacity(0.2), radius: 6, x: 0, y: 2)
-                    .transition(.scale.combined(with: .opacity))
+                    .animation(.linear(duration: 0.2), value: viewModel.downloadProgress)
             }
+
+            // Symbol je nach Zustand
+            Image(systemName: {
+                if viewModel.isDownloading {
+                    "arrow.down.circle"
+                } else if viewModel.isDownloaded {
+                    "checkmark.circle.fill"
+                } else {
+                    "icloud.and.arrow.down"
+                }
+            }())
+            .symbolRenderingMode(.hierarchical)
+            .foregroundStyle(viewModel.isDownloaded ? .green : .white)
+            .font(.system(size: 18, weight: .medium))
+            .transition(.opacity.combined(with: .scale))
+            .animation(.easeInOut(duration: 0.25), value: viewModel.isDownloading)
+            .animation(.easeInOut(duration: 0.25), value: viewModel.isDownloaded)
         }
         .frame(width: CardOverlayDesign.actionButtonSize,
                height: CardOverlayDesign.actionButtonSize)
-        .animation(.spring(response: 0.35, dampingFraction: 0.75), value: viewModel.isDownloading)
-        .animation(.spring(response: 0.35, dampingFraction: 0.75), value: viewModel.isDownloaded)
+        .onTapGesture {
+            if viewModel.isDownloaded {
+                onDelete()
+            } else if !viewModel.isDownloading {
+                onDownload()
+            }
+        }
     }
-    
     
     // MARK: - Series Badge
     

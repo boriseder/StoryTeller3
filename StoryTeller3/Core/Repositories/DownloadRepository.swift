@@ -234,19 +234,11 @@ final class DefaultDownloadRepository: DownloadRepository {
     }
     
     func isBookDownloaded(_ bookId: String) -> Bool {
-        let metadataFile = storageService.bookDirectory(for: bookId).appendingPathComponent("metadata.json")
-        guard FileManager.default.fileExists(atPath: metadataFile.path) else {
-            return false
-        }
-        
-        // Check if download is complete by validating integrity
-        let validation = validationService.validateBookIntegrity(
-            bookId: bookId,
-            storageService: storageService
-        )
-        return validation.isValid
+        // Simply check if book is in the downloaded books list
+        // Validation already happened during download
+        return downloadManager?.downloadedBooks.contains(where: { $0.id == bookId }) ?? false
     }
-    
+
     func getOfflineStatus(for bookId: String) -> OfflineStatus {
         if downloadManager?.isDownloadingBook(bookId) == true {
             return .downloading

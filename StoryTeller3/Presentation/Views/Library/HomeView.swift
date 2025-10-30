@@ -110,6 +110,7 @@ struct HomeView: View {
                     homeHeaderView
                         .opacity(viewModel.sectionsLoaded ? 1 : 0)
                         .animation(.easeInOut(duration: 0.3).delay(0.1), value: viewModel.sectionsLoaded)
+                        .padding(.bottom, DSLayout.elementPadding)
                     
                     ForEach(Array(viewModel.personalizedSections.enumerated()), id: \.element.id) { index, section in
                         PersonalizedSectionView(
@@ -206,7 +207,7 @@ struct PersonalizedSectionView: View {
     @EnvironmentObject var theme: ThemeManager
     
     var body: some View {
-        VStack(alignment: .leading) {
+        VStack(alignment: .leading, spacing: 0) {
             // Section Header
             sectionHeader
             
@@ -241,18 +242,13 @@ struct PersonalizedSectionView: View {
             
                 Spacer()
             /*
-            if section.total > section.entities.count {
-                Text("\(section.entities.count) of \(section.total)")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            } else {
-                Text("\(section.entities.count)")
-                    .font(.caption)
+            if !section.entities.isEmpty {
+                Text("(\(section.entities.count))")
+                    .font(DSText.footnote)
                     .foregroundColor(.secondary)
             }
-             */
+            */
         }
-        .padding(.top, DSLayout.contentPadding)
 
     }
     
@@ -284,6 +280,7 @@ struct PersonalizedSectionView: View {
         return HorizontalBookScrollView(
             books: books,
             api: api,
+            downloadManager: downloadManager,
             onBookSelected: onBookSelected,
             cardStyle: .series
         )
@@ -291,7 +288,7 @@ struct PersonalizedSectionView: View {
     
     private var seriesSection: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack {
+            LazyHStack(spacing: DSLayout.contentGap) {
                 ForEach(section.entities.indices, id: \.self) { index in
                     let entity = section.entities[index]
                     
@@ -362,8 +359,10 @@ struct SeriesCardView: View {
 
     
     var body: some View {
+        
+
         Button(action: onTap) {
-            VStack(alignment: .leading, spacing: DSLayout.tightGap) {
+            VStack(alignment: .leading, spacing: 0) {
                 Group {
                     if let series = entity.asSeries,
                        let firstBook = series.books.first,
@@ -378,19 +377,19 @@ struct SeriesCardView: View {
                         .clipShape(RoundedRectangle(cornerRadius: DSCorners.content))
                     }
                 }
-                .padding(.top, DSLayout.elementGap)
                 .padding(.horizontal, DSLayout.elementGap)
 
                 Text(displayName)
-                    .font(DSText.emphasized)
+                    .font(DSText.metadata)
                     .foregroundColor(theme.textColor)
                     .lineLimit(1)
-                    .frame(maxWidth: cardStyle.coverSize, alignment: .leading)
+                    .frame(maxWidth: BookCardStyle.library.dimensions.width, alignment: .leading)
                     .fixedSize(horizontal: true, vertical: true)
+                    .padding(.horizontal, DSLayout.contentPadding)  // do not remove
                     .padding(.vertical, DSLayout.elementPadding)
-                    .padding(.horizontal, DSLayout.elementPadding)
 
             }
+            .frame(width: BookCardStyle.library.dimensions.width, height: BookCardStyle.library.dimensions.height)
             .scaleEffect(1.0)
             .animation(.spring(response: 0.3, dampingFraction: 0.6), value: 1)
             .animation(.easeInOut(duration: 0.2), value: 1)
@@ -433,7 +432,7 @@ struct AuthorCardView: View {
 
     var body: some View {
         Button(action: onTap) {
-            VStack(spacing: 8) {
+            VStack(spacing: DSLayout.contentGap) {
                 // Author Avatar
                 Circle()
                     .fill(Color.accentColor.opacity(0.2))
@@ -451,8 +450,10 @@ struct AuthorCardView: View {
                     .multilineTextAlignment(.center)
                     .frame(width: 80)
             }
+            .padding(.vertical, DSLayout.elementPadding)
         }
         .buttonStyle(.plain)
+        .background(.cyan)
     }
 }
 

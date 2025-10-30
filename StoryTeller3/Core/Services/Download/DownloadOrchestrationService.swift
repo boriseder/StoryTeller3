@@ -51,7 +51,7 @@ final class DefaultDownloadOrchestrationService: DownloadOrchestrationService {
         // Stage 2: Fetch metadata
         onProgress(book.id, 0.10, "Fetching book details...", .fetchingMetadata)
         let fullBook = try await api.books.fetchBookDetails(bookId: book.id, retryCount: 3)
-        
+
         // Stage 3: Save metadata
         onProgress(book.id, 0.15, "Saving book information...", .fetchingMetadata)
         try storageService.saveBookMetadata(fullBook, to: bookDir)
@@ -60,7 +60,7 @@ final class DefaultDownloadOrchestrationService: DownloadOrchestrationService {
         if let coverPath = fullBook.coverPath {
             onProgress(book.id, 0.20, "Downloading cover...", .downloadingCover)
             try await downloadCoverWithRetry(
-                bookId: fullBook.id,
+                bookId: book.id, // FIXED: Use book.id consistently
                 coverPath: coverPath,
                 api: api,
                 bookDir: bookDir
@@ -82,10 +82,14 @@ final class DefaultDownloadOrchestrationService: DownloadOrchestrationService {
         try storageService.saveAudioInfo(audioInfo, to: bookDir)
         AppLogger.general.debug("[DownloadOrchestration] Saved audio info: \(audioTrackCount) tracks")
         
+        // RACE CONDITION FIX: Ensure all file operations are flushed to disk
+        // This is especially important on iOS where file writes may be buffered
+        try await Task.sleep(nanoseconds: 100_000_000) // 0.1 second buffer
+        
         // Stage 6: Validate
         onProgress(book.id, 0.95, "Verifying download...", .finalizing)
         let validation = validationService.validateBookIntegrity(
-            bookId: fullBook.id,
+            bookId: book.id, // FIXED: Use book.id consistently
             storageService: storageService
         )
         

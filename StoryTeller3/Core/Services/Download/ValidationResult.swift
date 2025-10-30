@@ -41,22 +41,25 @@ final class DefaultDownloadValidationService: DownloadValidationService {
     // MARK: - DownloadValidationService
     
     func validateBookIntegrity(bookId: String, storageService: DownloadStorageService) -> ValidationResult {
-        let bookDir = storageService.bookDirectory(for: bookId)
+        let bookDir = storageService.bookDirectory(for: bookId)              
         let metadataFile = bookDir.appendingPathComponent("metadata.json")
         
         // Check metadata exists
         guard fileManager.fileExists(atPath: metadataFile.path) else {
+            AppLogger.cache.error("[DefaultDownloadValidationService] Metadata file missing")
             return .invalid(reason: "Metadata file missing")
         }
         
         // Load and validate book metadata
         guard let data = try? Data(contentsOf: metadataFile),
               let book = try? JSONDecoder().decode(Book.self, from: data) else {
+            AppLogger.cache.error("[DefaultDownloadValidationService] Invalid metadata file")
             return .invalid(reason: "Invalid metadata file")
         }
         
         // Load audio info (technical metadata)
         guard let audioInfo = storageService.loadAudioInfo(for: bookId) else {
+            AppLogger.cache.error("[DefaultDownloadValidationService] Audio info missing")
             return .invalid(reason: "Audio info missing")
         }
         
@@ -67,22 +70,38 @@ final class DefaultDownloadValidationService: DownloadValidationService {
             let audioFile = audioDir.appendingPathComponent("chapter_\(index).mp3")
             
             if !fileManager.fileExists(atPath: audioFile.path) {
+                AppLogger.cache.error("[DefaultDownloadValidationService] Missing audio track")
                 return .invalid(reason: "Missing audio track \(index + 1)")
             }
             
             if !validateFile(at: audioFile, minimumSize: minimumAudioSize) {
+                AppLogger.cache.error("[DefaultDownloadValidationService] Audio track \(index + 1) is corrupted")
                 return .invalid(reason: "Audio track \(index + 1) is corrupted")
             }
         }
         
-        // Validate cover exists and has minimum size
+        // FIXED: Validate cover only if it was supposed to be downloaded
+        // Check if book has a coverPath - if so, the cover should exist
         let coverFile = bookDir.appendingPathComponent("cover.jpg")
-        if !fileManager.fileExists(atPath: coverFile.path) {
-            return .invalid(reason: "Cover image missing")
-        }
         
-        if !validateFile(at: coverFile, minimumSize: minimumCoverSize) {
-            return .invalid(reason: "Cover image is corrupted")
+        // If cover file exists, validate it
+        if fileManager.fileExists(atPath: coverFile.path) {
+            if !validateFile(at: coverFile, minimumSize: minimumCoverSize) {
+                AppLogger.cache.error("[DefaultDownloadValidationService] Cover image is corrupted")
+                return .invalid(reason: "Cover image is corrupted")
+            }
+            AppLogger.cache.debug("[DefaultDownloadValidationService] Cover image validated")
+        } else {
+            // Cover doesn't exist - this is only OK if the book has no coverPath
+            // We need to check the book metadata to know if cover was expected
+            if let coverPath = book.coverPath, !coverPath.isEmpty {
+                // Book has coverPath but file is missing - this is an error
+                AppLogger.cache.error("[DefaultDownloadValidationService] Cover image missing (expected)")
+                return .invalid(reason: "Cover image missing")
+            } else {
+                // Book has no coverPath - cover not expected, this is fine
+                AppLogger.cache.debug("[DefaultDownloadValidationService] No cover image (book has no cover)")
+            }
         }
         
         return .valid
