@@ -14,6 +14,9 @@ struct HomeView: View {
     @State private var selectedSeries: Series?
     @State private var selectedAuthor: IdentifiableString?
     
+    // Only for test purpose
+    @State private var isOnline = false
+
     init(api: AudiobookshelfClient, onBookSelected: @escaping () -> Void) {
         self._viewModel = StateObject(wrappedValue: HomeViewModelFactory.create(
             api: api,
@@ -92,19 +95,22 @@ struct HomeView: View {
         .environmentObject(appState)
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
-    }
+        }
     }
     
     // MARK: - Content View
     
     private var contentView: some View {
         ZStack {
+            
             /*
             if theme.backgroundStyle == .dynamic {
                 DynamicBackground()
             }
+             
             Color.clear.ignoresSafeArea()
-*/
+             */
+            
             ScrollView {
                 LazyVStack(spacing: DSLayout.contentGap) {
                     homeHeaderView
@@ -156,28 +162,69 @@ struct HomeView: View {
     }
     
     private var homeHeaderView: some View {
-        VStack(spacing: DSLayout.elementGap) {
-            
-            HStack(spacing: DSLayout.contentGap) {
-                HomeStatCard(
-                    icon: "books.vertical.fill",
-                    title: "Books in library",
-                    value: "\(viewModel.totalItemsCount)",
-                    color: .blue
-                )
-                
-                Divider()
-                    .frame(height: 40)
-                
-                HomeStatCard(
-                    icon: "arrow.down.circle.fill",
-                    title: "Downloaded",
-                    value: "\(viewModel.downloadedCount)",
-                    color: .green
-                )
+        HStack(alignment: .center, spacing: 0) {
+            // First section
+            HStack(spacing: 8) {
+                Image(systemName: "books.vertical.fill")
+                    .font(.system(size: DSLayout.icon))
+                    .foregroundColor(.blue)
+                    .frame(width: DSLayout.icon, height: DSLayout.icon)
+                    .background(.blue.opacity(0.1))
+
+                VStack(spacing: DSLayout.tightGap) {
+                    Text("Books in library")
+                        .font(DSText.footnote)
+                        .foregroundColor(.secondary)
+                    Text(String(viewModel.totalItemsCount))
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                }
             }
+            .frame(maxWidth: .infinity)
+
+            Divider()
+                .frame(height: 40)
+
+            // Second section
+            HStack(spacing: 8) {
+                Image(systemName: "arrow.down.circle.fill")
+                    .font(.system(size: DSLayout.icon))
+                    .foregroundColor(.green)
+                    .frame(width: DSLayout.icon, height: DSLayout.icon)
+                    .background(.green.opacity(0.1))
+
+                VStack(spacing: DSLayout.tightGap) {
+                    Text("Downloaded")
+                        .font(DSText.footnote)
+                        .foregroundColor(.secondary)
+                    Text(String(viewModel.downloadedCount))
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                }
+            }
+            .frame(maxWidth: .infinity)
+
+            Divider()
+                .frame(height: 40)
+
+            // Third section
+            Button {
+                isOnline.toggle()
+            } label: {
+                Image(systemName: isOnline ? "icloud" : "icloud.slash")
+                    .font(DSText.button)
+                    .foregroundColor(.white)
+                    .padding(DSLayout.tightPadding)
+                    .background(isOnline ? Color.green : Color.red)
+                    .clipShape(Circle())
+            }
+            .padding(.horizontal, DSLayout.elementPadding)
+
+            
+            
         }
-        .padding(DSLayout.contentGap)
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, DSLayout.elementGap) // vertical spacing
         .background(.regularMaterial)
         .clipShape(RoundedRectangle(cornerRadius: DSCorners.element))
         .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
@@ -359,7 +406,6 @@ struct SeriesCardView: View {
 
     
     var body: some View {
-        
 
         Button(action: onTap) {
             VStack(alignment: .leading, spacing: 0) {
@@ -453,39 +499,6 @@ struct AuthorCardView: View {
             .padding(.vertical, DSLayout.elementPadding)
         }
         .buttonStyle(.plain)
-        .background(.cyan)
-    }
-}
-
-// MARK: - Home Stat Card Component
-struct HomeStatCard: View {
-    let icon: String
-    let title: String
-    let value: String
-    let color: Color
-    
-    var body: some View {
-        HStack(spacing: DSLayout.elementGap) {
-            Image(systemName: icon)
-                .font(.system(size: DSLayout.icon))
-                .foregroundColor(color)
-                .frame(width: DSLayout.icon, height: DSLayout.icon)
-                .background(color.opacity(0.1))
-               // .clipShape(Circle())
-            
-            VStack(alignment: .leading, spacing: DSLayout.tightGap) {
-                Text(title)
-                    .font(DSText.footnote)
-                    .foregroundColor(.secondary)
-                
-                Text(value)
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.primary)
-            }
-            
-            Spacer()
-        }
     }
 }
 

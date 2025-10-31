@@ -31,8 +31,10 @@ class HomeViewModel: ObservableObject {
     }
     
     var downloadedCount: Int {
-        let allBooks = getAllBooksFromSections()
-        return allBooks.filter { downloadRepository.getDownloadStatus(for: $0.id).isDownloaded }.count
+        //let allBooks = getAllBooksFromSections()
+        // we do not want the number of downloaded books in personalized sections but all downloaded books
+        // return allBooks.filter { downloadRepository.getDownloadStatus(for: $0.id).isDownloaded }.count
+        return downloadRepository.getDownloadedBooks().count
     }
     
     var uiState: HomeUIState {

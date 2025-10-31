@@ -244,14 +244,10 @@ final class DefaultDownloadRepository: DownloadRepository {
             return .downloading
         }
         
+        // Books in downloadedBooks list are already validated (during download + background healing)
+        // No need to re-validate on every status check
         if isBookDownloaded(bookId) {
-            let validation = validationService.validateBookIntegrity(
-                bookId: bookId,
-                storageService: storageService
-            )
-            if validation.isValid {
-                return .available
-            }
+            return .available
         }
         
         return .notDownloaded
