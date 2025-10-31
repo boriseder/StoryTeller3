@@ -2,7 +2,7 @@ import Foundation
 
 // MARK: - Series Models
 
-struct Series: Identifiable {
+struct Series: Encodable, Identifiable {
     let id: String
     let name: String
     let nameIgnorePrefix: String?

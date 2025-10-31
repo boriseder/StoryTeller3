@@ -20,7 +20,7 @@ struct Library: Codable, Identifiable {
     var isAudiobook: Bool { mediaType == "book" }
 }
 
-struct LibraryItem: Decodable, Identifiable {
+struct LibraryItem: Codable, Identifiable {
     let id: String
     let media: Media
     let libraryId: String?

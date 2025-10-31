@@ -7,7 +7,7 @@ import Foundation
 
 // MARK: - Personalized Response Models
 
-struct PersonalizedSection: Decodable, Identifiable {
+struct PersonalizedSection: Codable, Identifiable {
     let id: String
     let label: String
     let labelStringKey: String?
@@ -19,7 +19,7 @@ struct PersonalizedSection: Decodable, Identifiable {
 typealias PersonalizedResponse = [PersonalizedSection]
 
 // MARK: - Enhanced PersonalizedEntity
-struct PersonalizedEntity: Decodable, Identifiable {
+struct PersonalizedEntity: Codable, Identifiable {
     let id: String
     let media: Media?                    // For books
     let libraryId: String?

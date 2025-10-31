@@ -121,13 +121,27 @@ class BookRepository: BookRepositoryProtocol {
     func fetchSeries(libraryId: String) async throws -> [Series] {
         do {
             let series = try await api.series.fetchSeries(libraryId: libraryId, limit: 1000)
+            
+            // ADD: Cache successful fetch
+            cache?.cacheSeries(series, for: libraryId)
+            
             AppLogger.general.debug("[BookRepository] Fetched \(series.count) series")
             return series
             
         } catch let decodingError as DecodingError {
+            // ADD: Try cache on error
+            if let cachedSeries = cache?.getCachedSeries(for: libraryId) {
+                AppLogger.general.debug("[BookRepository] Returning \(cachedSeries.count) cached series")
+                return cachedSeries
+            }
             throw RepositoryError.decodingError(decodingError)
             
         } catch let urlError as URLError {
+            // ADD: Try cache on network error
+            if let cachedSeries = cache?.getCachedSeries(for: libraryId) {
+                AppLogger.general.debug("[BookRepository] Returning \(cachedSeries.count) cached series (offline)")
+                return cachedSeries
+            }
             throw RepositoryError.networkError(urlError)
             
         } catch {
@@ -155,20 +169,34 @@ class BookRepository: BookRepositoryProtocol {
     func fetchPersonalizedSections(libraryId: String) async throws -> [PersonalizedSection] {
         do {
             let sections = try await api.personalized.fetchPersonalizedSections(libraryId: libraryId, limit: 10)
+            
+            // ADD: Cache successful fetch
+            cache?.cacheSections(sections, for: libraryId)
+            
             AppLogger.general.debug("[BookRepository] Fetched \(sections.count) personalized sections")
             return sections
             
         } catch let decodingError as DecodingError {
+            // ADD: Try cache on error
+            if let cachedSections = cache?.getCachedSections(for: libraryId) {
+                AppLogger.general.debug("[BookRepository] Returning \(cachedSections.count) cached sections")
+                return cachedSections
+            }
             throw RepositoryError.decodingError(decodingError)
             
         } catch let urlError as URLError {
+            // ADD: Try cache on network error
+            if let cachedSections = cache?.getCachedSections(for: libraryId) {
+                AppLogger.general.debug("[BookRepository] Returning \(cachedSections.count) cached sections (offline)")
+                return cachedSections
+            }
             throw RepositoryError.networkError(urlError)
             
         } catch {
             throw RepositoryError.networkError(error)
         }
     }
-    
+
     func searchBooks(libraryId: String, query: String) async throws -> [Book] {
         guard !query.isEmpty else {
             return []
@@ -194,40 +222,97 @@ class BookRepository: BookRepositoryProtocol {
 
 // MARK: - Book Cache Protocol
 protocol BookCacheProtocol {
+    // Existing
     func cacheBooks(_ books: [Book], for libraryId: String)
     func cacheBook(_ book: Book)
     func getCachedBooks(for libraryId: String) -> [Book]?
     func getCachedBook(bookId: String) -> Book?
     func clearCache()
+    
+    // New methods for persisting book cache
+    func cacheSections(_ sections: [PersonalizedSection], for libraryId: String)
+    func getCachedSections(for libraryId: String) -> [PersonalizedSection]?
+    func cacheSeries(_ series: [Series], for libraryId: String)
+    func getCachedSeries(for libraryId: String) -> [Series]?
+    func getCacheTimestamp(for key: String) -> Date?
+    func clearExpiredCache(maxAge: TimeInterval)
 }
 
 // MARK: - Simple In-Memory Cache Implementation
 class BookCache: BookCacheProtocol {
+    // KEEP: Existing memory cache
     private var booksCache: [String: [Book]] = [:]
     private var bookDetailsCache: [String: Book] = [:]
+    private var sectionsCache: [String: [PersonalizedSection]] = [:]
+    private var seriesCache: [String: [Series]] = [:]
     private let cacheQueue = DispatchQueue(label: "com.storyteller3.bookcache")
     
+    // ADD: Disk persistence
+    private let fileManager = FileManager.default
+    private let diskCacheURL: URL
+    private let maxCacheAge: TimeInterval = 24 * 60 * 60  // 24 hours
+    
+    init() {
+        // Setup disk cache directory
+        let cachesURL = fileManager.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+        self.diskCacheURL = cachesURL.appendingPathComponent("BookCache", isDirectory: true)
+        
+        // Create directory if needed
+        try? fileManager.createDirectory(at: diskCacheURL, withIntermediateDirectories: true)
+        
+        // Load existing cache from disk
+        loadCacheFromDisk()
+        
+        AppLogger.general.debug("[BookCache] Initialized with disk persistence at: \(diskCacheURL.path)")
+    }
+    
+    // MODIFY: Save to disk when caching
     func cacheBooks(_ books: [Book], for libraryId: String) {
         cacheQueue.async {
             self.booksCache[libraryId] = books
+            self.saveToDisk(books, key: "books_\(libraryId)")
         }
     }
     
     func cacheBook(_ book: Book) {
         cacheQueue.async {
             self.bookDetailsCache[book.id] = book
+            self.saveToDisk(book, key: "book_\(book.id)")
         }
     }
     
+    // KEEP: Existing getCached methods (they read from memory cache)
     func getCachedBooks(for libraryId: String) -> [Book]? {
         cacheQueue.sync {
-            booksCache[libraryId]
+            // Check memory first
+            if let cached = booksCache[libraryId] {
+                return cached
+            }
+            
+            // Try disk if not in memory
+            if let diskCached: [Book] = loadFromDisk(key: "books_\(libraryId)") {
+                booksCache[libraryId] = diskCached  // Populate memory cache
+                return diskCached
+            }
+            
+            return nil
         }
     }
     
     func getCachedBook(bookId: String) -> Book? {
         cacheQueue.sync {
-            bookDetailsCache[bookId]
+            // Check memory first
+            if let cached = bookDetailsCache[bookId] {
+                return cached
+            }
+            
+            // Try disk if not in memory
+            if let diskCached: Book = loadFromDisk(key: "book_\(bookId)") {
+                bookDetailsCache[bookId] = diskCached
+                return diskCached
+            }
+            
+            return nil
         }
     }
     
@@ -235,6 +320,161 @@ class BookCache: BookCacheProtocol {
         cacheQueue.async {
             self.booksCache.removeAll()
             self.bookDetailsCache.removeAll()
+            self.sectionsCache.removeAll()
+            self.seriesCache.removeAll()
+            
+            // Clear disk cache
+            try? self.fileManager.removeItem(at: self.diskCacheURL)
+            try? self.fileManager.createDirectory(at: self.diskCacheURL, withIntermediateDirectories: true)
+            
+            AppLogger.general.debug("[BookCache] Cache cleared")
         }
     }
+    
+    // ADD: New methods for sections and series
+    func cacheSections(_ sections: [PersonalizedSection], for libraryId: String) {
+        cacheQueue.async {
+            self.sectionsCache[libraryId] = sections
+            self.saveToDisk(sections, key: "sections_\(libraryId)")
+        }
+    }
+    
+    func getCachedSections(for libraryId: String) -> [PersonalizedSection]? {
+        cacheQueue.sync {
+            if let cached = sectionsCache[libraryId] {
+                return cached
+            }
+            
+            if let diskCached: [PersonalizedSection] = loadFromDisk(key: "sections_\(libraryId)") {
+                sectionsCache[libraryId] = diskCached
+                return diskCached
+            }
+            
+            return nil
+        }
+    }
+    
+    func cacheSeries(_ series: [Series], for libraryId: String) {
+        cacheQueue.async {
+            self.seriesCache[libraryId] = series
+            self.saveToDisk(series, key: "series_\(libraryId)")
+        }
+    }
+    
+    func getCachedSeries(for libraryId: String) -> [Series]? {
+        cacheQueue.sync {
+            if let cached = seriesCache[libraryId] {
+                return cached
+            }
+            
+            if let diskCached: [Series] = loadFromDisk(key: "series_\(libraryId)") {
+                seriesCache[libraryId] = diskCached
+                return diskCached
+            }
+            
+            return nil
+        }
+    }
+    
+    // ADD: Cache timestamp tracking
+    func getCacheTimestamp(for key: String) -> Date? {
+        let metadataURL = diskCacheURL.appendingPathComponent("\(key)_metadata.json")
+        
+        guard let data = try? Data(contentsOf: metadataURL),
+              let metadata = try? JSONDecoder().decode(CacheMetadata.self, from: data) else {
+            return nil
+        }
+        
+        return metadata.timestamp
+    }
+    
+    func clearExpiredCache(maxAge: TimeInterval = 24 * 60 * 60) {
+        cacheQueue.async {
+            guard let files = try? self.fileManager.contentsOfDirectory(
+                at: self.diskCacheURL,
+                includingPropertiesForKeys: [.creationDateKey]
+            ) else {
+                return
+            }
+            
+            let now = Date()
+            for file in files {
+                guard let creationDate = try? file.resourceValues(forKeys: [.creationDateKey]).creationDate else {
+                    continue
+                }
+                
+                if now.timeIntervalSince(creationDate) > maxAge {
+                    try? self.fileManager.removeItem(at: file)
+                    AppLogger.general.debug("[BookCache] Removed expired: \(file.lastPathComponent)")
+                }
+            }
+        }
+    }
+    
+    // MARK: - Private Disk I/O Methods
+    
+    private func saveToDisk<T: Encodable>(_ data: T, key: String) {
+        let fileURL = diskCacheURL.appendingPathComponent("\(key).json")
+        
+        guard let encoded = try? JSONEncoder().encode(data) else {
+            AppLogger.general.error("[BookCache] Failed to encode: \(key)")
+            return
+        }
+        
+        do {
+            try encoded.write(to: fileURL)
+            
+            // Save metadata with timestamp
+            let metadata = CacheMetadata(timestamp: Date())
+            let metadataURL = diskCacheURL.appendingPathComponent("\(key)_metadata.json")
+            if let metadataData = try? JSONEncoder().encode(metadata) {
+                try metadataData.write(to: metadataURL)
+            }
+            
+            AppLogger.general.debug("[BookCache] Saved to disk: \(key)")
+        } catch {
+            AppLogger.general.error("[BookCache] Failed to write: \(key) - \(error)")
+        }
+    }
+    
+    private func loadFromDisk<T: Decodable>(key: String) -> T? {
+        let fileURL = diskCacheURL.appendingPathComponent("\(key).json")
+        
+        guard fileManager.fileExists(atPath: fileURL.path),
+              let data = try? Data(contentsOf: fileURL) else {
+            return nil
+        }
+        
+        // Check if expired
+        if let timestamp = getCacheTimestamp(for: key),
+           Date().timeIntervalSince(timestamp) > maxCacheAge {
+            AppLogger.general.debug("[BookCache] Expired: \(key)")
+            try? fileManager.removeItem(at: fileURL)
+            return nil
+        }
+        
+        guard let decoded = try? JSONDecoder().decode(T.self, from: data) else {
+            AppLogger.general.error("[BookCache] Failed to decode: \(key)")
+            return nil
+        }
+        
+        AppLogger.general.debug("[BookCache] Loaded from disk: \(key)")
+        return decoded
+    }
+    
+    private func loadCacheFromDisk() {
+        // Load all cached data on init
+        // This happens in background, so we don't block initialization
+        cacheQueue.async {
+            // Implementation: scan directory and load all .json files
+            // Not critical for first version - cache will populate on-demand via getCached methods
+            AppLogger.general.debug("[BookCache] Ready to load from disk on-demand")
+        }
+    }
+}
+
+// MARK: - Cache Metadata
+
+private struct CacheMetadata: Codable {
+    let timestamp: Date
 }

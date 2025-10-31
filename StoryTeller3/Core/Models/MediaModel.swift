@@ -1,6 +1,6 @@
 import Foundation
 
-struct Media: Decodable {
+struct Media: Codable {
     let metadata: Metadata
     let chapters: [Chapter]?
     let duration: Double?
