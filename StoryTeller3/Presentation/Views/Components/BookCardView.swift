@@ -49,23 +49,12 @@ struct BookCardView: View {
     
     var body: some View {
         ZStack {
-            VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: DSLayout.elementPadding) {
                 bookCoverSection
                 
-                if style == .series {
-                    Text(viewModel.book.displayTitle)
-                        .font(DSText.metadata)
-                        .foregroundColor(theme.textColor)
-                        .lineLimit(1)
-                        .frame(maxWidth: dimensions.width - 2 * DSLayout.elementPadding, alignment: .leading)
-                        .fixedSize(horizontal: true, vertical: true)
-                        .padding(.vertical, DSLayout.elementPadding)
-                        .padding(.horizontal, DSLayout.elementPadding)
-                } else {
-                    Spacer()
-                    bookInfoSection
-                        .padding(.bottom, DSLayout.elementPadding)
-                }
+                bookInfoSection
+                    .padding(.bottom, DSLayout.elementPadding)
+
             }
             .frame(width: dimensions.width, height: dimensions.height)
             .scaleEffect(isPressed ? 0.95 : 1.0)
@@ -151,26 +140,32 @@ struct BookCardView: View {
     // MARK: - Info Section
 
     private var bookInfoSection: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: DSLayout.tightGap) {
             Text(viewModel.book.displayTitle)
-                .font(.subheadline)
+                .font(DSText.detail)
                 .foregroundColor(theme.textColor)
                 .lineLimit(1)
-                .frame(maxWidth: style.coverSize, alignment: .leading)
-                        
-            VStack(alignment: .leading, spacing: 4) {
-                Text(viewModel.book.author ?? "Unknown Author")
-                    .font(.caption2)
-                    .foregroundColor(theme.textColor.opacity(0.7))
-                    .lineLimit(1)
+                .frame(maxWidth: dimensions.width - 2 * DSLayout.elementPadding, alignment: .leading)
+                .fixedSize(horizontal: true, vertical: true)
 
-                if viewModel.isCurrentBook && viewModel.duration > 0 && style == .library {
-                    bookProgressIndicator
+
+            if style == .library {
+                VStack(alignment: .leading, spacing: DSLayout.tightGap) {
+                    Text(viewModel.book.author ?? "Unknown Author")
+                        .font(DSText.metadata)
+                        .foregroundColor(theme.textColor.opacity(0.85))
+                        .lineLimit(1)
+                    
+                    if viewModel.isCurrentBook && viewModel.duration > 0 && style == .library {
+                        bookProgressIndicator
+                    }
+                    
+                    Spacer()
                 }
-                
-                Spacer()
             }
         }
+        .padding(.horizontal, DSLayout.elementPadding)
+
     }
 
 

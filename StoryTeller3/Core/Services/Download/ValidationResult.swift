@@ -83,14 +83,13 @@ final class DefaultDownloadValidationService: DownloadValidationService {
         // FIXED: Validate cover only if it was supposed to be downloaded
         // Check if book has a coverPath - if so, the cover should exist
         let coverFile = bookDir.appendingPathComponent("cover.jpg")
-        
+
         // If cover file exists, validate it
         if fileManager.fileExists(atPath: coverFile.path) {
             if !validateFile(at: coverFile, minimumSize: minimumCoverSize) {
                 AppLogger.cache.error("[DefaultDownloadValidationService] Cover image is corrupted")
                 return .invalid(reason: "Cover image is corrupted")
             }
-            AppLogger.cache.debug("[DefaultDownloadValidationService] Cover image validated")
         } else {
             // Cover doesn't exist - this is only OK if the book has no coverPath
             // We need to check the book metadata to know if cover was expected
@@ -103,7 +102,8 @@ final class DefaultDownloadValidationService: DownloadValidationService {
                 AppLogger.cache.debug("[DefaultDownloadValidationService] No cover image (book has no cover)")
             }
         }
-        
+        AppLogger.cache.debug("[DefaultDownloadValidationService] Download validated")
+
         return .valid
     }
     

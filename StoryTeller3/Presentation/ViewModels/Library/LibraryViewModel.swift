@@ -13,6 +13,9 @@ class LibraryViewModel: ObservableObject {
     // For smooth transistions
     @Published var contentLoaded = false
 
+    // Offline mode tracking
+    @Published var dataSource: DataSource = .network(timestamp: Date())
+
     // MARK: - Dependencies (Use Cases & Repositories)
     private let fetchBooksUseCase: FetchBooksUseCaseProtocol
     private let playBookUseCase: PlayBookUseCase
@@ -22,6 +25,7 @@ class LibraryViewModel: ObservableObject {
     let api: AudiobookshelfClient
     let downloadManager: DownloadManager
     let player: AudioPlayer
+    let appState: AppStateManager
     let onBookSelected: () -> Void
     
     // MARK: - Computed Properties for UI
@@ -55,21 +59,25 @@ class LibraryViewModel: ObservableObject {
     }
     
     var uiState: LibraryUIState {
+        let isOffline = !appState.canPerformNetworkOperations
+        
         if isLoading {
-            return .loading
+            return isOffline ? .loadingFromCache : .loading
         } else if let error = errorMessage {
             return .error(error)
+        } else if isOffline && !books.isEmpty {
+            return .offline(cachedItemCount: books.count)
         } else if books.isEmpty {
             return .empty
         } else if filteredAndSortedBooks.isEmpty && filterState.showDownloadedOnly {
             return .noDownloads
         } else if filteredAndSortedBooks.isEmpty {
-            return .noSearchResults
+            return .noSearchResults  
         } else {
             return .content
         }
     }
-    
+
     // MARK: - Init with DI
     init(
         fetchBooksUseCase: FetchBooksUseCaseProtocol,
@@ -78,6 +86,7 @@ class LibraryViewModel: ObservableObject {
         api: AudiobookshelfClient,
         downloadManager: DownloadManager,
         player: AudioPlayer,
+        appState: AppStateManager,
         onBookSelected: @escaping () -> Void
     ) {
         self.fetchBooksUseCase = fetchBooksUseCase
@@ -87,6 +96,7 @@ class LibraryViewModel: ObservableObject {
         self.api = api
         self.downloadManager = downloadManager
         self.player = player
+        self.appState = appState
         self.onBookSelected = onBookSelected
         
         filterState.loadFromDefaults()
@@ -105,19 +115,22 @@ class LibraryViewModel: ObservableObject {
         
         do {
             guard let library = try await libraryRepository.getSelectedLibrary() else {
-                libraryName = "Keine Bibliothek"
+                libraryName = "Library"
                 books = []
                 isLoading = false
                 return
             }
             
-            // libraryName = library.name
             libraryName = "Library"
 
+            // Try network fetch
             let fetchedBooks = try await fetchBooksUseCase.execute(
                 libraryId: library.id,
-                collapseSeries: filterState.showSeriesGrouped
+                collapseSeries: filterState.showSeriesGrouped  // ← DIFFERENT: collapseSeries param
             )
+            
+            // Success from network
+            dataSource = .network(timestamp: Date())
             
             withAnimation(.easeInOut) {
                 books = fetchedBooks
@@ -131,15 +144,24 @@ class LibraryViewModel: ObservableObject {
             )
             
         } catch let error as RepositoryError {
-            handleRepositoryError(error)
+            // On error, check if we have cached data from previous successful load
+            if !books.isEmpty {  // ← DIFFERENT: checks books not personalizedSections
+                dataSource = .cache(timestamp: Date())
+                AppLogger.general.debug("[LibraryViewModel] Using in-memory cached data, network unavailable")
+            } else {
+                handleRepositoryError(error)  // ← DIFFERENT: calls handleRepositoryError
+            }
         } catch {
-            errorMessage = error.localizedDescription
-            showingErrorAlert = true
+            if !books.isEmpty {  // ← DIFFERENT: checks books
+                dataSource = .cache(timestamp: Date())
+            } else {
+                errorMessage = error.localizedDescription
+                showingErrorAlert = true
+            }
         }
         
         isLoading = false
     }
-    
     func playBook(_ book: Book, appState: AppStateManager, restoreState: Bool = true) async {
         isLoading = true
         

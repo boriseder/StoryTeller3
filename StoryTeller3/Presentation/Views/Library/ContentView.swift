@@ -25,10 +25,10 @@ struct ContentView: View {
     var body: some View {
         ZStack {
             Color.accent.ignoresSafeArea()
-
+            
             switch appState.loadingState {
-            case .initial, .loadingCredentials, .credentialsFoundValidating:
-                LoadingView(message: "Loading")
+            case .initial, .loadingCredentials, .credentialsFoundValidating, .loadingData:
+                LoadingView(message: "Loading data...")
                     .padding(.top, 56)
 
             case .noCredentialsSaved:
@@ -58,12 +58,9 @@ struct ContentView: View {
             case .authenticationError:
                 AuthErrorView(onReLogin: { appState.showingSettings = true })
                     
-            case .loadingData:
-                LoadingView(message: "Loading")
-                    .padding(.top, 56)
-
             case .ready:
                 mainContent
+                
             }
         }
         .onAppear(perform: setupApp)
@@ -79,16 +76,18 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: .init("ShowSettings"))) { _ in
             appState.showingSettings = true
         }
+        /*
         .onChange(of: appState.isDeviceOnline) { oldValue, newValue in
             if !oldValue && newValue {
                 Task {
                     await appState.checkServerReachability()
                     if appState.isServerReachable {
-                        setupApp()
+                        await homeViewModel.refreshIfOnline() // nur Sections aktualisieren
                     }
                 }
             }
         }
+         */
         .onDisappear {
             cancellables.removeAll()
         }
@@ -117,6 +116,7 @@ struct ContentView: View {
 
     // MARK: - Main Content
     private var mainContent: some View {
+        
         FullscreenPlayerContainer(
             player: player,
             playerStateManager: playerStateManager,
@@ -141,6 +141,7 @@ struct ContentView: View {
                 if let api = appState.apiClient {
                     HomeView(
                         api: api,
+                        appState: appState,
                         onBookSelected: { openFullscreenPlayer() }
                     )
                 }
@@ -158,6 +159,7 @@ struct ContentView: View {
             if let api = appState.apiClient {
                 LibraryView(
                     api: api,
+                    appState: appState,
                     onBookSelected: { openFullscreenPlayer() }
                 )
             }
@@ -174,6 +176,7 @@ struct ContentView: View {
             if let api = appState.apiClient {
                 SeriesView(
                     api: api,
+                    appState: appState,
                     onBookSelected: { openFullscreenPlayer() }
                 )
             }

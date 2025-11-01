@@ -57,6 +57,7 @@ final class DefaultDownloadOrchestrationService: DownloadOrchestrationService {
         try storageService.saveBookMetadata(fullBook, to: bookDir)
         
         // Stage 4: Download cover
+        
         if let coverPath = fullBook.coverPath {
             onProgress(book.id, 0.20, "Downloading cover...", .downloadingCover)
             try await downloadCoverWithRetry(
@@ -112,6 +113,15 @@ final class DefaultDownloadOrchestrationService: DownloadOrchestrationService {
     
     // MARK: - Private Methods
     
+    /*
+     redundant code
+     cover is stored in bookcache and we download it again as cover.jog
+     needs refactoring
+     
+     => see CoverDownloadManager and func performDownload()
+
+     */
+    
     private func downloadCoverWithRetry(
         bookId: String,
         coverPath: String,
@@ -121,16 +131,35 @@ final class DefaultDownloadOrchestrationService: DownloadOrchestrationService {
         guard let coverURL = URL(string: "\(api.baseURLString)\(coverPath)") else {
             throw DownloadError.invalidCoverURL
         }
+             
+        // PATCH
+        //new endpoint as
+        let coverURLString = "\(api.baseURLString)/api/items/\(bookId)/cover"
+        guard let url = URL(string: coverURLString) else {
+            throw DownloadError.invalidCoverURL
+        }
         
+        AppLogger.general.debug("#### DIRTY HACK - coverURLString: \(coverURLString)")
+                
         var lastError: Error?
         
         for attempt in 0..<retryPolicy.maxRetries {
             do {
-                let data = try await networkService.downloadFile(from: coverURL, authToken: api.authToken)
+                // PATCH
+                // actual fix - use the correct endpoint
+                // but needs refactoring as redundant!!!
+                // old -1 line
+                // let data = try await networkService.downloadFile(from: coverURL, authToken: api.authToken)
+                // new +1 line
+                let data = try await networkService.downloadFile(from: url, authToken: api.authToken)
+
                 let coverFile = bookDir.appendingPathComponent("cover.jpg")
+
                 try storageService.saveCoverImage(data, to: coverFile)
                 
-                AppLogger.general.debug("[DownloadOrchestration] Cover downloaded successfully")
+                
+                AppLogger.general.debug("#### DIRTY HACK - Download of cover.jpg successful")
+ 
                 return
                 
             } catch {

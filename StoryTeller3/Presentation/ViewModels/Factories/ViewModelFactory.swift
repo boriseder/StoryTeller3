@@ -47,7 +47,7 @@ class ViewModelFactory {
     
     // MARK: - ViewModel Factories
     
-    func makeLibraryViewModel(onBookSelected: @escaping () -> Void) -> LibraryViewModel {
+    func makeLibraryViewModel(appState: AppStateManager, onBookSelected: @escaping () -> Void) -> LibraryViewModel {
         LibraryViewModel(
             fetchBooksUseCase: fetchBooksUseCase,
             downloadRepository: downloadRepository,
@@ -55,11 +55,12 @@ class ViewModelFactory {
             api: api,
             downloadManager: downloadManager,
             player: player,
+            appState: appState,
             onBookSelected: onBookSelected
         )
     }
     
-    func makeHomeViewModel(onBookSelected: @escaping () -> Void) -> HomeViewModel {
+    func makeHomeViewModel(appState: AppStateManager, onBookSelected: @escaping () -> Void) -> HomeViewModel {
         HomeViewModel(
             fetchPersonalizedSectionsUseCase: fetchPersonalizedSectionsUseCase,
             downloadRepository: downloadRepository,
@@ -67,11 +68,12 @@ class ViewModelFactory {
             api: api,
             downloadManager: downloadManager,
             player: player,
+            appState: appState,
             onBookSelected: onBookSelected
         )
     }
     
-    func makeSeriesViewModel(onBookSelected: @escaping () -> Void) -> SeriesViewModel {
+    func makeSeriesViewModel(appState: AppStateManager, onBookSelected: @escaping () -> Void) -> SeriesViewModel {
         SeriesViewModel(
             fetchSeriesUseCase: fetchSeriesUseCase,
             downloadRepository: downloadRepository,
@@ -79,6 +81,7 @@ class ViewModelFactory {
             api: api,
             downloadManager: downloadManager,
             player: player,
+            appState: appState,
             onBookSelected: onBookSelected
         )
     }

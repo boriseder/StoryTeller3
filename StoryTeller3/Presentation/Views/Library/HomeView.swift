@@ -1,9 +1,3 @@
-//
-//  Enhanced HomeView.swift
-//  StoryTeller3
-//
-//  Updated to handle all personalized sections
-
 import SwiftUI
 
 struct HomeView: View {
@@ -14,12 +8,13 @@ struct HomeView: View {
     @State private var selectedSeries: Series?
     @State private var selectedAuthor: IdentifiableString?
     
-    // Only for test purpose
-    @State private var isOnline = false
-
-    init(api: AudiobookshelfClient, onBookSelected: @escaping () -> Void) {
+    // Workaround to hide nodata at start of app
+    @State private var showEmptyState = false
+    
+    init(api: AudiobookshelfClient, appState: AppStateManager, onBookSelected: @escaping () -> Void) {
         self._viewModel = StateObject(wrappedValue: HomeViewModelFactory.create(
             api: api,
+            appState: appState,
             onBookSelected: onBookSelected
         ))
     }
@@ -31,19 +26,48 @@ struct HomeView: View {
                 Color.accent.ignoresSafeArea()
             }
           
-            switch viewModel.uiState {
+            ZStack {
+                switch viewModel.uiState {
+                    
+                case .content, .loading, .loadingFromCache:
+                    contentView
+                        .transition(.opacity)
 
-            case .loading:
-                LoadingView(message: "Loading")
-            case .error(let message):
-                ErrorView(error: message)
-            case .empty:
-                EmptyStateView()
-            case .noDownloads:
-                NoDownloadsView()
-            case .content:
-                contentView
+                case .offline(let hasCachedData):
+                    if hasCachedData {
+                        contentView
+                            .transition(.opacity)
+                    } else {
+                        ErrorView(error: "No cached data available. Please connect to the internet.")
+                            .transition(.opacity)
+                    }
+
+                case .error(let message):
+                    ErrorView(error: message)
+                        .transition(.opacity)
+
+                case .empty:
+                    if showEmptyState {
+                        EmptyStateView()
+                            .transition(.opacity)
+                    }
+
+                case .noDownloads:
+                    NoDownloadsView()
+                        .transition(.opacity)
+                }
             }
+            .onChange(of: viewModel.uiState) {
+                if viewModel.uiState == .empty {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak viewModel] in
+                        guard viewModel?.uiState == .empty else { return }
+                        withAnimation { showEmptyState = true }
+                    }
+                } else {
+                    showEmptyState = false
+                }
+            }
+            .animation(.easeInOut(duration: 0.3), value: viewModel.uiState)
         }
         .navigationTitle("Explore & listen")
         .navigationBarTitleDisplayMode(.large)
@@ -73,28 +97,28 @@ struct HomeView: View {
             await viewModel.loadPersonalizedSectionsIfNeeded()
         }
         .sheet(item: $selectedSeries) { series in
-        SeriesDetailSheet(
-            series: series,
-            player: viewModel.player,
-            api: viewModel.api,
-            downloadManager: viewModel.downloadManager,
-            onBookSelected: viewModel.onBookSelected
-        )
-        .environmentObject(appState)
-        .presentationDetents([.medium, .large])
-        .presentationDragIndicator(.visible)
-    }
+            SeriesDetailSheet(
+                series: series,
+                player: viewModel.player,
+                api: viewModel.api,
+                downloadManager: viewModel.downloadManager,
+                onBookSelected: viewModel.onBookSelected
+            )
+            .environmentObject(appState)
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+        }
         .sheet(item: $selectedAuthor) { authorWrapper in
-        AuthorDetailSheet(
-            authorName: authorWrapper.value,
-            player: viewModel.player,
-            api: viewModel.api,
-            downloadManager: viewModel.downloadManager,
-            onBookSelected: viewModel.onBookSelected
-        )
-        .environmentObject(appState)
-        .presentationDetents([.medium, .large])
-        .presentationDragIndicator(.visible)
+            AuthorDetailSheet(
+                authorName: authorWrapper.value,
+                player: viewModel.player,
+                api: viewModel.api,
+                downloadManager: viewModel.downloadManager,
+                onBookSelected: viewModel.onBookSelected
+            )
+            .environmentObject(appState)
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
         }
     }
     
@@ -102,20 +126,17 @@ struct HomeView: View {
     
     private var contentView: some View {
         ZStack {
-            
-            /*
             if theme.backgroundStyle == .dynamic {
                 DynamicBackground()
             }
-             
-            Color.clear.ignoresSafeArea()
-             */
-            
+
             ScrollView {
                 LazyVStack(spacing: DSLayout.contentGap) {
+                    if !appState.canPerformNetworkOperations, case .cache = viewModel.dataSource {
+                        offlineBanner
+                    }
+                    
                     homeHeaderView
-                        .opacity(viewModel.sectionsLoaded ? 1 : 0)
-                        .animation(.easeInOut(duration: 0.3).delay(0.1), value: viewModel.sectionsLoaded)
                         .padding(.bottom, DSLayout.elementPadding)
                     
                     ForEach(Array(viewModel.personalizedSections.enumerated()), id: \.element.id) { index, section in
@@ -187,11 +208,12 @@ struct HomeView: View {
 
             // Second section
             HStack(spacing: 8) {
-                Image(systemName: "arrow.down.circle.fill")
+                Image(systemName: "arrow.down.circle")
                     .font(.system(size: DSLayout.icon))
                     .foregroundColor(.green)
                     .frame(width: DSLayout.icon, height: DSLayout.icon)
                     .background(.green.opacity(0.1))
+                    .clipShape(Circle())
 
                 VStack(spacing: DSLayout.tightGap) {
                     Text("Downloaded")
@@ -209,19 +231,17 @@ struct HomeView: View {
 
             // Third section
             Button {
-                isOnline.toggle()
+                appState.isDeviceOnline.toggle()
+                appState.isServerReachable.toggle()
             } label: {
-                Image(systemName: isOnline ? "icloud" : "icloud.slash")
+                Image(systemName: appState.isDeviceOnline ? "icloud" : "icloud.slash")
                     .font(DSText.button)
-                    .foregroundColor(.white)
+                    .foregroundColor(appState.isDeviceOnline ? Color.green : Color.red)
                     .padding(DSLayout.tightPadding)
-                    .background(isOnline ? Color.green : Color.red)
+                    .background(appState.isDeviceOnline ? Color.green.opacity(0.1) : Color.red.opacity(0.1))
                     .clipShape(Circle())
             }
             .padding(.horizontal, DSLayout.elementPadding)
-
-            
-            
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, DSLayout.elementGap) // vertical spacing
@@ -239,6 +259,38 @@ struct HomeView: View {
                 .foregroundColor(.primary)
         }
     }
+    
+    private var offlineBanner: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "wifi.slash")
+                .font(.body)
+            
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Offline Mode")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                
+                if case .cache(let timestamp) = viewModel.dataSource {
+                    Text("Last updated \(formatTimestamp(timestamp))")
+                        .font(.caption)
+                        .opacity(0.8)
+                }
+            }
+            
+            Spacer()
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(Color.orange.opacity(0.9))
+        .foregroundColor(.white)
+    }
+
+    private func formatTimestamp(_ date: Date) -> String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .short
+        return formatter.localizedString(for: date, relativeTo: Date())
+    }
+
 }
 
 // MARK: - Personalized Section View
@@ -278,23 +330,16 @@ struct PersonalizedSectionView: View {
     
     private var sectionHeader: some View {
         HStack(alignment: .firstTextBaseline){
-                Image(systemName: sectionIcon)
-                    .font(DSText.itemTitle)
-                    .foregroundColor(theme.textColor)
-                
-                Text(section.label)
-                    .font(DSText.itemTitle)
-                    .fontWeight(.semibold)
-                    .foregroundColor(theme.textColor)
+            Image(systemName: sectionIcon)
+                .font(DSText.itemTitle)
+                .foregroundColor(theme.textColor)
             
-                Spacer()
-            /*
-            if !section.entities.isEmpty {
-                Text("(\(section.entities.count))")
-                    .font(DSText.footnote)
-                    .foregroundColor(.secondary)
-            }
-            */
+            Text(section.label)
+                .font(DSText.itemTitle)
+                .fontWeight(.semibold)
+                .foregroundColor(theme.textColor)
+        
+            Spacer()
         }
 
     }
@@ -403,7 +448,6 @@ struct SeriesCardView: View {
     
     private let cardStyle: BookCardStyle = .series
     @EnvironmentObject var theme: ThemeManager
-
     
     var body: some View {
 
@@ -437,9 +481,8 @@ struct SeriesCardView: View {
             }
             .frame(width: BookCardStyle.library.dimensions.width, height: BookCardStyle.library.dimensions.height)
             .scaleEffect(1.0)
+            .transition(.opacity)
             .animation(.spring(response: 0.3, dampingFraction: 0.6), value: 1)
-            .animation(.easeInOut(duration: 0.2), value: 1)
-
         }
         .buttonStyle(.plain)
     }
@@ -497,9 +540,12 @@ struct AuthorCardView: View {
                     .frame(width: 80)
             }
             .padding(.vertical, DSLayout.elementPadding)
+            .transition(.opacity)
+            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: 1)
         }
         .buttonStyle(.plain)
     }
+
 }
 
 // MARK: - Array Extension for Unique

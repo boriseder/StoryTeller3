@@ -20,11 +20,11 @@ struct SeriesSectionView: View {
     }
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 0) {
             // Series header
             Text(viewModel.series.name)
-                .font(.headline)
-                .padding(.horizontal)
+                .font(DSText.itemTitle)
+                .padding(.horizontal, DSLayout.tightPadding)
             
             // Books scroll view
             if viewModel.books.isEmpty {
@@ -55,7 +55,6 @@ struct SeriesSectionView: View {
                     )
                 }
             }
-            .padding(.horizontal)
         }
     }
     

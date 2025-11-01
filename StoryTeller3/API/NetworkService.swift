@@ -23,6 +23,7 @@ class DefaultNetworkService: NetworkService {
     func performRequest<T: Decodable>(_ request: URLRequest, responseType: T.Type) async throws -> T {
         do {
             let (data, response) = try await urlSession.data(for: request)
+                        
             try validateResponse(response, data: data)
             return try JSONDecoder().decode(T.self, from: data)
         } catch let urlError as URLError {

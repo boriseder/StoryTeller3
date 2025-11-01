@@ -27,7 +27,7 @@ struct LibraryItem: Codable, Identifiable {
     let isFile: Bool?
     let isMissing: Bool?
     let isInvalid: Bool?
-    let coverPath: String?
+    //let coverPath: String?
     
     // ← Series Object (nur bei collapseSeries=1)
     let collapsedSeries: CollapsedSeries?

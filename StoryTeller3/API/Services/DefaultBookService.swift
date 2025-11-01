@@ -53,9 +53,14 @@ class DefaultBookService: BookServiceProtocol {
                 let request = networkService.createAuthenticatedRequest(url: url, authToken: config.authToken)
                 let item: LibraryItem = try await networkService.performRequest(request, responseType: LibraryItem.self)
                 
+                // DEBUG: Dekodiertes Objekt prüfen
+                AppLogger.network.debug("########### Decoded coverPath: \(item.media.coverPath ?? "NIL")")
+
                 guard let book = converter.convertLibraryItemToBook(item) else {
                     throw AudiobookshelfError.bookNotFound(bookId)
                 }
+                
+                
                 
                 return book
                 

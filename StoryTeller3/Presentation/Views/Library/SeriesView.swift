@@ -5,9 +5,13 @@ struct SeriesView: View {
     @EnvironmentObject var appState: AppStateManager
     @EnvironmentObject var theme: ThemeManager
 
-    init(api: AudiobookshelfClient, onBookSelected: @escaping () -> Void) {
+    // Workaround to hide nodata at start of app
+    @State private var showEmptyState = false
+    
+    init(api: AudiobookshelfClient, appState: AppStateManager, onBookSelected: @escaping () -> Void) {
         self._viewModel = StateObject(wrappedValue: SeriesViewModelFactory.create(
             api: api,
+            appState: appState,
             onBookSelected: onBookSelected
         ))
     }
@@ -19,15 +23,53 @@ struct SeriesView: View {
                 Color.accent.ignoresSafeArea()
             }
 
-            if viewModel.isLoading {
-                LoadingView()
-            } else if let error = viewModel.errorMessage {
-                ErrorView(error: error)
-            } else if viewModel.series.isEmpty {
-                EmptyStateView()
-            } else {
-                contentView
+            ZStack {
+                switch viewModel.uiState {
+                    
+                case .content, .loading, .loadingFromCache:
+                    contentView
+                        .transition(.opacity)
+
+                case .offline(let cachedItemCount):
+                    if cachedItemCount > 0 {
+                        contentView
+                    } else {
+                        ErrorView(error: "No cached data available. Please connect to the internet.")
+                            .transition(.opacity)
+                    }
+
+                case .error(let message):
+                    ErrorView(error: message)
+                        .transition(.opacity)
+
+                case .empty:
+                    if showEmptyState {
+                        EmptyStateView()
+                            .transition(.opacity)
+                    }
+
+                case .noDownloads:
+                    NoDownloadsView()
+                        .transition(.opacity)
+                
+                case .noSearchResults:
+                    NoSearchResultsView()
+                        .transition(.opacity)
+
+                }
             }
+            .onChange(of: viewModel.uiState) {
+                if viewModel.uiState == .empty {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak viewModel] in
+                        guard viewModel?.uiState == .empty else { return }
+                        withAnimation { showEmptyState = true }
+                    }
+                } else {
+                    showEmptyState = false
+                }
+            }
+            .animation(.easeInOut(duration: 0.3), value: viewModel.uiState)
+
         }
         .navigationTitle(viewModel.libraryName)
         .navigationBarTitleDisplayMode(.large)
@@ -94,7 +136,6 @@ struct SeriesView: View {
         .opacity(viewModel.contentLoaded ? 1 : 0)
         .animation(.easeInOut(duration: 0.5), value: viewModel.contentLoaded)
         .onAppear { viewModel.contentLoaded = true }
-
     }
     
     // MARK: - Toolbar Components

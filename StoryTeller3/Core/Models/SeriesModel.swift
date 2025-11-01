@@ -40,7 +40,7 @@ extension Series: Decodable {
 extension Series {
     var bookCount: Int { books.count }
     var firstBook: LibraryItem? { books.first }
-    var coverPath: String? { firstBook?.coverPath }
+    var coverPath: String? { firstBook?.media.coverPath }
     var author: String? { firstBook?.media.metadata.author }
     var formattedDuration: String {
         TimeFormatter.formatTimeCompact(totalDuration)

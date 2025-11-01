@@ -41,7 +41,7 @@ class DefaultBookConverter: BookConverterProtocol {
             title: item.media.metadata.title,
             author: item.media.metadata.author,
             chapters: chapters,
-            coverPath: item.coverPath,
+            coverPath: item.media.coverPath,
             collapsedSeries: item.collapsedSeries
         )
     }

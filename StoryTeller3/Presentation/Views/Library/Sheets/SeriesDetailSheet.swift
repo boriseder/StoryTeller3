@@ -79,7 +79,7 @@ struct SeriesDetailSheet: View {
                     title: firstLibraryItem.media.metadata.title,
                     author: firstLibraryItem.media.metadata.author,
                     chapters: [],
-                    coverPath: firstLibraryItem.coverPath,
+                    coverPath: firstLibraryItem.media.coverPath,
                     collapsedSeries: nil
                 )
                 

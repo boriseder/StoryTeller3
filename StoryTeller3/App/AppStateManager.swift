@@ -194,3 +194,46 @@ class AppStateManager: ObservableObject {
         AppLogger.general.info("[AppState] Network monitoring started")
     }
 }
+
+// MARK: - Network Availability Helpers
+
+extension AppStateManager {
+    /// Check if network operations are possible
+    var canPerformNetworkOperations: Bool {
+        return isDeviceOnline && isServerReachable
+    }
+    
+    /// Get current network availability status
+    func getNetworkAvailability() -> NetworkAvailability {
+        if !isDeviceOnline {
+            return .noInternet
+        }
+        
+        if !isServerReachable {
+            return .serverUnreachable
+        }
+        
+        return .available
+    }
+}
+
+enum NetworkAvailability: Equatable {
+    case available
+    case noInternet
+    case serverUnreachable
+    
+    var isAvailable: Bool {
+        return self == .available
+    }
+    
+    var userMessage: String {
+        switch self {
+        case .available:
+            return ""
+        case .noInternet:
+            return "No internet connection"
+        case .serverUnreachable:
+            return "Server unreachable"
+        }
+    }
+}

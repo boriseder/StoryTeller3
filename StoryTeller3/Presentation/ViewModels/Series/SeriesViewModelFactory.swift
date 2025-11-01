@@ -3,6 +3,7 @@ import Foundation
 struct SeriesViewModelFactory {
     @MainActor static func create(
         api: AudiobookshelfClient,
+        appState: AppStateManager,
         onBookSelected: @escaping () -> Void,
         container: DependencyContainer? = nil
     ) -> SeriesViewModel {
@@ -18,6 +19,7 @@ struct SeriesViewModelFactory {
             api: api,
             downloadManager: container.downloadManager,
             player: container.player,
+            appState: appState,
             onBookSelected: onBookSelected
         )
     }

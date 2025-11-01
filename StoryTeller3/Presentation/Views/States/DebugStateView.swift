@@ -47,7 +47,7 @@ struct DebugView: View {
                 case .error:
                     ErrorView(error: "Fehler beim Laden")
                 case .loading:
-                    LoadingView(message: "Lädt...")
+                    LoadingView()
                 case .networkError:
                     NetworkErrorView(
                         issueType: .serverUnreachable,

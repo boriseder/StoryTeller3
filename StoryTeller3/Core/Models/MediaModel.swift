@@ -6,4 +6,5 @@ struct Media: Codable {
     let duration: Double?
     let size: Int64?
     let tracks: [AudioTrack]?
+    let coverPath: String? 
 }

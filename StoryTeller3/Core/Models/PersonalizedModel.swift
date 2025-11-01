@@ -68,7 +68,7 @@ struct PersonalizedEntity: Codable, Identifiable {
             isFile: nil,
             isMissing: nil,
             isInvalid: nil,
-            coverPath: nil,
+            //coverPath: nil,
             collapsedSeries: collapsedSeries
         )
     }

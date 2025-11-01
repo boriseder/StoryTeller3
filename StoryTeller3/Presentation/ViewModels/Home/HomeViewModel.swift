@@ -14,6 +14,9 @@ class HomeViewModel: ObservableObject {
     @Published var contentLoaded = false
     @Published var sectionsLoaded = false
     
+    // Offline mode tracking
+    @Published var dataSource: DataSource = .network(timestamp: Date())
+    
     // MARK: - Dependencies (Use Cases & Repositories)
     private let fetchPersonalizedSectionsUseCase: FetchPersonalizedSectionsUseCaseProtocol
     private let playBookUseCase: PlayBookUseCase
@@ -23,6 +26,7 @@ class HomeViewModel: ObservableObject {
     let api: AudiobookshelfClient
     let downloadManager: DownloadManager
     let player: AudioPlayer
+    let appState: AppStateManager
     let onBookSelected: () -> Void
     
     // MARK: - Computed Properties for UI
@@ -38,10 +42,14 @@ class HomeViewModel: ObservableObject {
     }
     
     var uiState: HomeUIState {
+        let isOffline = !appState.canPerformNetworkOperations
+        
         if isLoading {
-            return .loading
+            return isOffline ? .loadingFromCache : .loading
         } else if let error = errorMessage {
             return .error(error)
+        } else if isOffline && !personalizedSections.isEmpty {
+            return .offline(hasCachedData: true)
         } else if personalizedSections.isEmpty {
             return .empty
         } else {
@@ -57,6 +65,7 @@ class HomeViewModel: ObservableObject {
         api: AudiobookshelfClient,
         downloadManager: DownloadManager,
         player: AudioPlayer,
+        appState: AppStateManager,
         onBookSelected: @escaping () -> Void
     ) {
         self.fetchPersonalizedSectionsUseCase = fetchPersonalizedSectionsUseCase
@@ -66,7 +75,11 @@ class HomeViewModel: ObservableObject {
         self.api = api
         self.downloadManager = downloadManager
         self.player = player
+        self.appState = appState
         self.onBookSelected = onBookSelected
+        
+        observeNetworkChanges()
+
     }
     
     // MARK: - Actions (Delegate to Use Cases)
@@ -88,10 +101,9 @@ class HomeViewModel: ObservableObject {
                 isLoading = false
                 return
             }
-
-            // libraryName = "\(selectedLibrary.name) - Home"
+            
             libraryName = "Explore & listen"
-
+            
             // Fetch sections and stats in parallel
             async let sectionsTask = fetchPersonalizedSectionsUseCase.execute(
                 libraryId: selectedLibrary.id
@@ -99,6 +111,9 @@ class HomeViewModel: ObservableObject {
             async let statsTask = api.libraries.fetchLibraryStats(libraryId: selectedLibrary.id)
             
             let (fetchedSections, totalBooks) = try await (sectionsTask, statsTask)
+            
+            // Success from network
+            dataSource = .network(timestamp: Date())
             
             withAnimation(.easeInOut) {
                 personalizedSections = fetchedSections
@@ -113,12 +128,22 @@ class HomeViewModel: ObservableObject {
             )
             
         } catch let error as RepositoryError {
-            errorMessage = error.localizedDescription
-            showingErrorAlert = true
-            AppLogger.general.debug("[HomeViewModel] Repository error: \(error)")
+            // On error, check if we have cached data from previous successful load
+            if !personalizedSections.isEmpty {
+                dataSource = .cache(timestamp: Date())
+                AppLogger.general.debug("[HomeViewModel] Using in-memory cached data, network unavailable")
+            } else {
+                errorMessage = error.localizedDescription
+                showingErrorAlert = true
+                AppLogger.general.debug("[HomeViewModel] Repository error: \(error)")
+            }
         } catch {
-            errorMessage = error.localizedDescription
-            showingErrorAlert = true
+            if !personalizedSections.isEmpty {
+                dataSource = .cache(timestamp: Date())
+            } else {
+                errorMessage = error.localizedDescription
+                showingErrorAlert = true
+            }
         }
         
         isLoading = false
@@ -144,7 +169,7 @@ class HomeViewModel: ObservableObject {
         
         isLoading = false
     }
-
+    
     func loadSeriesBooks(_ series: Series, appState: AppStateManager) async {
         AppLogger.general.debug("Loading series: \(series.name)")
         
@@ -219,5 +244,25 @@ class HomeViewModel: ObservableObject {
         }
         
         return allBooks
+    }
+    
+    // to switch datasoruce from .network to .cache in case no network is available
+    
+    private func observeNetworkChanges() {
+        Task { @MainActor [weak self] in
+            guard let self = self else { return }
+            for await _ in appState.$isDeviceOnline.values.dropFirst() {
+                self.updateDataSourceBasedOnNetwork()
+            }
+        }
+    }
+    
+    private func updateDataSourceBasedOnNetwork() {
+        if !appState.canPerformNetworkOperations {
+            dataSource = .cache(timestamp: Date())
+        } else {
+            dataSource = .network(timestamp: Date())
+        }
+        
     }
 }

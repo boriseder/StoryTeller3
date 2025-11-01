@@ -8,9 +8,13 @@ struct LibraryView: View {
     @State private var selectedSeries: Book?
     @State private var bookCardVMs: [BookCardStateViewModel] = []
     
-    init(api: AudiobookshelfClient, onBookSelected: @escaping () -> Void) {
+    // Workaround to hide nodata at start of app
+    @State private var showEmptyState = false
+
+    init(api: AudiobookshelfClient, appState: AppStateManager, onBookSelected: @escaping () -> Void) {
         self._viewModel = StateObject(wrappedValue: LibraryViewModelFactory.create(
             api: api,
+            appState: appState,
             onBookSelected: onBookSelected
         ))
     }
@@ -22,21 +26,53 @@ struct LibraryView: View {
                 Color.accent.ignoresSafeArea()
             }
             
-            
-            switch viewModel.uiState {
-            case .loading:
-                LoadingView()
-            case .error(let message):
-                ErrorView(error: message)
-            case .empty:
-                EmptyStateView()
-            case .noDownloads:
-                NoDownloadsView()
-            case .noSearchResults:
-                NoSearchResultsView()
-            case .content:
-                contentView
+            ZStack {
+                switch viewModel.uiState {
+                    
+                case .content, .loading, .loadingFromCache:
+                    contentView
+                        .transition(.opacity)
+
+                case .offline(let cachedItemCount):
+                    if cachedItemCount > 0 {
+                        contentView
+                    } else {
+                        ErrorView(error: "No cached data available. Please connect to the internet.")
+                            .transition(.opacity)
+                    }
+
+                case .error(let message):
+                    ErrorView(error: message)
+                        .transition(.opacity)
+
+                case .empty:
+                    if showEmptyState {
+                        EmptyStateView()
+                            .transition(.opacity)
+                    }
+
+                case .noDownloads:
+                    NoDownloadsView()
+                        .transition(.opacity)
+                
+                case .noSearchResults:
+                    NoSearchResultsView()
+                        .transition(.opacity)
+
+                }
             }
+            .onChange(of: viewModel.uiState) {
+                if viewModel.uiState == .empty {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak viewModel] in
+                        guard viewModel?.uiState == .empty else { return }
+                        withAnimation { showEmptyState = true }
+                    }
+                } else {
+                    showEmptyState = false
+                }
+            }
+            .animation(.easeInOut(duration: 0.3), value: viewModel.uiState)
+
         }
         .navigationTitle(viewModel.libraryName)
         .navigationBarTitleDisplayMode(.large)
@@ -103,8 +139,7 @@ struct LibraryView: View {
             if theme.backgroundStyle == .dynamic {
                 DynamicBackground()
             }
-            
-            VStack(spacing: 0) {
+
                 if viewModel.filterState.showDownloadedOnly {
                     FilterStatusBannerView(
                         count: viewModel.filteredAndSortedBooks.count,
@@ -121,7 +156,12 @@ struct LibraryView: View {
                 }
                 
                 ScrollView {
-                    LazyVGrid(columns: DSGridColumns.two) {
+                    
+                    if !appState.canPerformNetworkOperations, case .cache = viewModel.dataSource {
+                        offlineBanner
+                    }
+                    
+                    LazyVGrid(columns: DSGridColumns.two, spacing: 0) {
                         ForEach(bookCardVMs) { bookVM in
                             BookCardView(
                                 viewModel: bookVM,
@@ -139,15 +179,15 @@ struct LibraryView: View {
                             )
                             
                         }
-                        .padding(.bottom, DSLayout.elementPadding)
+                        .padding(.vertical, DSLayout.contentPadding)
                     }
-                    
+
                     Spacer()
                         .frame(height: DSLayout.miniPlayerHeight)
                 }
                 .scrollIndicators(.hidden)
                 .padding(.horizontal, DSLayout.screenPadding)
-            }
+
         }
         .opacity(viewModel.contentLoaded ? 1 : 0)
         .animation(.easeInOut(duration: 0.5), value: viewModel.contentLoaded)
@@ -331,6 +371,38 @@ struct LibraryView: View {
             .animation(.spring(response: 0.3, dampingFraction: 0.7), value: viewModel.filterState.hasActiveFilters)
         }
     }
+    
+    private var offlineBanner: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "wifi.slash")
+                .font(.body)
+            
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Offline Mode")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                
+                if case .cache(let timestamp) = viewModel.dataSource {
+                    Text("Last updated \(formatTimestamp(timestamp))")
+                        .font(.caption)
+                        .opacity(0.8)
+                }
+            }
+            
+            Spacer()
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(Color.orange.opacity(0.9))
+        .foregroundColor(.white)
+    }
+
+    private func formatTimestamp(_ date: Date) -> String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .short
+        return formatter.localizedString(for: date, relativeTo: Date())
+    }
+
 }
 // MARK: - Filter Status Banner Component
 struct FilterStatusBannerView: View {
