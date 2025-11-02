@@ -63,6 +63,8 @@ class BookCoverLoader: ObservableObject {
                 self.image = cachedImage
                 self.isLoading = false
             }
+            AppLogger.cache.debug("Loaded book cover from memory cache")
+
             return
         }
         
@@ -73,6 +75,8 @@ class BookCoverLoader: ObservableObject {
                 self.image = diskCachedImage
                 self.isLoading = false
             }
+            AppLogger.cache.debug("Loaded book cover from disc cache")
+
             return
         }
 
@@ -84,6 +88,7 @@ class BookCoverLoader: ObservableObject {
                 self.isLoading = false
             }
             cacheManager.setDiskCachedImage(localImage, for: memoryCacheKey)
+            AppLogger.cache.debug("Loaded book cover from local storage")
             return
         }
         

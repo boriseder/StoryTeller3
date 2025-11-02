@@ -80,7 +80,8 @@ class CoverCacheManager: ObservableObject {
     
     // MARK: - Disk Cache
     private func diskCacheURL(for key: String) -> URL {
-        let filename = key.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? key
+        let safeKey = key.removingPercentEncoding ?? key
+        let filename = safeKey.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? safeKey
         return cacheDirectory.appendingPathComponent("\(filename).jpg")
     }
     
@@ -101,10 +102,16 @@ class CoverCacheManager: ObservableObject {
         let url = diskCacheURL(for: key)
         guard let data = image.jpegData(compressionQuality: 0.8) else { return }
         
+        // Prüfen, ob Datei schon existiert
+        guard !fileManager.fileExists(atPath: url.path) else {
+            AppLogger.cache.debug("Image already cached for key: \(key)")
+            return
+        }
+
+        
         try? data.write(to: url)
         setCachedImage(image, for: key)
         
-        AppLogger.cache.debug("### Disk cached image for key: \(key), url: \(url)")
         AppLogger.cache.debug("### Disk cached image for key: \(key), url: \(url)")
 
     }
