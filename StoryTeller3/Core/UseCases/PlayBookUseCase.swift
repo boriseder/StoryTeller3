@@ -148,6 +148,7 @@ class PlayBookUseCase: PlayBookUseCaseProtocol {
         
         // Priority 3: No download, no network = Unavailable
         return .unavailable
+
     }
     
     private func loadLocalMetadata(bookId: String, downloadManager: DownloadManager) throws -> Book {

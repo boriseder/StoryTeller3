@@ -128,10 +128,14 @@ final class DefaultDownloadOrchestrationService: DownloadOrchestrationService {
         api: AudiobookshelfClient,
         bookDir: URL
     ) async throws {
+        
+        // WRONG ENDPOINT
+        /*
         guard let coverURL = URL(string: "\(api.baseURLString)\(coverPath)") else {
             throw DownloadError.invalidCoverURL
         }
-             
+         */
+        
         // PATCH
         //new endpoint as
         let coverURLString = "\(api.baseURLString)/api/items/\(bookId)/cover"

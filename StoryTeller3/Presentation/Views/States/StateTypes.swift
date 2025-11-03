@@ -3,7 +3,7 @@ import SwiftUI
 enum LibraryUIState: Equatable {
     case loading
     case loadingFromCache
-    case error(String)
+//    case error(String)
     case offline(cachedItemCount: Int)
     case empty
     case noDownloads
@@ -14,7 +14,7 @@ enum LibraryUIState: Equatable {
 enum HomeUIState: Equatable {
     case loading
     case loadingFromCache
-    case error(String)
+//    case error(String)
     case offline(hasCachedData: Bool)
     case empty
     case noDownloads

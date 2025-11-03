@@ -63,8 +63,8 @@ class LibraryViewModel: ObservableObject {
         
         if isLoading {
             return isOffline ? .loadingFromCache : .loading
-        } else if let error = errorMessage {
-            return .error(error)
+ //       } else if let error = errorMessage {
+ //           return .error(error)
         } else if isOffline && !books.isEmpty {
             return .offline(cachedItemCount: books.count)
         } else if books.isEmpty {

@@ -34,10 +34,11 @@ struct HomeView: View {
                             .transition(.opacity)
                     }
 
+/*
                 case .error(let message):
                     ErrorView(error: message)
                         .transition(.opacity)
-
+*/
                 case .empty:
                     if showEmptyState {
                         EmptyStateView()
@@ -78,12 +79,30 @@ struct HomeView: View {
             await viewModel.loadPersonalizedSections()
         }
         .alert("Error", isPresented: $viewModel.showingErrorAlert) {
-            Button("OK") { }
-            Button("Retry") {
-                Task { await viewModel.loadPersonalizedSections() }
+            Button("OK") {
+                appState.selectedTab = .downloads
             }
+            Button("Reconnect") {
+                Task {
+                    guard let baseURL = UserDefaults.standard.string(forKey: "baseURL") else { return }
+                    let useCase = TestConnectionUseCase(connectionHealthChecker: ConnectionHealthChecker())
+                    let isConnected = await useCase.execute(baseURL: baseURL)
+                    
+                    await MainActor.run {
+                        appState.isDeviceOnline = isConnected
+                        if isConnected {
+                            viewModel.showingErrorAlert = false
+                        }
+                    }
+                }
+            }
+            Button("Cancel", role: .cancel) { }
         } message: {
-            Text(viewModel.errorMessage ?? "Unknown Error")
+            Text("""
+            \(viewModel.errorMessage ?? "Unknown Error")
+            
+            Do you want to change to your downloaded books?
+            """)
         }
         .task {
             await viewModel.loadPersonalizedSectionsIfNeeded()

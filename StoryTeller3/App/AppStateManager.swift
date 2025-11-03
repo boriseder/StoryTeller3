@@ -111,6 +111,8 @@ class AppStateManager: ObservableObject {
     @Published var isDeviceOnline: Bool = true
     @Published var isServerReachable: Bool = true
     
+    @Published var selectedTab: TabIndex = .home
+    
     // Remove DependencyContainer dependency from init
     private weak var dependencies: DependencyContainer?
     

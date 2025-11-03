@@ -32,11 +32,11 @@ struct LibraryView: View {
                         ErrorView(error: "No cached data available. Please connect to the internet.")
                             .transition(.opacity)
                     }
-
+/*
                 case .error(let message):
                     ErrorView(error: message)
                         .transition(.opacity)
-
+*/
                 case .empty:
                     if showEmptyState {
                         EmptyStateView()
@@ -80,6 +80,32 @@ struct LibraryView: View {
             prompt: "Search books...")
         .refreshable {
             await viewModel.loadBooks()
+        }
+        .alert("Error", isPresented: $viewModel.showingErrorAlert) {
+            Button("OK") {
+                appState.selectedTab = .downloads
+            }
+            Button("Reconnect") {
+                Task {
+                    guard let baseURL = UserDefaults.standard.string(forKey: "baseURL") else { return }
+                    let useCase = TestConnectionUseCase(connectionHealthChecker: ConnectionHealthChecker())
+                    let isConnected = await useCase.execute(baseURL: baseURL)
+                    
+                    await MainActor.run {
+                        appState.isDeviceOnline = isConnected
+                        if isConnected {
+                            viewModel.showingErrorAlert = false
+                        }
+                    }
+                }
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("""
+            \(viewModel.errorMessage ?? "Unknown Error")
+            
+            Do you want to change to your downloaded books?
+            """)
         }
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {

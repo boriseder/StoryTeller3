@@ -47,8 +47,8 @@ class HomeViewModel: ObservableObject {
         
         if isLoading {
             return isOffline ? .loadingFromCache : .loading
-        } else if let error = errorMessage {
-            return .error(error)
+//        } else if let error = errorMessage {
+//            return .error(error)
         } else if isOffline && !personalizedSections.isEmpty {
             return .offline(hasCachedData: true)
         } else if personalizedSections.isEmpty {
