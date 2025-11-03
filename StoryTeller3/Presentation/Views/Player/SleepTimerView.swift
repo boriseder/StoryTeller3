@@ -1,18 +1,14 @@
 import SwiftUI
 
 struct SleepTimerView: View {
-    @StateObject private var viewModel: SleepTimerViewModel
+    @EnvironmentObject private var sleepTimer: SleepTimerService  // ADD THIS
     @Environment(\.dismiss) private var dismiss
-    
-    init(player: AudioPlayer) {
-        self._viewModel = StateObject(wrappedValue: SleepTimerViewModel(player: player))
-    }
     
     var body: some View {
         NavigationView {
             ScrollView {
                 VStack(spacing: 24) {
-                    if viewModel.isTimerActive {
+                    if sleepTimer.isTimerActive {
                         activeSleepTimerView
                     } else {
                         sleepTimerOptionsView
@@ -30,7 +26,7 @@ struct SleepTimerView: View {
                 }
             }
             .onDisappear {
-                AppLogger.general.debug("[SleepTimerView] View dismissed, timer state: \(viewModel.isTimerActive)")
+                AppLogger.general.debug("[SleepTimerView] View dismissed, timer state: \(sleepTimer.isTimerActive)")
             }
         }
     }
@@ -75,7 +71,7 @@ struct SleepTimerView: View {
             Image(systemName: "moon.fill")
                 .font(.system(size: 50))
                 .foregroundColor(.blue)
-                .symbolEffect(.pulse, value: viewModel.isTimerActive)
+                .symbolEffect(.pulse, value: sleepTimer.isTimerActive)
         }
     }
     
@@ -85,12 +81,12 @@ struct SleepTimerView: View {
                 .font(.headline)
                 .foregroundColor(.primary)
             
-            Text(TimeFormatter.formatTime(viewModel.remainingTime))
+            Text(TimeFormatter.formatTime(sleepTimer.remainingTime))
                 .font(.system(size: 56, weight: .bold, design: .rounded))
                 .monospacedDigit()
                 .foregroundColor(.blue)
                 .contentTransition(.numericText())
-                .animation(.smooth, value: viewModel.remainingTime)
+                .animation(.smooth, value: sleepTimer.remainingTime)
             
             Text("remaining")
                 .font(.subheadline)
@@ -100,7 +96,7 @@ struct SleepTimerView: View {
     
     private var timerModeInfo: some View {
         Group {
-            if let mode = viewModel.currentMode {
+            if let mode = sleepTimer.currentMode {
                 VStack(spacing: 8) {
                     HStack(spacing: 6) {
                         Image(systemName: modeIcon(for: mode))
@@ -159,7 +155,7 @@ struct SleepTimerView: View {
     private var cancelButton: some View {
         Button(action: {
             AppLogger.general.debug("[SleepTimerView] Cancel timer button tapped")
-            viewModel.cancelTimer()
+            sleepTimer.cancelTimer()
         }) {
             HStack {
                 Image(systemName: "xmark.circle.fill")
@@ -238,7 +234,7 @@ struct SleepTimerView: View {
                 GridItem(.flexible()),
                 GridItem(.flexible())
             ], spacing: 12) {
-                ForEach(viewModel.timerOptionsArray, id: \.self) { minutes in
+                ForEach(sleepTimer.timerOptionsArray, id: \.self) { minutes in
                     durationOptionButton(minutes: minutes)
                 }
             }
@@ -248,7 +244,7 @@ struct SleepTimerView: View {
     private func durationOptionButton(minutes: Int) -> some View {
         Button(action: {
             AppLogger.general.debug("[SleepTimerView] Timer option selected: \(minutes) minutes")
-            viewModel.startTimer(mode: .duration(minutes: minutes))
+            sleepTimer.startTimer(mode: .duration(minutes: minutes))
         }) {
             VStack(spacing: 8) {
                 Text("\(minutes)")
@@ -282,14 +278,14 @@ struct SleepTimerView: View {
                 .padding(.horizontal, 4)
             
             VStack(spacing: 12) {
-                if viewModel.player.currentChapter != nil {
+                if sleepTimer.player.currentChapter != nil {
                     smartOptionButton(
                         icon: "book.pages.fill",
                         title: "End of Current Chapter",
                         subtitle: "Pause when chapter finishes",
                         action: {
                             AppLogger.general.debug("[SleepTimerView] End of chapter option selected")
-                            viewModel.startTimer(mode: .endOfChapter)
+                            sleepTimer.startTimer(mode: .endOfChapter)
                         }
                     )
                 }
@@ -300,7 +296,7 @@ struct SleepTimerView: View {
                     subtitle: "Pause when book finishes",
                     action: {
                         AppLogger.general.debug("[SleepTimerView] End of book option selected")
-                        viewModel.startTimer(mode: .endOfBook)
+                        sleepTimer.startTimer(mode: .endOfBook)
                     }
                 )
             }

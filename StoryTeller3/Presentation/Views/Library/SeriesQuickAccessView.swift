@@ -2,25 +2,20 @@ import SwiftUI
 
 struct SeriesQuickAccessView: View {
     @StateObject private var viewModel: SeriesQuickAccessViewModel
-    @EnvironmentObject var appState: AppStateManager
     @Environment(\.dismiss) private var dismiss
-    
+    @EnvironmentObject private var appState: AppStateManager
+
     init(
         seriesBook: Book,
-        player: AudioPlayer,
-        api: AudiobookshelfClient,
-        downloadManager: DownloadManager,
         onBookSelected: @escaping () -> Void
     ) {
-        self._viewModel = StateObject(wrappedValue: SeriesQuickAccessViewModel(
+        _viewModel = StateObject(wrappedValue: SeriesQuickAccessViewModel(
             seriesBook: seriesBook,
-            player: player,
-            api: api,
-            downloadManager: downloadManager,
+            container: .shared,
             onBookSelected: onBookSelected
         ))
     }
-    
+
     var body: some View {
         Group {
             if viewModel.isLoading {

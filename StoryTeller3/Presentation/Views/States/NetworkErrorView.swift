@@ -68,7 +68,7 @@ struct NetworkErrorView: View {
                 }
                 
                 VStack(spacing: 12) {
-                    if issueType.canRetry {
+                   // if issueType.canRetry {
                         Button(action: onRetry) {
                             HStack {
                                 Image(systemName: "arrow.clockwise")
@@ -81,7 +81,7 @@ struct NetworkErrorView: View {
                             .background(Color.accentColor)
                             .clipShape(Capsule())
                         }
-                    }
+                    //}
                     
                     Button(action: onSettings) {
                         Text("Check Settings")

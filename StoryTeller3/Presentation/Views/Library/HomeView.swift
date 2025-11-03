@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct HomeView: View {
-    @StateObject private var viewModel: HomeViewModel
+    @StateObject private var viewModel: HomeViewModel = DependencyContainer.shared.homeViewModel
     @EnvironmentObject var appState: AppStateManager
     @EnvironmentObject var theme: ThemeManager
 
@@ -10,14 +10,6 @@ struct HomeView: View {
     
     // Workaround to hide nodata at start of app
     @State private var showEmptyState = false
-    
-    init(api: AudiobookshelfClient, appState: AppStateManager, onBookSelected: @escaping () -> Void) {
-        self._viewModel = StateObject(wrappedValue: HomeViewModelFactory.create(
-            api: api,
-            appState: appState,
-            onBookSelected: onBookSelected
-        ))
-    }
 
     var body: some View {
         ZStack {
@@ -132,9 +124,7 @@ struct HomeView: View {
 
             ScrollView {
                 LazyVStack(spacing: DSLayout.contentGap) {
-                    if !appState.canPerformNetworkOperations, case .cache = viewModel.dataSource {
-                        offlineBanner
-                    }
+                    offlineBanner
                     
                     homeHeaderView
                         .padding(.bottom, DSLayout.elementPadding)
@@ -278,6 +268,24 @@ struct HomeView: View {
             }
             
             Spacer()
+            
+            Divider()
+                .frame(height: 40)
+
+            // Third section
+            Button {
+                appState.isDeviceOnline.toggle()
+                appState.isServerReachable.toggle()
+            } label: {
+                Image(systemName: appState.isDeviceOnline ? "icloud" : "icloud.slash")
+                    .font(DSText.button)
+                    .foregroundColor(appState.isDeviceOnline ? Color.green : Color.red)
+                    .padding(DSLayout.tightPadding)
+                    .background(appState.isDeviceOnline ? Color.green.opacity(0.1) : Color.red.opacity(0.1))
+                    .clipShape(Circle())
+            }
+            .padding(.horizontal, DSLayout.elementPadding)
+
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)

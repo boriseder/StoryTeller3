@@ -1,20 +1,13 @@
 import SwiftUI
 
 struct SeriesView: View {
-    @StateObject private var viewModel: SeriesViewModel
+    @StateObject private var viewModel: SeriesViewModel = DependencyContainer.shared.seriesViewModel
     @EnvironmentObject var appState: AppStateManager
     @EnvironmentObject var theme: ThemeManager
+    @EnvironmentObject var seriesViewModel: SeriesViewModel
 
     // Workaround to hide nodata at start of app
     @State private var showEmptyState = false
-    
-    init(api: AudiobookshelfClient, appState: AppStateManager, onBookSelected: @escaping () -> Void) {
-        self._viewModel = StateObject(wrappedValue: SeriesViewModelFactory.create(
-            api: api,
-            appState: appState,
-            onBookSelected: onBookSelected
-        ))
-    }
 
     var body: some View {
         ZStack {

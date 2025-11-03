@@ -57,6 +57,7 @@ class DefaultBookService: BookServiceProtocol {
                 AppLogger.network.debug("########### Decoded coverPath: \(item.media.coverPath ?? "NIL")")
 
                 guard let book = converter.convertLibraryItemToBook(item) else {
+                    AppLogger.general.debug("[BookService] bookNotFound ##############")
                     throw AudiobookshelfError.bookNotFound(bookId)
                 }
                 
@@ -74,6 +75,7 @@ class DefaultBookService: BookServiceProtocol {
                     continue
                 }
             } catch {
+                AppLogger.general.debug("[BookService] error ########### \(error)")
                 throw error
             }
         }

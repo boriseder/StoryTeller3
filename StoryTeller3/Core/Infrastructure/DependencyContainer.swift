@@ -1,162 +1,206 @@
 import Foundation
+import SwiftUI
 
-// MARK: - Dependency Container
-// Central dependency management following Clean Architecture principles
-// Provides singleton instances and factory methods for all major components
-
+@MainActor
 final class DependencyContainer: ObservableObject {
 
     // MARK: - Singleton
-    @MainActor
     static let shared = DependencyContainer()
+
+    // MARK: - Core Services
+    @Published private(set) var apiClient: AudiobookshelfClient?
+    lazy var appState: AppStateManager = AppStateManager.shared
+    lazy var downloadManager: DownloadManager = DownloadManager()
+    lazy var player: AudioPlayer = AudioPlayer()
+    lazy var playerStateManager: PlayerStateManager = PlayerStateManager()
     
-    // MARK: - Core Services (Singleton)
-    @MainActor
-    private(set) lazy var keychainService: KeychainService = {
-        KeychainService.shared
+    lazy var sleepTimerService: SleepTimerService = {
+        SleepTimerService(player: player, timerService: TimerService())
     }()
     
-    @MainActor
-    private(set) lazy var coverCacheManager: CoverCacheManager = {
-        CoverCacheManager.shared
+    // MARK: - Repositories
+    private var _bookRepository: BookRepository?
+    private var _libraryRepository: LibraryRepository?
+    private var _downloadRepository: DownloadRepository?
+
+    // MARK: - ViewModels (Singletons)
+    lazy var homeViewModel: HomeViewModel = {
+        HomeViewModel(
+            fetchPersonalizedSectionsUseCase: makeFetchPersonalizedSectionsUseCase(),
+            downloadRepository: downloadRepository,
+            libraryRepository: libraryRepository,
+            bookRepository: bookRepository,
+            api: apiClient!,
+            downloadManager: downloadManager,
+            player: player,
+            appState: appState,
+            onBookSelected: {}
+        )
     }()
-    
-    // MARK: - Infrastructure Services
-    @MainActor
-    private(set) lazy var connectionHealthChecker: ConnectionHealthChecker = {
-        ConnectionHealthChecker()
+
+    lazy var libraryViewModel: LibraryViewModel = {
+        LibraryViewModel(
+            fetchBooksUseCase: makeFetchBooksUseCase(),
+            downloadRepository: downloadRepository,
+            libraryRepository: libraryRepository,
+            api: apiClient!,
+            downloadManager: downloadManager,
+            player: player,
+            appState: appState,
+            onBookSelected: {}
+        )
     }()
-    
-    @MainActor
-    private(set) lazy var storageMonitor: StorageMonitor = {
-        StorageMonitor()
+
+    lazy var seriesViewModel: SeriesViewModel = {
+        SeriesViewModel(
+            fetchSeriesUseCase: makeFetchSeriesUseCase(),
+            downloadRepository: downloadRepository,
+            libraryRepository: libraryRepository,
+            api: apiClient!,
+            downloadManager: downloadManager,
+            player: player,
+            appState: appState,
+            onBookSelected: {}
+        )
     }()
-    
-    @MainActor
-    private(set) lazy var serverValidator: ServerConfigValidator = {
-        ServerConfigValidator()
+
+    lazy var downloadsViewModel: DownloadsViewModel = {
+        DownloadsViewModel(
+            downloadManager: downloadManager,
+            player: player,
+            api: apiClient!,
+            appState: appState,
+            storageMonitor: storageMonitor,
+            onBookSelected: {}
+        )
     }()
-    
-    @MainActor
-    private(set) lazy var diagnosticsService: DiagnosticsService = {
-        DiagnosticsService()
+
+    lazy var settingsViewModel: SettingsViewModel = {
+        SettingsViewModel(
+            testConnectionUseCase: makeTestConnectionUseCase(),
+            authenticationUseCase: makeAuthenticationUseCase(),
+            fetchLibrariesUseCase: makeFetchLibrariesUseCase(),
+            calculateStorageUseCase: makeCalculateStorageUseCase(),
+            clearCacheUseCase: makeClearCacheUseCase(),
+            saveCredentialsUseCase: makeSaveCredentialsUseCase(),
+            loadCredentialsUseCase: makeLoadCredentialsUseCase(),
+            logoutUseCase: makeLogoutUseCase(),
+            serverValidator: serverValidator,
+            diagnosticsService: diagnosticsService,
+            coverCacheManager: coverCacheManager,
+            downloadManager: downloadManager
+        )
     }()
-    
-    @MainActor
-    private(set) lazy var authService: AuthenticationService = {
-        AuthenticationService()
-    }()
-    
-    // MARK: - Managers (Singleton - shared state)
-    @MainActor
-    private(set) lazy var downloadManager: DownloadManager = {
-        DownloadManager()
-    }()
-    
-    @MainActor
-    private(set) lazy var player: AudioPlayer = {
-        AudioPlayer()
-    }()
-    
-    @MainActor
-    private(set) lazy var playerStateManager: PlayerStateManager = {
-        PlayerStateManager()
-    }()
-    
-    // MARK: - Private Init
+
+    // MARK: - Core Infrastructure
+    lazy var storageMonitor: StorageMonitor = StorageMonitor()
+    lazy var connectionHealthChecker: ConnectionHealthChecker = ConnectionHealthChecker()
+    lazy var keychainService: KeychainService = KeychainService.shared
+    lazy var coverCacheManager: CoverCacheManager = CoverCacheManager.shared
+    lazy var authService: AuthenticationService = AuthenticationService()
+    lazy var serverValidator: ServerConfigValidator = ServerConfigValidator()
+    lazy var diagnosticsService: DiagnosticsService = DiagnosticsService()
+
     private init() {}
-    
-    // MARK: - Repository Factory Methods
-    @MainActor
-    func makeBookRepository(api: AudiobookshelfClient) -> BookRepository {
-        BookRepository(api: api, cache: BookCache())
+
+    // MARK: - Configure API
+    func configureAPI(baseURL: String, token: String) {
+        apiClient = AudiobookshelfClient(baseURL: baseURL, authToken: token)
+        AppLogger.general.info("[Container] API configured for \(baseURL)")
     }
-    
-    @MainActor
-    func makeLibraryRepository(api: AudiobookshelfClient, settingsRepository: SettingsRepository? = nil) -> LibraryRepository {
-        LibraryRepository(api: api, settingsRepository: settingsRepository ?? SettingsRepository())
+
+    // MARK: - Repositories (Lazy Singletons)
+    var bookRepository: BookRepository {
+        if let existing = _bookRepository { return existing }
+        let repo = BookRepository(api: apiClient!)
+        _bookRepository = repo
+        return repo
     }
-    
-    @MainActor
-    func makePlaybackRepository() -> PlaybackRepository {
-        PlaybackRepository()
+
+    var libraryRepository: LibraryRepository {
+        if let existing = _libraryRepository { return existing }
+        let repo = LibraryRepository(api: apiClient!, settingsRepository: SettingsRepository())
+        _libraryRepository = repo
+        return repo
     }
-    
-    @MainActor
-    func makeSettingsRepository() -> SettingsRepository {
-        SettingsRepository()
-    }
-    
-    @MainActor
-    func makeDownloadRepository() -> DownloadRepository {
-        guard let repository = downloadManager.repository else {
-            fatalError("DownloadManager not initialized. Ensure setup() is called first.")
+
+    var downloadRepository: DownloadRepository {
+        if let existing = _downloadRepository { return existing }
+        guard let repo = downloadManager.repository else {
+            fatalError("DownloadManager repository not initialized")
         }
-        return repository
+        _downloadRepository = repo
+        return repo
     }
-    
-    // MARK: - Use Case Factory Methods
-    @MainActor
-    func makeFetchBooksUseCase(api: AudiobookshelfClient) -> FetchBooksUseCase {
-        let bookRepository = makeBookRepository(api: api)
-        return FetchBooksUseCase(bookRepository: bookRepository)
+
+    // MARK: - Use Cases
+    func makeFetchBooksUseCase() -> FetchBooksUseCase {
+        FetchBooksUseCase(bookRepository: bookRepository)
     }
-    
-    @MainActor
-    func makeFetchSeriesUseCase(api: AudiobookshelfClient) -> FetchSeriesUseCase {
-        let bookRepository = makeBookRepository(api: api)
-        return FetchSeriesUseCase(bookRepository: bookRepository)
+
+    func makeFetchSeriesUseCase() -> FetchSeriesUseCase {
+        FetchSeriesUseCase(bookRepository: bookRepository)
     }
-    
-    @MainActor
-    func makeFetchPersonalizedSectionsUseCase(api: AudiobookshelfClient) -> FetchPersonalizedSectionsUseCase {
-        let bookRepository = makeBookRepository(api: api)
-        return FetchPersonalizedSectionsUseCase(bookRepository: bookRepository)
+
+    func makeFetchPersonalizedSectionsUseCase() -> FetchPersonalizedSectionsUseCase {
+        FetchPersonalizedSectionsUseCase(bookRepository: bookRepository)
     }
-    
-    @MainActor
-    func makeSyncProgressUseCase(api: AudiobookshelfClient) -> SyncProgressUseCase {
-        let playbackRepository = makePlaybackRepository()
-        return SyncProgressUseCase(playbackRepository: playbackRepository, api: api)
+
+    func makeSyncProgressUseCase() -> SyncProgressUseCase {
+        SyncProgressUseCase(playbackRepository: PlaybackRepository(), api: apiClient!)
     }
-    
-    @MainActor
+
     func makeTestConnectionUseCase() -> TestConnectionUseCase {
         TestConnectionUseCase(connectionHealthChecker: connectionHealthChecker)
     }
-    
-    @MainActor
+
     func makeAuthenticationUseCase() -> AuthenticationUseCase {
         AuthenticationUseCase(authService: authService, keychainService: keychainService)
     }
-    
-    @MainActor
+
     func makeFetchLibrariesUseCase() -> FetchLibrariesUseCase {
         FetchLibrariesUseCase()
     }
-    
-    @MainActor
+
     func makeCalculateStorageUseCase() -> CalculateStorageUseCase {
         CalculateStorageUseCase(storageMonitor: storageMonitor, downloadManager: downloadManager)
     }
-    
-    @MainActor
+
     func makeClearCacheUseCase() -> ClearCacheUseCase {
         ClearCacheUseCase(coverCacheManager: coverCacheManager)
     }
-    
-    @MainActor
+
     func makeSaveCredentialsUseCase() -> SaveCredentialsUseCase {
         SaveCredentialsUseCase(keychainService: keychainService)
     }
-    
-    @MainActor
+
     func makeLoadCredentialsUseCase() -> LoadCredentialsUseCase {
         LoadCredentialsUseCase(keychainService: keychainService, authService: authService)
     }
-    
-    @MainActor
+
     func makeLogoutUseCase() -> LogoutUseCase {
         LogoutUseCase(keychainService: keychainService)
     }
+
+    // MARK: - Reset
+    func resetRepositories() {
+        _bookRepository = nil
+        _libraryRepository = nil
+        _downloadRepository = nil
+    }
+
+    @MainActor
+    func reset() {
+        AppLogger.general.info("[Container] Factory reset initiated")
+
+        bookRepository.clearCache()
+        libraryRepository.clearCache()
+        _bookRepository = nil
+        _libraryRepository = nil
+        _downloadRepository = nil
+
+        AppLogger.general.info("[Container] All repositories reset")
+    }
 }
+
+

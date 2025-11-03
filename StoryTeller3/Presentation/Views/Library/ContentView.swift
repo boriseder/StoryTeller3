@@ -17,6 +17,8 @@ struct ContentView: View {
     private var downloadManager: DownloadManager { dependencies.downloadManager }
     private var playerStateManager: PlayerStateManager { dependencies.playerStateManager }
     
+    let api = DependencyContainer.shared.apiClient
+
     // MARK: - Tab Enum
     enum TabIndex: Hashable {
         case home, library, series, downloads
@@ -120,7 +122,8 @@ struct ContentView: View {
         FullscreenPlayerContainer(
             player: player,
             playerStateManager: playerStateManager,
-            api: appState.apiClient
+ // REFACTOR
+            api: api
         ) {
             TabView(selection: $selectedTab) {
                 homeTab
@@ -131,6 +134,8 @@ struct ContentView: View {
             .accentColor(theme.accent)
             .id(theme.accent)
         }
+        .environmentObject(dependencies.sleepTimerService)  // ADD THIS LINE
+
     }
     
     // MARK: - Tab Views - REFACTORED
@@ -138,13 +143,7 @@ struct ContentView: View {
     private var homeTab: some View {
         NavigationStack {
             ZStack {
-                if let api = appState.apiClient {
-                    HomeView(
-                        api: api,
-                        appState: appState,
-                        onBookSelected: { openFullscreenPlayer() }
-                    )
-                }
+                HomeView()
             }
         }
         .tabItem {
@@ -156,13 +155,7 @@ struct ContentView: View {
     
     private var libraryTab: some View {
         NavigationStack {
-            if let api = appState.apiClient {
-                LibraryView(
-                    api: api,
-                    appState: appState,
-                    onBookSelected: { openFullscreenPlayer() }
-                )
-            }
+            LibraryView()
         }
         .tabItem {
             Image(systemName: "books.vertical.fill")
@@ -173,13 +166,7 @@ struct ContentView: View {
     
     private var seriesTab: some View {
         NavigationStack {
-            if let api = appState.apiClient {
-                SeriesView(
-                    api: api,
-                    appState: appState,
-                    onBookSelected: { openFullscreenPlayer() }
-                )
-            }
+                SeriesView()
         }
         .tabItem {
             Image(systemName: "play.square.stack.fill")
@@ -190,19 +177,8 @@ struct ContentView: View {
     
     private var downloadsTab: some View {
         NavigationStack {
-            if let api = appState.apiClient {
-                DownloadsView(
-                    api: api,
-                    appState: appState,
-                    onBookSelected: { openFullscreenPlayer() }
-                )
-            } else {
-                DownloadsView(
-                    api: AudiobookshelfClient(baseURL: "", authToken: ""),
-                    appState: appState,
-                    onBookSelected: { openFullscreenPlayer() }
-                )
-            }
+                DownloadsView()
+
         }
         .tabItem {
             Image(systemName: "arrow.down.circle.fill")
@@ -232,15 +208,20 @@ struct ContentView: View {
             
             do {
                 let token = try KeychainService.shared.getToken(for: username)
-                let client = AudiobookshelfClient(baseURL: baseURL, authToken: token)
+                //let client = AudiobookshelfClient(baseURL: baseURL, authToken: token)
+                
+                // API global in Container konfigurieren
+                DependencyContainer.shared.configureAPI(baseURL: baseURL, token: token)
+                let client = DependencyContainer.shared.apiClient!
+
                 
                 let connectionResult = await testConnection(client: client)
                 
                 switch connectionResult {
                 case .success:
-                    appState.apiClient = client
+                    dependencies.configureAPI(baseURL: baseURL, token: token)
                     player.configure(baseURL: baseURL, authToken: token, downloadManager: downloadManager)
-                    
+
                     appState.loadingState = .loadingData
                     await loadInitialData(client: client)
                     appState.loadingState = .ready
@@ -266,11 +247,8 @@ struct ContentView: View {
     }
     
     private func loadInitialData(client: AudiobookshelfClient) async {
-        let libraryRepository = dependencies.makeLibraryRepository(
-            api: client,
-            settingsRepository: dependencies.makeSettingsRepository()
-        )
-
+        let libraryRepository = dependencies.libraryRepository
+        
         do {
             let selectedLibrary = try await libraryRepository.initializeLibrarySelection()
             

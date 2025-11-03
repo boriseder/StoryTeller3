@@ -1,19 +1,11 @@
 import SwiftUI
 
 struct DownloadsView: View {
-    @StateObject private var viewModel: DownloadsViewModel
+    @StateObject private var viewModel: DownloadsViewModel = DependencyContainer.shared.downloadsViewModel
     @EnvironmentObject private var appState: AppStateManager
     @EnvironmentObject private var theme: ThemeManager
 
     @State private var showingStorageInfo = false
-    
-    init(api: AudiobookshelfClient, appState: AppStateManager, onBookSelected: @escaping () -> Void) {
-        self._viewModel = StateObject(wrappedValue: DownloadsViewModelFactory.create(
-            api: api,
-            appState: appState,
-            onBookSelected: onBookSelected
-        ))
-    }
     
     var body: some View {
         ZStack {

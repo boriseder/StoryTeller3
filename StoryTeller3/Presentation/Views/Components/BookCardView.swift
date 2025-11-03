@@ -1,14 +1,6 @@
 import SwiftUI
 
 // MARK: - Design System Constants
-enum CardOverlayDesign {
-    static let badgeCornerRadius: CGFloat = 12
-    static let actionButtonSize: CGFloat = 36
-    static let statusHeight: CGFloat = 28
-    static let padding: CGFloat = 8
-    static let shadowRadius: CGFloat = 8
-    static let shadowOpacity: CGFloat = 0.15
-}
 
 // MARK: - BookCard Style
 enum BookCardStyle {
@@ -118,14 +110,14 @@ struct BookCardView: View {
                             .transition(.scale.combined(with: .opacity))
                     //}
                 }
-                .padding(CardOverlayDesign.padding)
+                .padding(DSLayout.elementPadding)
 
                 Spacer()
 
                 // Bottom Center: Play/Pause Overlay
                 if viewModel.isCurrentBook && style == .library && !viewModel.isDownloading {
                     currentBookStatusOverlay
-                        .padding(.bottom, CardOverlayDesign.padding)
+                        .padding(.bottom, DSLayout.elementPadding)
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
             }
@@ -176,9 +168,9 @@ struct BookCardView: View {
             // Hintergrundkreis
             Circle()
                 .fill(.regularMaterial)
-                .frame(width: CardOverlayDesign.actionButtonSize,
-                       height: CardOverlayDesign.actionButtonSize)
-                .shadow(color: .black.opacity(CardOverlayDesign.shadowOpacity),
+                .frame(width: DSLayout.actionButtonSize,
+                       height: DSLayout.actionButtonSize)
+                .shadow(color: .black.opacity(DSLayout.shadowOpacity),
                         radius: 6, x: 0, y: 2)
 
             // Fortschrittsring (nur sichtbar beim Download)
@@ -193,8 +185,8 @@ struct BookCardView: View {
                         style: StrokeStyle(lineWidth: 3, lineCap: .round)
                     )
                     .rotationEffect(.degrees(-90))
-                    .frame(width: CardOverlayDesign.actionButtonSize,
-                           height: CardOverlayDesign.actionButtonSize)
+                    .frame(width: DSLayout.actionButtonSize,
+                           height: DSLayout.actionButtonSize)
                     .animation(.linear(duration: 0.2), value: viewModel.downloadProgress)
             }
 
@@ -215,8 +207,8 @@ struct BookCardView: View {
             .animation(.easeInOut(duration: 0.25), value: viewModel.isDownloading)
             .animation(.easeInOut(duration: 0.25), value: viewModel.isDownloaded)
         }
-        .frame(width: CardOverlayDesign.actionButtonSize,
-               height: CardOverlayDesign.actionButtonSize)
+        .frame(width: DSLayout.actionButtonSize,
+               height: DSLayout.actionButtonSize)
         .onTapGesture {
             if viewModel.isDownloaded {
                 onDelete()
@@ -342,4 +334,88 @@ extension View {
             self
         }
     }
+}
+
+struct ImprovedBookCardView: View {
+    let book: Book
+    @ObservedObject var downloadManager: DownloadManager
+    @EnvironmentObject var appState: AppStateManager
+    @EnvironmentObject var dependencies: DependencyContainer
+    
+    let onTap: () -> Void
+    
+    var body: some View {
+        Button(action: {
+            // Only trigger if actually playable
+            if isPlayable {
+                onTap()
+            }
+        }) {
+            ZStack(alignment: .topTrailing) {
+                // Existing book card UI
+                VStack {
+                    BookCoverView.square(book: book, size: 120, api: dependencies.apiClient, downloadManager: downloadManager)
+                    Text(book.title)
+                }
+                
+                // Visual indicator badge
+                availabilityBadge
+            }
+        }
+        .opacity(isPlayable ? 1.0 : 0.6)
+        .disabled(!isPlayable)
+    }
+    
+    @ViewBuilder
+    private var availabilityBadge: some View {
+        let status = determineStatus()
+        
+        switch status {
+        case .downloaded:
+            Image(systemName: "arrow.down.circle.fill")
+                .foregroundColor(.green)
+                .padding(8)
+                .background(Color.white.opacity(0.9))
+                .clipShape(Circle())
+                
+        case .streamable:
+            Image(systemName: "wifi")
+                .foregroundColor(.blue)
+                .padding(8)
+                .background(Color.white.opacity(0.9))
+                .clipShape(Circle())
+                
+        case .unavailable:
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundColor(.orange)
+                .padding(8)
+                .background(Color.white.opacity(0.9))
+                .clipShape(Circle())
+        }
+    }
+    
+    private var isPlayable: Bool {
+        determineStatus() != .unavailable
+    }
+    
+    private func determineStatus() -> BookStatus {
+        let isDownloaded = downloadManager.isBookDownloaded(book.id)
+        let hasConnection = appState.canPerformNetworkOperations
+        
+        if isDownloaded {
+            return .downloaded
+        }
+        
+        if hasConnection {
+            return .streamable
+        }
+        
+        return .unavailable
+    }
+}
+
+enum BookStatus {
+    case downloaded
+    case streamable
+    case unavailable
 }

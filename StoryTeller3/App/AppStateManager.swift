@@ -99,10 +99,11 @@ enum ConnectionIssueType: Equatable {
 // MARK: - App State Manager
 
 class AppStateManager: ObservableObject {
+    static let shared = AppStateManager()   // Singleton hinzufügen
+
     // MARK: - Published Properties
     @Published var loadingState: AppLoadingState = .initial
     @Published var isFirstLaunch: Bool = false
-    @Published var apiClient: AudiobookshelfClient?
     @Published var showingWelcome = false
     @Published var showingSettings = false
     
@@ -110,18 +111,26 @@ class AppStateManager: ObservableObject {
     @Published var isDeviceOnline: Bool = true
     @Published var isServerReachable: Bool = true
     
+    // Remove DependencyContainer dependency from init
+    private weak var dependencies: DependencyContainer?
+    
+    func configure(dependencies: DependencyContainer) {
+        self.dependencies = dependencies
+    }
+
     // MARK: - Dependencies
     private let networkMonitor: NetworkMonitor
     private let connectionHealthChecker: ConnectionHealthChecking
+   // private let dependencies: DependencyContainer
     
     // MARK: - Initialization
     init(
         networkMonitor: NetworkMonitor = NetworkMonitor(),
-        connectionHealthChecker: ConnectionHealthChecking = ConnectionHealthChecker()
+        connectionHealthChecker: ConnectionHealthChecking = ConnectionHealthChecker(),
     ) {
         self.networkMonitor = networkMonitor
         self.connectionHealthChecker = connectionHealthChecker
-        
+
         checkFirstLaunch()
         setupNetworkMonitoring()
     }
@@ -142,7 +151,7 @@ class AppStateManager: ObservableObject {
             return
         }
         
-        guard let api = apiClient else {
+        guard let api = await dependencies?.apiClient else {
             await MainActor.run {
                 isServerReachable = false
             }

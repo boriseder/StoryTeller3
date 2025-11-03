@@ -3,14 +3,16 @@ import AVKit
 
 struct PlayerView: View {
     @StateObject private var viewModel: PlayerViewModel
-    
+    @EnvironmentObject private var sleepTimer: SleepTimerService  // ADD THIS
+
+
     init(player: AudioPlayer, api: AudiobookshelfClient) {
-        self._viewModel = StateObject(wrappedValue: PlayerViewModelFactory.create(
+        self._viewModel = StateObject(wrappedValue: PlayerViewModel(
             player: player,
             api: api
         ))
     }
-    
+
     var body: some View {
         NavigationStack {
             GeometryReader { geometry in
@@ -37,7 +39,8 @@ struct PlayerView: View {
                 ChaptersListView(player: viewModel.player)
             }
             .sheet(isPresented: $viewModel.showingSleepTimer) {
-                SleepTimerView(player: viewModel.player)
+                SleepTimerView()
+                    .environmentObject(sleepTimer)
             }
             .sheet(isPresented: $viewModel.showingPlaybackSettings) {
                 PlaybackSettingsView(player: viewModel.player)

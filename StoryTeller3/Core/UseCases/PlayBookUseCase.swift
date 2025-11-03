@@ -17,6 +17,7 @@ enum PlaybackMode: CustomStringConvertible {
 enum PlayBookError: LocalizedError {
     case notAvailableOffline(String)
     case fetchFailed(Error)
+    case bookNotDownloadedOfflineOnly(String)  // NEW
     
     var errorDescription: String? {
         switch self {
@@ -24,6 +25,8 @@ enum PlayBookError: LocalizedError {
             return "'\(title)' is not available offline and no internet connection is available."
         case .fetchFailed(let error):
             return "Could not load book: \(error.localizedDescription)"
+        case .bookNotDownloadedOfflineOnly(let title):
+            return "'\(title)' needs to be downloaded for offline playback."
         }
     }
 }
@@ -50,78 +53,100 @@ class PlayBookUseCase: PlayBookUseCaseProtocol {
         restoreState: Bool = true
     ) async throws {
         
-        let isDownloaded = downloadManager.isBookDownloaded(book.id)
+        // 1. EARLY EXIT: Check playback feasibility FIRST
+        let playbackMode = determinePlaybackMode(
+            book: book,
+            downloadManager: downloadManager,
+            appState: appState
+        )
         
-        let fullBook: Book
-        
-        if isDownloaded {
-            do {
-                fullBook = try loadLocalMetadata(bookId: book.id, downloadManager: downloadManager)
-                AppLogger.general.debug("[PlayBookUseCase] Loaded book from local metadata: \(fullBook.title)")
-            } catch {
-                AppLogger.general.debug("[PlayBookUseCase] Failed to load local metadata, trying online: \(error)")
-                do {
-                    fullBook = try await api.books.fetchBookDetails(bookId: book.id, retryCount: 3)
-                } catch {
-                    throw PlayBookError.fetchFailed(error)
-                }
+        // 2. FAIL FAST: Don't even try to load metadata if unavailable
+        guard playbackMode != .unavailable else {
+            let isDownloaded = downloadManager.isBookDownloaded(book.id)
+            if isDownloaded {
+                // This should never happen, but handle gracefully
+                AppLogger.general.error("[PlayBookUseCase] Logic error: Book downloaded but marked unavailable")
             }
-        } else {
-            do {
-                fullBook = try await api.books.fetchBookDetails(bookId: book.id, retryCount: 3)
-            } catch {
-                throw PlayBookError.fetchFailed(error)
-            }
+            throw PlayBookError.notAvailableOffline(book.title)
         }
         
+        // 3. Load metadata (online or offline)
+        let fullBook = try await loadBookMetadata(
+            book: book,
+            api: api,
+            downloadManager: downloadManager,
+            isOffline: playbackMode == .offline
+        )
+        
+        // 4. Configure player
         player.configure(
             baseURL: api.baseURLString,
             authToken: api.authToken,
             downloadManager: downloadManager
         )
         
-        let playbackMode = determinePlaybackMode(
-            book: fullBook,
-            downloadManager: downloadManager,
-            appState: appState
-        )
-        
+        // 5. Load player with appropriate mode
         await MainActor.run {
-            switch playbackMode {
-            case .online:
-                player.load(book: fullBook, isOffline: false, restoreState: restoreState)
-                AppLogger.general.debug("[PlayBookUseCase] Loaded book: \(fullBook.title) (mode: online)")
-                
-            case .offline:
-                player.load(book: fullBook, isOffline: true, restoreState: restoreState)
-                AppLogger.general.debug("[PlayBookUseCase] Loaded book: \(fullBook.title) (mode: offline)")
-                
-            case .unavailable:
-                break
-            }
-        }
-
-        if playbackMode == .unavailable {
-            throw PlayBookError.notAvailableOffline(book.title)
+            let isOffline = playbackMode == .offline
+            player.load(book: fullBook, isOffline: isOffline, restoreState: restoreState)
+            AppLogger.general.debug("[PlayBookUseCase] Loaded: \(fullBook.title) (\(playbackMode))")
         }
     }
     
+    // REFACTOR: Separated concerns - metadata loading
+    private func loadBookMetadata(
+        book: Book,
+        api: AudiobookshelfClient,
+        downloadManager: DownloadManager,
+        isOffline: Bool
+    ) async throws -> Book {
+        
+        let isDownloaded = downloadManager.isBookDownloaded(book.id)
+        
+        // Try local metadata first if downloaded
+        if isDownloaded {
+            do {
+                let localBook = try loadLocalMetadata(bookId: book.id, downloadManager: downloadManager)
+                AppLogger.general.debug("[PlayBookUseCase] Loaded from local metadata: \(localBook.title)")
+                return localBook
+            } catch {
+                AppLogger.general.debug("[PlayBookUseCase] Local metadata failed, trying online")
+            }
+        }
+        
+        // Fallback to online (or fail if offline-only mode)
+        guard !isOffline else {
+            throw PlayBookError.bookNotDownloadedOfflineOnly(book.title)
+        }
+        
+        do {
+            return try await api.books.fetchBookDetails(bookId: book.id, retryCount: 3)
+        } catch {
+            AppLogger.general.debug("[PlayBookUseCase] Online fetch failed: \(error)")
+            throw PlayBookError.fetchFailed(error)
+        }
+    }
+    
+    // CLEANER: More explicit playback mode logic
     private func determinePlaybackMode(
         book: Book,
         downloadManager: DownloadManager,
         appState: AppStateManager
     ) -> PlaybackMode {
         let isDownloaded = downloadManager.isBookDownloaded(book.id)
-        let hasConnection = appState.isDeviceOnline && appState.isServerReachable
+        let hasConnection = appState.canPerformNetworkOperations
         
+        // Priority 1: Downloaded = Always offline mode
         if isDownloaded {
             return .offline
         }
         
+        // Priority 2: Network available = Stream online
         if hasConnection {
             return .online
         }
         
+        // Priority 3: No download, no network = Unavailable
         return .unavailable
     }
     
@@ -138,8 +163,6 @@ class PlayBookUseCase: PlayBookUseCaseProtocol {
         }
         
         let data = try Data(contentsOf: metadataURL)
-        let book = try JSONDecoder().decode(Book.self, from: data)
-        
-        return book
+        return try JSONDecoder().decode(Book.self, from: data)
     }
 }

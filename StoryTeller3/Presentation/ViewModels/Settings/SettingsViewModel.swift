@@ -2,11 +2,11 @@ import SwiftUI
 
 @MainActor
 class SettingsViewModel: ObservableObject {
+
     // MARK: - State Objects
     @Published var serverConfig = ServerConfigState()
     @Published var storage = StorageState()
     @Published var advancedSettings = AdvancedSettingsState()
-    
     // MARK: - Connection State
     @Published var connectionState: ConnectionState = .initial
     @Published var isTestingConnection = false
@@ -42,17 +42,7 @@ class SettingsViewModel: ObservableObject {
     let downloadManager: DownloadManager
     
     private var apiClient: AudiobookshelfClient?
-    
-    // MARK: - Computed Properties
-    var canTestConnection: Bool {
-        serverConfig.isServerConfigured && !isTestingConnection
-    }
-    
-    var canLogin: Bool {
-        serverConfig.canLogin && !isLoggedIn
-    }
-    
-    // MARK: - Initialization
+   
     init(
         testConnectionUseCase: TestConnectionUseCaseProtocol,
         authenticationUseCase: AuthenticationUseCaseProtocol,
@@ -80,13 +70,22 @@ class SettingsViewModel: ObservableObject {
         self.coverCacheManager = coverCacheManager
         self.downloadManager = downloadManager
         
-        serverConfig.loadFromDefaults()
-        advancedSettings.loadFromDefaults()
-        
-        Task {
+        Task { @MainActor in
             await loadSavedCredentials()
         }
+
     }
+
+    
+    // MARK: - Computed Properties
+    var canTestConnection: Bool {
+        serverConfig.isServerConfigured && !isTestingConnection
+    }
+    
+    var canLogin: Bool {
+        serverConfig.canLogin && !isLoggedIn
+    }
+    
     
     // MARK: - Connection State
     enum ConnectionState: Equatable {

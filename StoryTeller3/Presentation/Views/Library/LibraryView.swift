@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct LibraryView: View {
-    @StateObject var viewModel: LibraryViewModel
+    @StateObject private var viewModel: LibraryViewModel = DependencyContainer.shared.libraryViewModel
     @EnvironmentObject var appState: AppStateManager
     @EnvironmentObject var theme: ThemeManager
     
@@ -10,14 +10,6 @@ struct LibraryView: View {
     
     // Workaround to hide nodata at start of app
     @State private var showEmptyState = false
-
-    init(api: AudiobookshelfClient, appState: AppStateManager, onBookSelected: @escaping () -> Void) {
-        self._viewModel = StateObject(wrappedValue: LibraryViewModelFactory.create(
-            api: api,
-            appState: appState,
-            onBookSelected: onBookSelected
-        ))
-    }
     
     var body: some View {
         ZStack {
@@ -114,14 +106,9 @@ struct LibraryView: View {
         .sheet(item: $selectedSeries) { series in
             SeriesQuickAccessView(
                 seriesBook: series,
-                player: viewModel.player,
-                api: viewModel.api,
-                downloadManager: viewModel.downloadManager,
                 onBookSelected: viewModel.onBookSelected
             )
-            .environmentObject(viewModel)
-            .presentationDetents([.medium])
-            .presentationDragIndicator(.visible)
+            .environmentObject(appState)
         }
         .onChange(of: viewModel.filteredAndSortedBooks.count) {
             updateBookCardViewModels()
@@ -140,53 +127,51 @@ struct LibraryView: View {
                 DynamicBackground()
             }
 
-                if viewModel.filterState.showDownloadedOnly {
-                    FilterStatusBannerView(
-                        count: viewModel.filteredAndSortedBooks.count,
-                        totalDownloaded: viewModel.downloadedBooksCount,
-                        onDismiss: { viewModel.toggleDownloadFilter() }
-                    )
-                }
+            if viewModel.filterState.showDownloadedOnly {
+                FilterStatusBannerView(
+                    count: viewModel.filteredAndSortedBooks.count,
+                    totalDownloaded: viewModel.downloadedBooksCount,
+                    onDismiss: { viewModel.toggleDownloadFilter() }
+                )
+            }
+            
+            if viewModel.filterState.showSeriesGrouped {
+                SeriesStatusBannerView(
+                    books: viewModel.filteredAndSortedBooks,
+                    onDismiss: { viewModel.toggleSeriesMode() }
+                )
+            }
+            
+            ScrollView {
                 
-                if viewModel.filterState.showSeriesGrouped {
-                    SeriesStatusBannerView(
-                        books: viewModel.filteredAndSortedBooks,
-                        onDismiss: { viewModel.toggleSeriesMode() }
-                    )
-                }
+                offlineBanner
                 
-                ScrollView {
-                    
-                    if !appState.canPerformNetworkOperations, case .cache = viewModel.dataSource {
-                        offlineBanner
+                LazyVGrid(columns: DSGridColumns.two, spacing: 0) {
+                    ForEach(bookCardVMs) { bookVM in
+                        BookCardView(
+                            viewModel: bookVM,
+                            api: viewModel.api,
+                            onTap: {
+                                handleBookTap(bookVM.book)
+                            },
+                            onDownload: {
+                                startDownload(bookVM.book)
+                            },
+                            onDelete: {
+                                deleteDownload(bookVM.book)
+                            },
+                            style: .library
+                        )
+                        
                     }
-                    
-                    LazyVGrid(columns: DSGridColumns.two, spacing: 0) {
-                        ForEach(bookCardVMs) { bookVM in
-                            BookCardView(
-                                viewModel: bookVM,
-                                api: viewModel.api,
-                                onTap: {
-                                    handleBookTap(bookVM.book)
-                                },
-                                onDownload: {
-                                    startDownload(bookVM.book)
-                                },
-                                onDelete: {
-                                    deleteDownload(bookVM.book)
-                                },
-                                style: .library
-                            )
-                            
-                        }
-                        .padding(.vertical, DSLayout.contentPadding)
-                    }
+                    .padding(.vertical, DSLayout.contentPadding)
+                }
 
-                    Spacer()
-                        .frame(height: DSLayout.miniPlayerHeight)
-                }
-                .scrollIndicators(.hidden)
-                .padding(.horizontal, DSLayout.screenPadding)
+                Spacer()
+                    .frame(height: DSLayout.miniPlayerHeight)
+            }
+            .scrollIndicators(.hidden)
+            .padding(.horizontal, DSLayout.screenPadding)
 
         }
         .opacity(viewModel.contentLoaded ? 1 : 0)
@@ -390,6 +375,24 @@ struct LibraryView: View {
             }
             
             Spacer()
+            
+            Divider()
+                .frame(height: 40)
+
+            // Third section
+            Button {
+                appState.isDeviceOnline.toggle()
+                appState.isServerReachable.toggle()
+            } label: {
+                Image(systemName: appState.isDeviceOnline ? "icloud" : "icloud.slash")
+                    .font(DSText.button)
+                    .foregroundColor(appState.isDeviceOnline ? Color.green : Color.red)
+                    .padding(DSLayout.tightPadding)
+                    .background(appState.isDeviceOnline ? Color.green.opacity(0.1) : Color.red.opacity(0.1))
+                    .clipShape(Circle())
+            }
+            .padding(.horizontal, DSLayout.elementPadding)
+
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)

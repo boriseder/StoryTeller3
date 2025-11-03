@@ -23,11 +23,13 @@ class LogoutUseCase: LogoutUseCaseProtocol {
             UserDefaults.standard.removeObject(forKey: "apiKey")
             UserDefaults.standard.removeObject(forKey: "selected_library_id")
             
+            // Reset DependencyContainer to clear all repositories
+            DependencyContainer.shared.reset()
+            
             NotificationCenter.default.post(name: .init("ServerSettingsChanged"), object: nil)
         }
         
         await CoverDownloadManager.shared.shutdown()
         
         AppLogger.general.debug("[LogoutUseCase] User logged out successfully")
-    }
-}
+    }}

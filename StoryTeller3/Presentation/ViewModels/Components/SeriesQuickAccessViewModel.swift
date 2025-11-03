@@ -8,34 +8,36 @@ class SeriesQuickAccessViewModel: ObservableObject {
     @Published var showingErrorAlert = false
     
     let seriesBook: Book
-    let player: AudioPlayer
-    let api: AudiobookshelfClient
-    let downloadManager: DownloadManager
     let onBookSelected: () -> Void
     var onDismiss: (() -> Void)?
     
-    private let fetchSeriesBooksUseCase: FetchSeriesBooksUseCaseProtocol
-    private let playBookUseCase: PlayBookUseCase
+    private let container: DependencyContainer
     
+    // Computed properties for dependencies
+    var player: AudioPlayer { container.player }
+    var api: AudiobookshelfClient { container.apiClient! }
+    var downloadManager: DownloadManager { container.downloadManager }  
+
     var downloadedCount: Int {
         seriesBooks.filter { downloadManager.isBookDownloaded($0.id) }.count
     }
     
+    private let fetchSeriesBooksUseCase: FetchSeriesBooksUseCaseProtocol
+    private let playBookUseCase: PlayBookUseCase
+
     init(
-        seriesBook: Book,
-        player: AudioPlayer,
-        api: AudiobookshelfClient,
-        downloadManager: DownloadManager,
-        onBookSelected: @escaping () -> Void
-    ) {
-        self.seriesBook = seriesBook
-        self.player = player
-        self.api = api
-        self.downloadManager = downloadManager
-        self.onBookSelected = onBookSelected
-        self.fetchSeriesBooksUseCase = FetchSeriesBooksUseCase(api: api)
-        self.playBookUseCase = PlayBookUseCase()
-    }
+            seriesBook: Book,
+            container: DependencyContainer = .shared,
+            onBookSelected: @escaping () -> Void
+        ) {
+            self.seriesBook = seriesBook
+            self.container = container
+            self.onBookSelected = onBookSelected
+            
+            // Create use cases with container dependencies
+            self.fetchSeriesBooksUseCase = FetchSeriesBooksUseCase(api: container.apiClient!)
+            self.playBookUseCase = PlayBookUseCase()
+        }
     
     func loadSeriesBooks() async {
         guard let seriesId = seriesBook.collapsedSeries?.id,

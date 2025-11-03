@@ -86,7 +86,7 @@ class BookRepository: BookRepositoryProtocol {
             throw RepositoryError.networkError(error)
         }
     }
-
+    
     func fetchBookDetails(bookId: String) async throws -> Book {
         do {
             let book = try await api.books.fetchBookDetails(bookId: bookId, retryCount: 3)
@@ -117,7 +117,7 @@ class BookRepository: BookRepositoryProtocol {
             throw RepositoryError.networkError(error)
         }
     }
-
+    
     func fetchSeries(libraryId: String) async throws -> [Series] {
         do {
             let series = try await api.series.fetchSeries(libraryId: libraryId, limit: 1000)
@@ -148,7 +148,7 @@ class BookRepository: BookRepositoryProtocol {
             throw RepositoryError.networkError(error)
         }
     }
-
+    
     func fetchSeriesBooks(libraryId: String, seriesId: String) async throws -> [Book] {
         do {
             let books = try await api.series.fetchSeriesBooks(libraryId: libraryId, seriesId: seriesId)
@@ -165,7 +165,7 @@ class BookRepository: BookRepositoryProtocol {
             throw RepositoryError.networkError(error)
         }
     }
-
+    
     func fetchPersonalizedSections(libraryId: String) async throws -> [PersonalizedSection] {
         do {
             let sections = try await api.personalized.fetchPersonalizedSections(libraryId: libraryId, limit: 10)
@@ -196,7 +196,7 @@ class BookRepository: BookRepositoryProtocol {
             throw RepositoryError.networkError(error)
         }
     }
-
+    
     func searchBooks(libraryId: String, query: String) async throws -> [Book] {
         guard !query.isEmpty else {
             return []
@@ -218,6 +218,12 @@ class BookRepository: BookRepositoryProtocol {
             throw error
         }
     }
+
+    func clearCache() {
+        cache?.clearCache()
+        AppLogger.general.debug("[BookRepository] Cache cleared")
+    }
+
 }
 
 // MARK: - Book Cache Protocol

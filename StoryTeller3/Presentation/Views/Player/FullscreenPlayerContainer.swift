@@ -61,6 +61,7 @@ struct FullscreenPlayerContainer<Content: View>: View {
                             
                             if let api = api {
                                 PlayerView(player: player, api: api)
+                                    .environmentObject(DependencyContainer.shared.sleepTimerService)  // ADD THIS
                                     .navigationBarTitleDisplayMode(.inline)
                                     .toolbar {
                                         ToolbarItem(placement: .navigationBarLeading) {

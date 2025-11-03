@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct SettingsView: View {
-    @StateObject private var viewModel = SettingsViewModelFactory.create()
+    @StateObject private var viewModel = DependencyContainer.shared.settingsViewModel
     @EnvironmentObject var theme: ThemeManager
 
     @State private var selectedColor: Color = .blue

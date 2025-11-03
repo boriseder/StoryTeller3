@@ -49,6 +49,16 @@ enum DSLayout {
     
     // MARK: Content Width
     static let maxContentWidth: CGFloat = 400 // Max content width
+    
+    // MARK: Additional sizes - need consolidation
+    static let badgeCornerRadius: CGFloat = 12
+    static let actionButtonSize: CGFloat = 36
+    static let statusHeight: CGFloat = 28
+    static let padding: CGFloat = 8
+    static let shadowRadius: CGFloat = 8
+    static let shadowOpacity: CGFloat = 0.15
+
+    
 }
 
 // MARK: - Corners (Ersetzt Radius)

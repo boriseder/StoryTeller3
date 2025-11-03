@@ -9,7 +9,7 @@ class HomeViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var errorMessage: String?
     @Published var showingErrorAlert = false
-    
+
     // For smooth transistions
     @Published var contentLoaded = false
     @Published var sectionsLoaded = false
@@ -22,7 +22,8 @@ class HomeViewModel: ObservableObject {
     private let playBookUseCase: PlayBookUseCase
     private let downloadRepository: DownloadRepository
     private let libraryRepository: LibraryRepositoryProtocol
-    
+    private let bookRepository: BookRepositoryProtocol
+
     let api: AudiobookshelfClient
     let downloadManager: DownloadManager
     let player: AudioPlayer
@@ -56,12 +57,13 @@ class HomeViewModel: ObservableObject {
             return .content
         }
     }
-    
+  
     // MARK: - Init with DI
     init(
         fetchPersonalizedSectionsUseCase: FetchPersonalizedSectionsUseCaseProtocol,
         downloadRepository: DownloadRepository,
         libraryRepository: LibraryRepositoryProtocol,
+        bookRepository: BookRepositoryProtocol,  // ADD THIS
         api: AudiobookshelfClient,
         downloadManager: DownloadManager,
         player: AudioPlayer,
@@ -72,6 +74,7 @@ class HomeViewModel: ObservableObject {
         self.playBookUseCase = PlayBookUseCase()
         self.downloadRepository = downloadRepository
         self.libraryRepository = libraryRepository
+        self.bookRepository = bookRepository  // ADD THIS
         self.api = api
         self.downloadManager = downloadManager
         self.player = player
@@ -79,9 +82,8 @@ class HomeViewModel: ObservableObject {
         self.onBookSelected = onBookSelected
         
         observeNetworkChanges()
-
     }
-    
+     
     // MARK: - Actions (Delegate to Use Cases)
     func loadPersonalizedSectionsIfNeeded() async {
         if personalizedSections.isEmpty {
@@ -180,12 +182,12 @@ class HomeViewModel: ObservableObject {
                 return
             }
             
-            let bookRepository = BookRepository(api: api, cache: BookCache())
+           // let bookRepository = BookRepository(api: api, cache: BookCache())
             let seriesBooks = try await bookRepository.fetchSeriesBooks(
                 libraryId: library.id,
                 seriesId: series.id
             )
-            
+
             if let firstBook = seriesBooks.first {
                 await playBook(firstBook, appState: appState)
             }
@@ -207,7 +209,7 @@ class HomeViewModel: ObservableObject {
                 return
             }
             
-            let bookRepository = BookRepository(api: api, cache: BookCache())
+            //let bookRepository = BookRepository(api: api, cache: BookCache())
             let allBooks = try await bookRepository.fetchBooks(
                 libraryId: library.id,
                 collapseSeries: false
@@ -266,3 +268,4 @@ class HomeViewModel: ObservableObject {
         
     }
 }
+

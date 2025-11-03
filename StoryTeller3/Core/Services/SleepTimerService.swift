@@ -1,5 +1,4 @@
-/*
- import SwiftUI
+import SwiftUI
 import UserNotifications
 
 // MARK: - Sleep Timer Mode
@@ -43,7 +42,7 @@ private struct SleepTimerPersistenceState: Codable {
 
 // MARK: - Sleep Timer ViewModel
 @MainActor
-class SleepTimerViewModel: ObservableObject {
+class SleepTimerService: ObservableObject {
     @Published var selectedMinutes: Int = 30
     @Published var isTimerActive = false
     @Published var remainingTime: TimeInterval = 0
@@ -272,7 +271,7 @@ class SleepTimerViewModel: ObservableObject {
 }
 
 // MARK: - Timer Delegate
-extension SleepTimerViewModel: TimerDelegate {
+extension SleepTimerService: TimerDelegate {
     func timerDidTick(remainingTime: TimeInterval) {
         self.remainingTime = remainingTime
     }
@@ -296,4 +295,3 @@ extension SleepTimerViewModel: TimerDelegate {
         AppLogger.general.debug("[SleepTimer] Sleep timer completed successfully")
     }
 }
-*/
