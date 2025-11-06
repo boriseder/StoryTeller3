@@ -39,19 +39,22 @@ class BookCoverLoader: ObservableObject {
     }
     
     func load() {
-        // MEMORY LEAK FIX - Cancel any existing load task
-        loadTask?.cancel()
+        // Guard: Skip if already loaded or currently loading
+        if image != nil || isLoading {
+            return
+        }
         
-        // Reset state
+        // Rest of existing code...
+        loadTask?.cancel()
         hasError = false
         isLoading = true
         downloadProgress = 0.0
         
-        // MEMORY LEAK FIX - Use weak self pattern
         loadTask = Task { [weak self] in
             await self?.loadCoverImage()
         }
     }
+
     private func loadCoverImage() async {
         
         let memoryCacheKey = generateCacheKey()

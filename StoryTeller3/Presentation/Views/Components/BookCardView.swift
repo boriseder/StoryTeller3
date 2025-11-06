@@ -167,7 +167,7 @@ struct BookCardView: View {
         ZStack {
             // Hintergrundkreis
             Circle()
-                .fill(.regularMaterial)
+                .fill(.white.opacity(0.9))
                 .frame(width: DSLayout.actionButtonSize,
                        height: DSLayout.actionButtonSize)
                 .shadow(color: .black.opacity(DSLayout.shadowOpacity),
@@ -179,7 +179,7 @@ struct BookCardView: View {
                     .trim(from: 0, to: viewModel.downloadProgress)
                     .stroke(
                         AngularGradient(
-                            gradient: Gradient(colors: [.accentColor, .accentColor.opacity(0.6)]),
+                            gradient: Gradient(colors: [.accentColor, .accentColor.opacity(0.8)]),
                             center: .center
                         ),
                         style: StrokeStyle(lineWidth: 3, lineCap: .round)
@@ -201,8 +201,8 @@ struct BookCardView: View {
                 }
             }())
             .symbolRenderingMode(.hierarchical)
-            .foregroundStyle(viewModel.isDownloaded ? .green : .white)
-            .font(.system(size: 18, weight: .medium))
+            .foregroundStyle(viewModel.isDownloaded ? .green : Color.black)
+            .font(.system(size: 24, weight: .medium))
             .transition(.opacity.combined(with: .scale))
             .animation(.easeInOut(duration: 0.25), value: viewModel.isDownloading)
             .animation(.easeInOut(duration: 0.25), value: viewModel.isDownloaded)
@@ -333,84 +333,6 @@ extension View {
         } else {
             self
         }
-    }
-}
-
-struct ImprovedBookCardView: View {
-    let book: Book
-    @ObservedObject var downloadManager: DownloadManager
-    @EnvironmentObject var appState: AppStateManager
-    @EnvironmentObject var dependencies: DependencyContainer
-    
-    let onTap: () -> Void
-    
-    var body: some View {
-        Button(action: {
-            // Only trigger if actually playable
-            if isPlayable {
-                onTap()
-            }
-        }) {
-            ZStack(alignment: .topTrailing) {
-                // Existing book card UI
-                VStack {
-                    BookCoverView.square(book: book, size: 120, api: dependencies.apiClient, downloadManager: downloadManager)
-                    Text(book.title)
-                }
-                
-                // Visual indicator badge
-                availabilityBadge
-            }
-        }
-        .opacity(isPlayable ? 1.0 : 0.6)
-        .disabled(!isPlayable)
-    }
-    
-    @ViewBuilder
-    private var availabilityBadge: some View {
-        let status = determineStatus()
-        
-        switch status {
-        case .downloaded:
-            Image(systemName: "arrow.down.circle.fill")
-                .foregroundColor(.green)
-                .padding(8)
-                .background(Color.white.opacity(0.9))
-                .clipShape(Circle())
-                
-        case .streamable:
-            Image(systemName: "wifi")
-                .foregroundColor(.blue)
-                .padding(8)
-                .background(Color.white.opacity(0.9))
-                .clipShape(Circle())
-                
-        case .unavailable:
-            Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundColor(.orange)
-                .padding(8)
-                .background(Color.white.opacity(0.9))
-                .clipShape(Circle())
-        }
-    }
-    
-    private var isPlayable: Bool {
-        determineStatus() != .unavailable
-    }
-    
-    private func determineStatus() -> BookStatus {
-        let isDownloaded = downloadManager.isBookDownloaded(book.id)
-        let hasConnection = appState.canPerformNetworkOperations
-        
-        if isDownloaded {
-            return .downloaded
-        }
-        
-        if hasConnection {
-            return .streamable
-        }
-        
-        return .unavailable
     }
 }
 

@@ -113,14 +113,8 @@ final class DefaultDownloadOrchestrationService: DownloadOrchestrationService {
     
     // MARK: - Private Methods
     
-    /*
-     redundant code
-     cover is stored in bookcache and we download it again as cover.jog
-     needs refactoring
-     
-     => see CoverDownloadManager and func performDownload()
-
-     */
+    // Downloads cover to book directory for offline use
+    // Separate from CoverCacheManager which handles UI caching
     
     private func downloadCoverWithRetry(
         bookId: String,
