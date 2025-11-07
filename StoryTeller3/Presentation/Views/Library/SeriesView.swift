@@ -17,52 +17,9 @@ struct SeriesView: View {
             }
 
             ZStack {
-                switch viewModel.uiState {
-                    
-                case .content, .loading, .loadingFromCache:
-                    contentView
-                        .transition(.opacity)
-
-                case .offline(let cachedItemCount):
-                    if cachedItemCount > 0 {
-                        contentView
-                    } else {
-                        ErrorView(error: "No cached data available. Please connect to the internet.")
-                            .transition(.opacity)
-                    }
-
-                case .error(let message):
-                    ErrorView(error: message)
-                        .transition(.opacity)
-
-                case .empty:
-                    if showEmptyState {
-                        EmptyStateView()
-                            .transition(.opacity)
-                    }
-
-                case .noDownloads:
-                    NoDownloadsView()
-                        .transition(.opacity)
-                
-                case .noSearchResults:
-                    NoSearchResultsView()
-                        .transition(.opacity)
-
-                }
+                contentView
+                    .transition(.opacity)
             }
-            .onChange(of: viewModel.uiState) {
-                if viewModel.uiState == .empty {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak viewModel] in
-                        guard viewModel?.uiState == .empty else { return }
-                        withAnimation { showEmptyState = true }
-                    }
-                } else {
-                    showEmptyState = false
-                }
-            }
-            .animation(.easeInOut(duration: 0.3), value: viewModel.uiState)
-
         }
         .navigationTitle(viewModel.libraryName)
         .navigationBarTitleDisplayMode(.large)

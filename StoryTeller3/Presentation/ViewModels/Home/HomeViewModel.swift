@@ -14,9 +14,6 @@ class HomeViewModel: ObservableObject {
     @Published var contentLoaded = false
     @Published var sectionsLoaded = false
     
-    // Offline mode tracking
-    @Published var dataSource: DataSource = .network(timestamp: Date())
-    
     // MARK: - Dependencies (Use Cases & Repositories)
     private let fetchPersonalizedSectionsUseCase: FetchPersonalizedSectionsUseCaseProtocol
     private let playBookUseCase: PlayBookUseCase
@@ -41,23 +38,7 @@ class HomeViewModel: ObservableObject {
         // return allBooks.filter { downloadRepository.getDownloadStatus(for: $0.id).isDownloaded }.count
         return downloadRepository.getDownloadedBooks().count
     }
-    
-    var uiState: HomeUIState {
-        let isOffline = !appState.canPerformNetworkOperations
-        
-        if isLoading {
-            return isOffline ? .loadingFromCache : .loading
-//        } else if let error = errorMessage {
-//            return .error(error)
-        } else if isOffline && !personalizedSections.isEmpty {
-            return .offline(hasCachedData: true)
-        } else if personalizedSections.isEmpty {
-            return .empty
-        } else {
-            return .content
-        }
-    }
-  
+
     // MARK: - Init with DI
     init(
         fetchPersonalizedSectionsUseCase: FetchPersonalizedSectionsUseCaseProtocol,
@@ -80,18 +61,22 @@ class HomeViewModel: ObservableObject {
         self.player = player
         self.appState = appState
         self.onBookSelected = onBookSelected
-        
-        observeNetworkChanges()
     }
      
     // MARK: - Actions (Delegate to Use Cases)
     func loadPersonalizedSectionsIfNeeded() async {
+        //only load data if network is actually working
+        guard appState.isServerReachable else {
+            return
+        }
+
         if personalizedSections.isEmpty {
             await loadPersonalizedSections()
         }
     }
     
     func loadPersonalizedSections() async {
+        
         isLoading = true
         errorMessage = nil
         
@@ -103,9 +88,7 @@ class HomeViewModel: ObservableObject {
                 isLoading = false
                 return
             }
-            
-            libraryName = "Explore & listen"
-            
+                        
             // Fetch sections and stats in parallel
             async let sectionsTask = fetchPersonalizedSectionsUseCase.execute(
                 libraryId: selectedLibrary.id
@@ -113,10 +96,7 @@ class HomeViewModel: ObservableObject {
             async let statsTask = api.libraries.fetchLibraryStats(libraryId: selectedLibrary.id)
             
             let (fetchedSections, totalBooks) = try await (sectionsTask, statsTask)
-            
-            // Success from network
-            dataSource = .network(timestamp: Date())
-            
+                        
             withAnimation(.easeInOut) {
                 personalizedSections = fetchedSections
                 totalBooksInLibrary = totalBooks
@@ -131,21 +111,12 @@ class HomeViewModel: ObservableObject {
             
         } catch let error as RepositoryError {
             // On error, check if we have cached data from previous successful load
-            if !personalizedSections.isEmpty {
-                dataSource = .cache(timestamp: Date())
-                AppLogger.general.debug("[HomeViewModel] Using in-memory cached data, network unavailable")
-            } else {
                 errorMessage = error.localizedDescription
                 showingErrorAlert = true
                 AppLogger.general.debug("[HomeViewModel] Repository error: \(error)")
-            }
         } catch {
-            if !personalizedSections.isEmpty {
-                dataSource = .cache(timestamp: Date())
-            } else {
                 errorMessage = error.localizedDescription
                 showingErrorAlert = true
-            }
         }
         
         isLoading = false
@@ -246,26 +217,6 @@ class HomeViewModel: ObservableObject {
         }
         
         return allBooks
-    }
-    
-    // to switch datasoruce from .network to .cache in case no network is available
-    
-    private func observeNetworkChanges() {
-        Task { @MainActor [weak self] in
-            guard let self = self else { return }
-            for await _ in appState.$isDeviceOnline.values.dropFirst() {
-                self.updateDataSourceBasedOnNetwork()
-            }
-        }
-    }
-    
-    private func updateDataSourceBasedOnNetwork() {
-        if !appState.canPerformNetworkOperations {
-            dataSource = .cache(timestamp: Date())
-        } else {
-            dataSource = .network(timestamp: Date())
-        }
-        
     }
 }
 

@@ -148,6 +148,10 @@ class DownloadManager: ObservableObject {
         // Delegate to repository which has access to storage service
         return repository.bookDirectory(for: bookId)
     }
+    
+    func preloadDownloadedBooksCount() async -> Int {
+        return await repository?.preloadDownloadedBooks().count ?? 0
+    }
 }
 
 // MARK: - Offline Status Enum

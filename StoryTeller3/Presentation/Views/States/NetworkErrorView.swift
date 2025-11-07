@@ -10,11 +10,10 @@ import SwiftUI
 
 struct NetworkErrorView: View {
     let issueType: ConnectionIssueType
-    let downloadedBooksCount: Int
     let onRetry: () -> Void
     let onViewDownloads: () -> Void
     let onSettings: () -> Void
-    
+
     var body: some View {
         ZStack {
             Color.white.opacity(0.3)
@@ -36,7 +35,7 @@ struct NetworkErrorView: View {
                         .font(DSText.footnote)
                         .multilineTextAlignment(.center)
                 }
-                
+                /*
                 if downloadedBooksCount > 0 {
                     VStack(spacing: 12) {
                         Divider()
@@ -66,7 +65,7 @@ struct NetworkErrorView: View {
                             .padding(.vertical, DSLayout.elementPadding)
                     }
                 }
-                
+               */
                 VStack(spacing: 12) {
                    // if issueType.canRetry {
                         Button(action: onRetry) {

@@ -15,7 +15,7 @@ struct DownloadsView: View {
             }
 
             if viewModel.downloadedBooks.isEmpty {
-                EmptyStateView()
+                NoDownloadsView()
             } else {
                 contentView
             }

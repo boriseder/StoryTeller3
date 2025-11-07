@@ -167,9 +167,8 @@ struct BookCardView: View {
         ZStack {
             // Hintergrundkreis
             Circle()
-                .fill(.white.opacity(0.9))
-                .frame(width: DSLayout.actionButtonSize,
-                       height: DSLayout.actionButtonSize)
+                .fill(.white.opacity(0.95))
+                .frame(width: DSLayout.actionButtonSize, height: DSLayout.actionButtonSize)
                 .shadow(color: .black.opacity(DSLayout.shadowOpacity),
                         radius: 6, x: 0, y: 2)
 
@@ -185,8 +184,7 @@ struct BookCardView: View {
                         style: StrokeStyle(lineWidth: 3, lineCap: .round)
                     )
                     .rotationEffect(.degrees(-90))
-                    .frame(width: DSLayout.actionButtonSize,
-                           height: DSLayout.actionButtonSize)
+                    .frame(width: DSLayout.actionButtonSize, height: DSLayout.actionButtonSize)
                     .animation(.linear(duration: 0.2), value: viewModel.downloadProgress)
             }
 
@@ -201,14 +199,14 @@ struct BookCardView: View {
                 }
             }())
             .symbolRenderingMode(.hierarchical)
+            .resizable()
+            .scaledToFit()
+            .frame(width: 18, height: 18)
             .foregroundStyle(viewModel.isDownloaded ? .green : Color.black)
-            .font(.system(size: 24, weight: .medium))
             .transition(.opacity.combined(with: .scale))
             .animation(.easeInOut(duration: 0.25), value: viewModel.isDownloading)
             .animation(.easeInOut(duration: 0.25), value: viewModel.isDownloaded)
         }
-        .frame(width: DSLayout.actionButtonSize,
-               height: DSLayout.actionButtonSize)
         .onTapGesture {
             if viewModel.isDownloaded {
                 onDelete()

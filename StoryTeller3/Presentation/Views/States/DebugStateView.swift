@@ -9,7 +9,7 @@
 import SwiftUI
 
 enum DebugSheet: Identifiable {
-    case authError, emptyState, error, loading, networkError, noDownloads, noSearchResults
+    case error, loading, networkError, noDownloads
 
     var id: Int { hashValue }
 }
@@ -17,18 +17,16 @@ enum DebugSheet: Identifiable {
 struct DebugView: View {
     @State private var selectedSheet: DebugSheet?
     @EnvironmentObject var theme: ThemeManager
+    @EnvironmentObject var downloadManager: DownloadManager
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 12) {
-                    debugButton("AuthErrorView") { selectedSheet = .authError }
-                    debugButton("EmptyStateView") { selectedSheet = .emptyState }
                     debugButton("ErrorView") { selectedSheet = .error }
                     debugButton("LoadingView") { selectedSheet = .loading }
                     debugButton("NetworkErrorView") { selectedSheet = .networkError }
                     debugButton("NoDownloadsView") { selectedSheet = .noDownloads }
-                    debugButton("NoSearchResultsView") { selectedSheet = .noSearchResults }
                 }
                 .padding()
             }
@@ -40,10 +38,6 @@ struct DebugView: View {
                     DynamicBackground()
                 }
                 switch sheet {
-                case .authError:
-                    AuthErrorView(onReLogin: {})
-                case .emptyState:
-                    EmptyStateView()
                 case .error:
                     ErrorView(error: "Fehler beim Laden")
                 case .loading:
@@ -51,15 +45,12 @@ struct DebugView: View {
                 case .networkError:
                     NetworkErrorView(
                         issueType: .serverUnreachable,
-                        downloadedBooksCount: 3,
                         onRetry: {},
                         onViewDownloads: {},
                         onSettings: {}
                     )
                 case .noDownloads:
                     NoDownloadsView()
-                case .noSearchResults:
-                    NoSearchResultsView()
                 }
             }
         }

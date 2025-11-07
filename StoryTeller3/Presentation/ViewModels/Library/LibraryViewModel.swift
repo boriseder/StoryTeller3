@@ -13,9 +13,6 @@ class LibraryViewModel: ObservableObject {
     // For smooth transistions
     @Published var contentLoaded = false
 
-    // Offline mode tracking
-    @Published var dataSource: DataSource = .network(timestamp: Date())
-
     // MARK: - Dependencies (Use Cases & Repositories)
     private let fetchBooksUseCase: FetchBooksUseCaseProtocol
     private let playBookUseCase: PlayBookUseCase
@@ -58,26 +55,6 @@ class LibraryViewModel: ObservableObject {
         books.filter { !$0.isCollapsedSeries }.count
     }
     
-    var uiState: LibraryUIState {
-        let isOffline = !appState.canPerformNetworkOperations
-        
-        if isLoading {
-            return isOffline ? .loadingFromCache : .loading
- //       } else if let error = errorMessage {
- //           return .error(error)
-        } else if isOffline && !books.isEmpty {
-            return .offline(cachedItemCount: books.count)
-        } else if books.isEmpty {
-            return .empty
-        } else if filteredAndSortedBooks.isEmpty && filterState.showDownloadedOnly {
-            return .noDownloads
-        } else if filteredAndSortedBooks.isEmpty {
-            return .noSearchResults  
-        } else {
-            return .content
-        }
-    }
-
     // MARK: - Init with DI
     init(
         fetchBooksUseCase: FetchBooksUseCaseProtocol,
@@ -129,9 +106,6 @@ class LibraryViewModel: ObservableObject {
                 collapseSeries: filterState.showSeriesGrouped  // ← DIFFERENT: collapseSeries param
             )
             
-            // Success from network
-            dataSource = .network(timestamp: Date())
-            
             withAnimation(.easeInOut) {
                 books = fetchedBooks
             }
@@ -144,24 +118,15 @@ class LibraryViewModel: ObservableObject {
             )
             
         } catch let error as RepositoryError {
-            // On error, check if we have cached data from previous successful load
-            if !books.isEmpty {  // ← DIFFERENT: checks books not personalizedSections
-                dataSource = .cache(timestamp: Date())
-                AppLogger.general.debug("[LibraryViewModel] Using in-memory cached data, network unavailable")
-            } else {
-                handleRepositoryError(error)  // ← DIFFERENT: calls handleRepositoryError
-            }
+                handleRepositoryError(error)
         } catch {
-            if !books.isEmpty {  // ← DIFFERENT: checks books
-                dataSource = .cache(timestamp: Date())
-            } else {
                 errorMessage = error.localizedDescription
                 showingErrorAlert = true
-            }
         }
         
         isLoading = false
     }
+    
     func playBook(_ book: Book, appState: AppStateManager, restoreState: Bool = true) async {
         isLoading = true
         

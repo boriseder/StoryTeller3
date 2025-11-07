@@ -134,7 +134,7 @@ class PlayBookUseCase: PlayBookUseCaseProtocol {
         appState: AppStateManager
     ) -> PlaybackMode {
         let isDownloaded = downloadManager.isBookDownloaded(book.id)
-        let hasConnection = appState.canPerformNetworkOperations
+        let hasConnection = appState.isServerReachable
         
         // Priority 1: Downloaded = Always offline mode
         if isDownloaded {

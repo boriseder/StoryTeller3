@@ -10,6 +10,7 @@ struct ContentView: View {
 
     // MARK: - State Variables
     @State private var selectedTab: TabIndex = .home
+    @State private var bookCount = 0
     @State private var cancellables = Set<AnyCancellable>()
     
     // MARK: - Computed Properties for Dependencies
@@ -28,7 +29,7 @@ struct ContentView: View {
                 LoadingView(message: "Loading data...")
                     .padding(.top, 56)
 
-            case .noCredentialsSaved:
+            case .noCredentialsSaved, .authenticationError:
                 Color.clear
                     .onAppear {
                         if UserDefaults.standard.string(forKey: "stored_username") != nil {
@@ -41,19 +42,23 @@ struct ContentView: View {
                     }
             
             case .networkError(let issueType):
+            if bookCount > 0 {
+                    mainContent
+                        .onAppear {
+                            appState.selectedTab = .downloads
+                            appState.loadingState = .ready
+                        }
+            } else {
                 NetworkErrorView(
                     issueType: issueType,
-                    downloadedBooksCount: downloadManager.downloadedBooks.count,
                     onRetry: { Task { setupApp() } },
                     onViewDownloads: {
-                        selectedTab = .downloads
+                        appState.selectedTab = .downloads
                         appState.loadingState = .ready
                     },
                     onSettings: { appState.showingSettings = true }
                 )
-                    
-            case .authenticationError:
-                AuthErrorView(onReLogin: { appState.showingSettings = true })
+            }
                     
             case .ready:
                 mainContent
@@ -193,8 +198,15 @@ struct ContentView: View {
                 return
             }
             
-            appState.loadingState = .credentialsFoundValidating
+            //wait unti ldownloadManager.repository is initialized
+            while downloadManager.repository == nil {
+                try? await Task.sleep(nanoseconds: 50_000_000) // 50ms
+            }
+
+            self.bookCount = await downloadManager.preloadDownloadedBooksCount()
             
+            appState.loadingState = .credentialsFoundValidating
+                       
             do {
                 let token = try KeychainService.shared.getToken(for: username)
                 //let client = AudiobookshelfClient(baseURL: baseURL, authToken: token)
@@ -203,7 +215,6 @@ struct ContentView: View {
                 DependencyContainer.shared.configureAPI(baseURL: baseURL, token: token)
                 let client = DependencyContainer.shared.apiClient!
 
-                
                 let connectionResult = await testConnection(client: client)
                 
                 switch connectionResult {

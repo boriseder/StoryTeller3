@@ -18,50 +18,9 @@ struct HomeView: View {
                 Color.accent.ignoresSafeArea()
             }
           
-            ZStack {
-                switch viewModel.uiState {
-                    
-                case .content, .loading, .loadingFromCache:
-                    contentView
-                        .transition(.opacity)
-
-                case .offline(let hasCachedData):
-                    if hasCachedData {
-                        contentView
-                            .transition(.opacity)
-                    } else {
-                        ErrorView(error: "No cached data available. Please connect to the internet.")
-                            .transition(.opacity)
-                    }
-
-/*
-                case .error(let message):
-                    ErrorView(error: message)
-                        .transition(.opacity)
-*/
-                case .empty:
-                    if showEmptyState {
-                        EmptyStateView()
-                            .transition(.opacity)
-                    }
-
-                case .noDownloads:
-                    NoDownloadsView()
-                        .transition(.opacity)
-                }
-            }
-            .onChange(of: viewModel.uiState) {
-                if viewModel.uiState == .empty {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak viewModel] in
-                        guard viewModel?.uiState == .empty else { return }
-                        withAnimation { showEmptyState = true }
-                    }
-                } else {
-                    showEmptyState = false
-                }
-            }
-            .animation(.easeInOut(duration: 0.3), value: viewModel.uiState)
-        }
+            contentView
+                .transition(.opacity)
+       }
         .navigationTitle("Explore & listen")
         .navigationBarTitleDisplayMode(.large)
         .toolbarBackground(.visible, for: .navigationBar)
@@ -72,37 +31,11 @@ struct HomeView: View {
         )
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
-                settingsButton
+                SettingsButton()
             }
         }
         .refreshable {
             await viewModel.loadPersonalizedSections()
-        }
-        .alert("Error", isPresented: $viewModel.showingErrorAlert) {
-            Button("OK") {
-                appState.selectedTab = .downloads
-            }
-            Button("Reconnect") {
-                Task {
-                    guard let baseURL = UserDefaults.standard.string(forKey: "baseURL") else { return }
-                    let useCase = TestConnectionUseCase(connectionHealthChecker: ConnectionHealthChecker())
-                    let isConnected = await useCase.execute(baseURL: baseURL)
-                    
-                    await MainActor.run {
-                        appState.isDeviceOnline = isConnected
-                        if isConnected {
-                            viewModel.showingErrorAlert = false
-                        }
-                    }
-                }
-            }
-            Button("Cancel", role: .cancel) { }
-        } message: {
-            Text("""
-            \(viewModel.errorMessage ?? "Unknown Error")
-            
-            Do you want to change to your downloaded books?
-            """)
         }
         .task {
             await viewModel.loadPersonalizedSectionsIfNeeded()
@@ -143,7 +76,8 @@ struct HomeView: View {
 
             ScrollView {
                 LazyVStack(spacing: DSLayout.contentGap) {
-                    offlineBanner
+                    
+                    OfflineBanner()
                     
                     homeHeaderView
                         .padding(.bottom, DSLayout.elementPadding)
@@ -182,7 +116,6 @@ struct HomeView: View {
         }
         .opacity(viewModel.contentLoaded ? 1 : 0)
         .animation(.easeInOut(duration: 0.5), value: viewModel.contentLoaded)
-        .animation(.easeInOut(duration: 0.3), value: viewModel.uiState)
         .onAppear {
             viewModel.contentLoaded = true
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
@@ -240,8 +173,10 @@ struct HomeView: View {
 
             // Third section
             Button {
-                appState.isDeviceOnline.toggle()
-                appState.isServerReachable.toggle()
+                Task {
+                    
+                    await appState.checkServerReachability()
+                }
             } label: {
                 Image(systemName: appState.isDeviceOnline ? "icloud" : "icloud.slash")
                     .font(DSText.button)
@@ -258,66 +193,6 @@ struct HomeView: View {
         .clipShape(RoundedRectangle(cornerRadius: DSCorners.element))
         .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
     }
-    
-    private var settingsButton: some View {
-        Button(action: {
-            NotificationCenter.default.post(name: .init("ShowSettings"), object: nil)
-        }) {
-            Image(systemName: "gearshape.fill")
-                .font(.system(size: 16))
-                .foregroundColor(.primary)
-        }
-    }
-    
-    private var offlineBanner: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "wifi.slash")
-                .font(.body)
-            
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Offline Mode")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                
-                if case .cache(let timestamp) = viewModel.dataSource {
-                    Text("Last updated \(formatTimestamp(timestamp))")
-                        .font(.caption)
-                        .opacity(0.8)
-                }
-            }
-            
-            Spacer()
-            
-            Divider()
-                .frame(height: 40)
-
-            // Third section
-            Button {
-                appState.isDeviceOnline.toggle()
-                appState.isServerReachable.toggle()
-            } label: {
-                Image(systemName: appState.isDeviceOnline ? "icloud" : "icloud.slash")
-                    .font(DSText.button)
-                    .foregroundColor(appState.isDeviceOnline ? Color.green : Color.red)
-                    .padding(DSLayout.tightPadding)
-                    .background(appState.isDeviceOnline ? Color.green.opacity(0.1) : Color.red.opacity(0.1))
-                    .clipShape(Circle())
-            }
-            .padding(.horizontal, DSLayout.elementPadding)
-
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .background(Color.orange.opacity(0.9))
-        .foregroundColor(.white)
-    }
-
-    private func formatTimestamp(_ date: Date) -> String {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .short
-        return formatter.localizedString(for: date, relativeTo: Date())
-    }
-
 }
 
 // MARK: - Personalized Section View

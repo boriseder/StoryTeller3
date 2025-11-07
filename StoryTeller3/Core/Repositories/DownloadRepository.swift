@@ -22,6 +22,9 @@ protocol DownloadRepository {
     /// Gets all downloaded books
     func getDownloadedBooks() -> [Book]
     
+    /// Gets all downloaded books as async
+    func preloadDownloadedBooks() async -> [Book]
+    
     /// Checks if a book is downloaded
     func isBookDownloaded(_ bookId: String) -> Bool
     
@@ -231,6 +234,17 @@ final class DefaultDownloadRepository: DownloadRepository {
     
     func getDownloadedBooks() -> [Book] {
         return downloadManager?.downloadedBooks ?? []
+    }
+    
+    func preloadDownloadedBooks() async -> [Book] {
+        let books = storageService.loadDownloadedBooks()
+            .filter { validationService.validateBookIntegrity(bookId: $0.id, storageService: storageService).isValid }
+
+        await MainActor.run {
+            downloadManager?.downloadedBooks = books
+        }
+
+        return books
     }
     
     func isBookDownloaded(_ bookId: String) -> Bool {

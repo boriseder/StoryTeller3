@@ -18,53 +18,8 @@ struct LibraryView: View {
                 Color.accent.ignoresSafeArea()
             }
             
-            ZStack {
-                switch viewModel.uiState {
-                    
-                case .content, .loading, .loadingFromCache:
-                    contentView
-                        .transition(.opacity)
-
-                case .offline(let cachedItemCount):
-                    if cachedItemCount > 0 {
-                        contentView
-                    } else {
-                        ErrorView(error: "No cached data available. Please connect to the internet.")
-                            .transition(.opacity)
-                    }
-/*
-                case .error(let message):
-                    ErrorView(error: message)
-                        .transition(.opacity)
-*/
-                case .empty:
-                    if showEmptyState {
-                        EmptyStateView()
-                            .transition(.opacity)
-                    }
-
-                case .noDownloads:
-                    NoDownloadsView()
-                        .transition(.opacity)
-                
-                case .noSearchResults:
-                    NoSearchResultsView()
-                        .transition(.opacity)
-
-                }
-            }
-            .onChange(of: viewModel.uiState) {
-                if viewModel.uiState == .empty {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak viewModel] in
-                        guard viewModel?.uiState == .empty else { return }
-                        withAnimation { showEmptyState = true }
-                    }
-                } else {
-                    showEmptyState = false
-                }
-            }
-            .animation(.easeInOut(duration: 0.3), value: viewModel.uiState)
-
+            contentView
+                .transition(.opacity)
         }
         .navigationTitle(viewModel.libraryName)
         .navigationBarTitleDisplayMode(.large)
@@ -81,32 +36,6 @@ struct LibraryView: View {
         .refreshable {
             await viewModel.loadBooks()
         }
-        .alert("Error", isPresented: $viewModel.showingErrorAlert) {
-            Button("OK") {
-                appState.selectedTab = .downloads
-            }
-            Button("Reconnect") {
-                Task {
-                    guard let baseURL = UserDefaults.standard.string(forKey: "baseURL") else { return }
-                    let useCase = TestConnectionUseCase(connectionHealthChecker: ConnectionHealthChecker())
-                    let isConnected = await useCase.execute(baseURL: baseURL)
-                    
-                    await MainActor.run {
-                        appState.isDeviceOnline = isConnected
-                        if isConnected {
-                            viewModel.showingErrorAlert = false
-                        }
-                    }
-                }
-            }
-            Button("Cancel", role: .cancel) { }
-        } message: {
-            Text("""
-            \(viewModel.errorMessage ?? "Unknown Error")
-            
-            Do you want to change to your downloaded books?
-            """)
-        }
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 HStack(spacing: 12) {
@@ -116,14 +45,6 @@ struct LibraryView: View {
                     SettingsButton()
                 }
             }
-        }
-        .alert("Fehler", isPresented: $viewModel.showingErrorAlert) {
-            Button("OK") { }
-            Button("Erneut versuchen") {
-                Task { await viewModel.loadBooks() }
-            }
-        } message: {
-            Text(viewModel.errorMessage ?? "Unbekannter Fehler")
         }
         .task {
             await viewModel.loadBooksIfNeeded()
@@ -135,6 +56,8 @@ struct LibraryView: View {
                 onBookSelected: viewModel.onBookSelected
             )
             .environmentObject(appState)
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
         }
         .onChange(of: viewModel.filteredAndSortedBooks.count) {
             updateBookCardViewModels()
@@ -152,25 +75,25 @@ struct LibraryView: View {
             if theme.backgroundStyle == .dynamic {
                 DynamicBackground()
             }
-
-            if viewModel.filterState.showDownloadedOnly {
-                FilterStatusBannerView(
-                    count: viewModel.filteredAndSortedBooks.count,
-                    totalDownloaded: viewModel.downloadedBooksCount,
-                    onDismiss: { viewModel.toggleDownloadFilter() }
-                )
-            }
-            
-            if viewModel.filterState.showSeriesGrouped {
-                SeriesStatusBannerView(
-                    books: viewModel.filteredAndSortedBooks,
-                    onDismiss: { viewModel.toggleSeriesMode() }
-                )
-            }
             
             ScrollView {
                 
-                offlineBanner
+                OfflineBanner()
+                
+                if viewModel.filterState.showDownloadedOnly {
+                    FilterStatusBannerView(
+                        count: viewModel.filteredAndSortedBooks.count,
+                        totalDownloaded: viewModel.downloadedBooksCount,
+                        onDismiss: { viewModel.toggleDownloadFilter() }
+                    )
+                }
+                
+                if viewModel.filterState.showSeriesGrouped {
+                    SeriesStatusBannerView(
+                        books: viewModel.filteredAndSortedBooks,
+                        onDismiss: { viewModel.toggleSeriesMode() }
+                    )
+                }
                 
                 LazyVGrid(columns: DSGridColumns.two, spacing: 0) {
                     ForEach(bookCardVMs) { bookVM in
@@ -202,7 +125,6 @@ struct LibraryView: View {
         }
         .opacity(viewModel.contentLoaded ? 1 : 0)
         .animation(.easeInOut(duration: 0.5), value: viewModel.contentLoaded)
-        .animation(.easeInOut(duration: 0.3), value: viewModel.uiState)
         .onAppear { viewModel.contentLoaded = true }
     }
     
@@ -304,12 +226,6 @@ struct LibraryView: View {
                         Label("Downloaded only", systemImage: "arrow.down.circle")
                     }
                 }
-                
-                if viewModel.downloadedBooksCount > 0 {
-                    Text("\(viewModel.downloadedBooksCount) downloaded")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
             }
             
             Divider()
@@ -382,57 +298,8 @@ struct LibraryView: View {
             .animation(.spring(response: 0.3, dampingFraction: 0.7), value: viewModel.filterState.hasActiveFilters)
         }
     }
-    
-    private var offlineBanner: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "wifi.slash")
-                .font(.body)
-            
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Offline Mode")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                
-                if case .cache(let timestamp) = viewModel.dataSource {
-                    Text("Last updated \(formatTimestamp(timestamp))")
-                        .font(.caption)
-                        .opacity(0.8)
-                }
-            }
-            
-            Spacer()
-            
-            Divider()
-                .frame(height: 40)
-
-            // Third section
-            Button {
-                appState.isDeviceOnline.toggle()
-                appState.isServerReachable.toggle()
-            } label: {
-                Image(systemName: appState.isDeviceOnline ? "icloud" : "icloud.slash")
-                    .font(DSText.button)
-                    .foregroundColor(appState.isDeviceOnline ? Color.green : Color.red)
-                    .padding(DSLayout.tightPadding)
-                    .background(appState.isDeviceOnline ? Color.green.opacity(0.1) : Color.red.opacity(0.1))
-                    .clipShape(Circle())
-            }
-            .padding(.horizontal, DSLayout.elementPadding)
-
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .background(Color.orange.opacity(0.9))
-        .foregroundColor(.white)
-    }
-
-    private func formatTimestamp(_ date: Date) -> String {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .short
-        return formatter.localizedString(for: date, relativeTo: Date())
-    }
-
 }
+
 // MARK: - Filter Status Banner Component
 struct FilterStatusBannerView: View {
     let count: Int

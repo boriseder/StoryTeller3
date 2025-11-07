@@ -27,53 +27,33 @@ struct AuthorDetailSheet: View {
     @State private var showingErrorAlert = false
     
     var body: some View {
+        
         NavigationStack {
-            VStack(spacing: 0) {
-                // Author Header
+            VStack(alignment: .leading, spacing: DSLayout.contentGap) {
+                // Series Header
                 authorHeaderView
-                    .padding(.horizontal, 20)
-                    .padding(.top, 16)
-                    .padding(.bottom, 8)
                 
                 Divider()
                 
-                // Content
-                Group {
-                    if isLoading {
-                        loadingView
-                    } else if let error = errorMessage {
-                        errorView(error)
-                    } else if authorBooks.isEmpty {
-                        emptyStateView
-                    } else {
-                        booksGridView
-                    }
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                booksGridView
+                
             }
             .navigationTitle("")
             .navigationBarHidden(true)
             .task {
                 await loadAuthorBooks()
             }
-            .alert("Error", isPresented: $showingErrorAlert) {
-                Button("OK") { }
-                Button("Retry") {
-                    Task { await loadAuthorBooks() }
-                }
-            } message: {
-                Text(errorMessage ?? "Unknown error")
-            }
         }
     }
     
     // MARK: - Author Header
     private var authorHeaderView: some View {
-        HStack(spacing: 16) {
+        HStack(alignment: .top) {
+            
             // Author Avatar
             Circle()
                 .fill(Color.accentColor.opacity(0.2))
-                .frame(width: 80, height: 80)
+                .frame(width: 60, height: 60)
                 .overlay(
                     Text(String(authorName.prefix(2).uppercased()))
                         .font(.system(size: 28, weight: .semibold))
@@ -81,35 +61,23 @@ struct AuthorDetailSheet: View {
                 )
             
             // Author Info
-            VStack(alignment: .leading, spacing: 6) {
-                Button(action: { dismiss() }) {
-                    HStack {
-                        Image(systemName: "chevron.down")
-                            .font(.system(size: 14))
-                        Text("Close")
-                            .font(.subheadline)
-                    }
-                    .foregroundColor(.secondary)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
+            VStack(alignment: .leading, spacing: 4) {
                 
+                // Author Name
                 Text(authorName)
                     .font(.title2)
                     .fontWeight(.semibold)
                     .lineLimit(2)
+                    .multilineTextAlignment(.leading)
                 
-                // Author Stats
+                // Stats
                 if !authorBooks.isEmpty {
-                    HStack(spacing: 12) {
+                    HStack(spacing: 8) {
                         Text("\(authorBooks.count) books")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
                         
                         let downloadedCount = authorBooks.filter { downloadManager.isBookDownloaded($0.id) }.count
                         if downloadedCount > 0 {
                             Text("• \(downloadedCount) downloaded")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
                         }
                         
                         let totalDuration = authorBooks.reduce(0.0) { total, book in
@@ -117,91 +85,37 @@ struct AuthorDetailSheet: View {
                                 chapterTotal + ((chapter.end ?? 0) - (chapter.start ?? 0))
                             })
                         }
-                        
                         if totalDuration > 0 {
                             Text("• \(TimeFormatter.formatTimeCompact(totalDuration))")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
                         }
                     }
+                    .font(.caption)
+                    .foregroundColor(.secondary)
                 }
             }
+            .layoutPriority(1) // verhindert, dass der Name zu klein wird
             
             Spacer()
-        }
-    }
-    
-    // MARK: - Content Views
-    
-    private var loadingView: some View {
-        VStack(spacing: 16) {
-            ProgressView()
-                .scaleEffect(1.2)
             
-            Text("Loading books by \(authorName)...")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-    
-    private func errorView(_ error: String) -> some View {
-        VStack(spacing: 20) {
-            Image(systemName: "exclamationmark.triangle")
-                .font(.system(size: 40))
-                .foregroundColor(.orange)
-            
-            VStack(spacing: 8) {
-                Text("Error loading books")
-                    .font(.headline)
-                    .fontWeight(.semibold)
-                
-                Text(error)
-                    .font(.body)
+            // Dismiss Button
+            Button {
+                dismiss()
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.title2)
                     .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal)
             }
-            
-            Button(action: {
-                Task { await loadAuthorBooks() }
-            }) {
-                Text("Retry")
-                    .font(.headline)
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 12)
-                    .background(Color.accentColor)
-                    .clipShape(Capsule())
-            }
+            .buttonStyle(.plain)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding()
+        .padding(.horizontal, DSLayout.screenPadding)
+        .padding(.top, DSLayout.comfortPadding)
     }
-    
-    private var emptyStateView: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "person.crop.circle.badge.questionmark")
-                .font(.system(size: 40))
-                .foregroundColor(.secondary)
-            
-            Text("No books found")
-                .font(.headline)
-                .foregroundColor(.secondary)
-            
-            Text("No books by \(authorName) were found in your library")
-                .font(.body)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding()
-    }
+    // MARK: - Content Views
     
     private var booksGridView: some View {
         
-        return ScrollView {
-            LazyVGrid(columns: DSGridColumns.two) {
+        ScrollView {
+            LazyVGrid(columns: DSGridColumns.two, spacing: 0) {
                 ForEach(authorBooks) { book in
                     let viewModel = BookCardStateViewModel(book: book)
                     
@@ -225,8 +139,7 @@ struct AuthorDetailSheet: View {
                     )
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 16)
+            .padding(.horizontal, DSLayout.contentPadding)
         }
     }
     
@@ -298,4 +211,5 @@ struct AuthorDetailSheet: View {
         }
         
         isLoading = false
-    }}
+    }
+}
