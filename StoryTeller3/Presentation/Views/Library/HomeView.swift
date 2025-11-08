@@ -41,11 +41,8 @@ struct HomeView: View {
             await viewModel.loadPersonalizedSectionsIfNeeded()
         }
         .sheet(item: $selectedSeries) { series in
-            SeriesDetailSheet(
+            SeriesDetailView(
                 series: series,
-                player: viewModel.player,
-                api: viewModel.api,
-                downloadManager: viewModel.downloadManager,
                 onBookSelected: viewModel.onBookSelected
             )
             .environmentObject(appState)
@@ -53,11 +50,8 @@ struct HomeView: View {
             .presentationDragIndicator(.visible)
         }
         .sheet(item: $selectedAuthor) { authorWrapper in
-            AuthorDetailSheet(
+            AuthorDetailView(
                 authorName: authorWrapper.value,
-                player: viewModel.player,
-                api: viewModel.api,
-                downloadManager: viewModel.downloadManager,
                 onBookSelected: viewModel.onBookSelected
             )
             .environmentObject(appState)
@@ -125,14 +119,13 @@ struct HomeView: View {
     }
     
     private var homeHeaderView: some View {
-        HStack(alignment: .center, spacing: 0) {
+        HStack(spacing: DSLayout.elementGap) {
             // First section
-            HStack(spacing: 8) {
+            HStack(spacing: DSLayout.elementGap) {
                 Image(systemName: "books.vertical.fill")
-                    .font(.system(size: DSLayout.icon))
+                    .font(.system(size: DSLayout.smallIcon))
                     .foregroundColor(.blue)
                     .frame(width: DSLayout.icon, height: DSLayout.icon)
-                    .background(.blue.opacity(0.1))
 
                 VStack(spacing: DSLayout.tightGap) {
                     Text("Books in library")
@@ -142,53 +135,50 @@ struct HomeView: View {
                         .font(.subheadline)
                         .fontWeight(.semibold)
                 }
+                
+                Spacer()
             }
-            .frame(maxWidth: .infinity)
 
             Divider()
-                .frame(height: 40)
 
             // Second section
-            HStack(spacing: 8) {
+            HStack(spacing: DSLayout.elementGap) {
                 Image(systemName: "arrow.down.circle")
-                    .font(.system(size: DSLayout.icon))
+                    .font(.system(size: DSLayout.smallIcon))
                     .foregroundColor(.green)
                     .frame(width: DSLayout.icon, height: DSLayout.icon)
-                    .background(.green.opacity(0.1))
-                    .clipShape(Circle())
 
                 VStack(spacing: DSLayout.tightGap) {
-                    Text("Downloaded")
+                    Text("Downloads")
                         .font(DSText.footnote)
                         .foregroundColor(.secondary)
                     Text(String(viewModel.downloadedCount))
                         .font(.subheadline)
                         .fontWeight(.semibold)
                 }
+                Spacer()
             }
-            .frame(maxWidth: .infinity)
 
             Divider()
-                .frame(height: 40)
 
             // Third section
             Button {
                 Task {
-                    
                     await appState.checkServerReachability()
                 }
             } label: {
                 Image(systemName: appState.isDeviceOnline ? "icloud" : "icloud.slash")
-                    .font(DSText.button)
+                    .font(.system(size: DSLayout.smallIcon))
                     .foregroundColor(appState.isDeviceOnline ? Color.green : Color.red)
-                    .padding(DSLayout.tightPadding)
+                    .frame(width: DSLayout.icon, height: DSLayout.icon)
                     .background(appState.isDeviceOnline ? Color.green.opacity(0.1) : Color.red.opacity(0.1))
                     .clipShape(Circle())
             }
-            .padding(.horizontal, DSLayout.elementPadding)
+            
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, DSLayout.elementGap) // vertical spacing
+        .padding(.vertical, DSLayout.tightGap)
+        .padding(.horizontal, DSLayout.elementGap)
         .background(.regularMaterial)
         .clipShape(RoundedRectangle(cornerRadius: DSCorners.element))
         .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)

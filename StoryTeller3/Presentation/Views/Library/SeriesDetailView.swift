@@ -1,26 +1,29 @@
 import SwiftUI
 
-struct SeriesQuickAccessView: View {
-    @StateObject private var viewModel: SeriesQuickAccessViewModel
+struct SeriesDetailView: View {
+    @StateObject private var viewModel: SeriesDetailViewModel
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var appState: AppStateManager
     
+    init(series: Series, onBookSelected: @escaping () -> Void) {
+        _viewModel = StateObject(wrappedValue: SeriesDetailViewModel(
+            series: series,
+            container: .shared,
+            onBookSelected: onBookSelected
+        ))
+    }
     
-    init(
-        seriesBook: Book,
-        onBookSelected: @escaping () -> Void
-        ) {
-        _viewModel = StateObject(wrappedValue: SeriesQuickAccessViewModel(
+    init(seriesBook: Book, onBookSelected: @escaping () -> Void) {
+        _viewModel = StateObject(wrappedValue: SeriesDetailViewModel(
             seriesBook: seriesBook,
             container: .shared,
             onBookSelected: onBookSelected
         ))
-        }
+    }
     
     var body: some View {
         NavigationStack {
             VStack(alignment: .leading, spacing: DSLayout.contentGap) {
-                // Series Header
                 seriesHeaderView
                 
                 Divider()
@@ -30,6 +33,7 @@ struct SeriesQuickAccessView: View {
             .navigationTitle("")
             .navigationBarHidden(true)
             .task {
+                viewModel.onDismiss = { dismiss() }
                 await viewModel.loadSeriesBooks()
             }
         }
@@ -37,31 +41,32 @@ struct SeriesQuickAccessView: View {
     
     private var seriesHeaderView: some View {
         HStack(alignment: .top) {
-            // Series Info
             VStack(alignment: .leading, spacing: 4) {
-                // Title
-                Text(viewModel.seriesBook.displayTitle)
+                Text(viewModel.seriesName)
                     .font(.title3)
                     .fontWeight(.semibold)
                     .lineLimit(2)
                 
                 if !viewModel.seriesBooks.isEmpty {
                     HStack(spacing: DSLayout.elementGap) {
-                        Text("\(viewModel.seriesBooks.count) Books")
+                        Text("\(viewModel.seriesBooks.count) books")
                         
                         if viewModel.downloadedCount > 0 {
-                            Text(" • \(viewModel.downloadedCount) downloaded")
+                            Text("• \(viewModel.downloadedCount) downloaded")
+                        }
+                        
+                        if let duration = viewModel.seriesTotalDuration {
+                            Text("• \(duration)")
                         }
                     }
                     .font(.caption)
                     .foregroundColor(.secondary)
                 }
             }
-            .layoutPriority(1) // verhindert, dass der Titel zu klein wird
+            .layoutPriority(1)
             
             Spacer()
             
-            // Dismiss Button
             Button {
                 dismiss()
             } label: {
@@ -76,7 +81,6 @@ struct SeriesQuickAccessView: View {
     }
     
     private var booksGridView: some View {
-        
         ScrollView {
             LazyVGrid(columns: DSGridColumns.two, spacing: 0) {
                 ForEach(viewModel.seriesBooks, id: \.id) { book in
@@ -84,9 +88,19 @@ struct SeriesQuickAccessView: View {
                     BookCardView(
                         viewModel: cardViewModel,
                         api: viewModel.api,
-                        onTap: {},
-                        onDownload: {},
-                        onDelete: {},
+                        onTap: {
+                            Task {
+                                await viewModel.playBook(book, appState: appState)
+                            }
+                        },
+                        onDownload: {
+                            Task {
+                                await viewModel.downloadBook(book)
+                            }
+                        },
+                        onDelete: {
+                            viewModel.deleteBook(book.id)
+                        },
                         style: .series
                     )
                 }

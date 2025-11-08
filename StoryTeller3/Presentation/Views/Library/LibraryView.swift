@@ -51,7 +51,7 @@ struct LibraryView: View {
             updateBookCardViewModels()
         }
         .sheet(item: $selectedSeries) { series in
-            SeriesQuickAccessView(
+            SeriesDetailView(
                 seriesBook: series,
                 onBookSelected: viewModel.onBookSelected
             )
@@ -307,9 +307,9 @@ struct FilterStatusBannerView: View {
     let onDismiss: () -> Void
     
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: DSLayout.elementGap) {
             Image(systemName: "arrow.down.circle.fill")
-                .font(.system(size: 16))
+                .font(.system(size: DSLayout.smallIcon))
                 .foregroundColor(.orange)
             
             Text("Show \(count) of \(totalDownloaded) downloaded books")
@@ -320,19 +320,16 @@ struct FilterStatusBannerView: View {
             
             Button(action: onDismiss) {
                 Image(systemName: "xmark")
-                    .font(.system(size: 14))
+                    .font(.system(size: DSLayout.smallIcon))
                     .foregroundColor(.secondary)
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, DSLayout.contentGap)
+        .padding(.horizontal, DSLayout.contentGap)
         .background(.regularMaterial)
-        .overlay(
-            Rectangle()
-                .frame(height: 1)
-                .foregroundColor(Color(.separator)),
-            alignment: .bottom
-        )
+        .clipShape(RoundedRectangle(cornerRadius: DSCorners.element))
+        .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
     }
 }
 

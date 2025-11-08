@@ -1,47 +1,75 @@
+//
+//  SeriesDetailViewModel.swift
+//  StoryTeller3
+//
+//  Created by Boris Eder on 08.11.25.
+//
+
+
 import SwiftUI
 
 @MainActor
-class SeriesQuickAccessViewModel: ObservableObject {
+class SeriesDetailViewModel: ObservableObject {
     @Published var seriesBooks: [Book] = []
     @Published var isLoading = false
     @Published var errorMessage: String?
     @Published var showingErrorAlert = false
     
-    let seriesBook: Book
+    let seriesId: String
+    let seriesName: String
+    let seriesTotalDuration: String?
     let onBookSelected: () -> Void
     var onDismiss: (() -> Void)?
     
     private let container: DependencyContainer
     
-    // Computed properties for dependencies
     var player: AudioPlayer { container.player }
     var api: AudiobookshelfClient { container.apiClient! }
-    var downloadManager: DownloadManager { container.downloadManager }  
-
+    var downloadManager: DownloadManager { container.downloadManager }
+    
     var downloadedCount: Int {
         seriesBooks.filter { downloadManager.isBookDownloaded($0.id) }.count
     }
     
     private let fetchSeriesBooksUseCase: FetchSeriesBooksUseCaseProtocol
     private let playBookUseCase: PlayBookUseCase
-
+    
     init(
-            seriesBook: Book,
-            container: DependencyContainer = .shared,
-            onBookSelected: @escaping () -> Void
-        ) {
-            self.seriesBook = seriesBook
-            self.container = container
-            self.onBookSelected = onBookSelected
-            
-            // Create use cases with container dependencies
-            self.fetchSeriesBooksUseCase = FetchSeriesBooksUseCase(api: container.apiClient!)
-            self.playBookUseCase = PlayBookUseCase()
+        series: Series,
+        container: DependencyContainer = .shared,
+        onBookSelected: @escaping () -> Void
+    ) {
+        self.seriesId = series.id
+        self.seriesName = series.name
+        self.seriesTotalDuration = series.formattedDuration
+        self.container = container
+        self.onBookSelected = onBookSelected
+        
+        self.fetchSeriesBooksUseCase = FetchSeriesBooksUseCase(api: container.apiClient!)
+        self.playBookUseCase = PlayBookUseCase()
+    }
+    
+    init(
+        seriesBook: Book,
+        container: DependencyContainer = .shared,
+        onBookSelected: @escaping () -> Void
+    ) {
+        guard let collapsedSeries = seriesBook.collapsedSeries else {
+            fatalError("Book must have collapsedSeries")
         }
+        
+        self.seriesId = collapsedSeries.id
+        self.seriesName = seriesBook.displayTitle
+        self.seriesTotalDuration = nil
+        self.container = container
+        self.onBookSelected = onBookSelected
+        
+        self.fetchSeriesBooksUseCase = FetchSeriesBooksUseCase(api: container.apiClient!)
+        self.playBookUseCase = PlayBookUseCase()
+    }
     
     func loadSeriesBooks() async {
-        guard let seriesId = seriesBook.collapsedSeries?.id,
-              let libraryId = LibraryHelpers.getCurrentLibraryId() else {
+        guard let libraryId = LibraryHelpers.getCurrentLibraryId() else {
             errorMessage = "Serie oder Bibliothek nicht gefunden"
             showingErrorAlert = true
             return
@@ -95,5 +123,13 @@ class SeriesQuickAccessViewModel: ObservableObject {
         }
         
         isLoading = false
+    }
+    
+    func downloadBook(_ book: Book) async {
+        await downloadManager.downloadBook(book, api: api)
+    }
+    
+    func deleteBook(_ bookId: String) {
+        downloadManager.deleteBook(bookId)
     }
 }
