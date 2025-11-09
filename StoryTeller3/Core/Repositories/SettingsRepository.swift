@@ -13,19 +13,6 @@ struct StoredServerConfig {
     }
 }
 
-// MARK: - App Settings
-struct AppSettings {
-    var connectionTimeout: Double
-    var maxConcurrentDownloads: Int
-    var coverCacheLimit: Int
-    var memoryCacheSize: Int
-    var enableDebugLogging: Bool
-    var autoCacheCleanup: Bool
-    var cacheOptimizationEnabled: Bool
-    var openFullscreenPlayer: Bool
-    var autoPlayOnBookTap: Bool
-
-}
 
 // MARK: - Repository Protocol
 protocol SettingsRepositoryProtocol {
@@ -36,11 +23,7 @@ protocol SettingsRepositoryProtocol {
     func getCredentials(for username: String) throws -> (password: String, token: String)
     func saveCredentials(username: String, password: String, token: String) throws
     func clearCredentials(for username: String) throws
-    
-    func getAppSettings() -> AppSettings
-    func saveAppSettings(_ settings: AppSettings)
-    func resetToDefaults()
-    
+        
     func getSelectedLibraryId() -> String?
     func saveSelectedLibraryId(_ libraryId: String?)
 }
@@ -119,54 +102,6 @@ class SettingsRepository: SettingsRepositoryProtocol {
         AppLogger.general.debug("[SettingsRepository] Cleared credentials")
     }
     
-    // MARK: - App Settings
-    
-    func getAppSettings() -> AppSettings {
-        AppSettings(
-            connectionTimeout: userDefaults.double(forKey: "connection_timeout").orDefault(30.0),
-            maxConcurrentDownloads: userDefaults.integer(forKey: "max_concurrent_downloads").orDefault(3),
-            coverCacheLimit: userDefaults.integer(forKey: "cover_cache_limit").orDefault(100),
-            memoryCacheSize: userDefaults.integer(forKey: "memory_cache_size").orDefault(50),
-            enableDebugLogging: userDefaults.bool(forKey: "enable_debug_logging"),
-            autoCacheCleanup: userDefaults.bool(forKey: "auto_cache_cleanup"),
-            cacheOptimizationEnabled: userDefaults.bool(forKey: "cache_optimization_enabled"),
-            openFullscreenPlayer: userDefaults.bool(forKey: "open_fullscreen_player"),
-            autoPlayOnBookTap: userDefaults.bool(forKey: "auto_play_on_book_tap")
-        )
-    }
-    
-    func saveAppSettings(_ settings: AppSettings) {
-        userDefaults.set(settings.connectionTimeout, forKey: "connection_timeout")
-        userDefaults.set(settings.maxConcurrentDownloads, forKey: "max_concurrent_downloads")
-        userDefaults.set(settings.coverCacheLimit, forKey: "cover_cache_limit")
-        userDefaults.set(settings.memoryCacheSize, forKey: "memory_cache_size")
-        userDefaults.set(settings.enableDebugLogging, forKey: "enable_debug_logging")
-        userDefaults.set(settings.autoCacheCleanup, forKey: "auto_cache_cleanup")
-        userDefaults.set(settings.cacheOptimizationEnabled, forKey: "cache_optimization_enabled")
-        userDefaults.set(settings.openFullscreenPlayer, forKey: "open_fullscreen_player")
-        userDefaults.set(settings.autoPlayOnBookTap, forKey: "auto_play_on_book_tap")
-
-        AppLogger.general.debug("[SettingsRepository] Saved app settings")
-    }
-    
-    func resetToDefaults() {
-        let defaults = AppSettings(
-            connectionTimeout: 30.0,
-            maxConcurrentDownloads: 3,
-            coverCacheLimit: 100,
-            memoryCacheSize: 50,
-            enableDebugLogging: false,
-            autoCacheCleanup: true,
-            cacheOptimizationEnabled: true,
-            openFullscreenPlayer: false,
-            autoPlayOnBookTap: false
-
-        )
-        
-        saveAppSettings(defaults)
-        
-        AppLogger.general.debug("[SettingsRepository] Reset to default settings")
-    }
     
     // MARK: - Library Selection
     

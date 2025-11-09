@@ -445,15 +445,6 @@ struct SettingsView: View {
                 Text("Enable or disable various features for development purposes")
                     .font(.caption2)
             }
-
-            Section {
-                NavigationLink(destination: AdvancedSettingsView(viewModel: viewModel)) {
-                    Label("Advanced Settings", systemImage: "gearshape.2")
-                }
-            } footer: {
-                Text("Network settings, cache configuration, and debug options")
-                    .font(.caption)
-            }
         }
     }
     

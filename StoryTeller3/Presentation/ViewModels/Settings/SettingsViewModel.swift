@@ -6,7 +6,7 @@ class SettingsViewModel: ObservableObject {
     // MARK: - State Objects
     @Published var serverConfig = ServerConfigState()
     @Published var storage = StorageState()
-    @Published var advancedSettings = AdvancedSettingsState()
+
     // MARK: - Connection State
     @Published var connectionState: ConnectionState = .initial
     @Published var isTestingConnection = false
@@ -263,51 +263,6 @@ class SettingsViewModel: ObservableObject {
         await calculateStorageInfo()
     }
     
-    
-    // MARK: - Advanced Settings
-    func saveNetworkSettings() {
-        advancedSettings.saveNetworkSettings()
-    }
-    
-    func saveDownloadSettings() {
-        advancedSettings.saveDownloadSettings()
-    }
-    
-    func saveCacheSettings() {
-        advancedSettings.saveCacheSettings()
-        Task {
-            coverCacheManager.updateCacheLimits()
-        }
-    }
-    
-    func resetCacheDefaults() {
-        advancedSettings.resetCacheDefaults()
-        saveCacheSettings()
-    }
-    
-    func toggleDebugLogging(_ enabled: Bool) {
-        UserDefaults.standard.set(enabled, forKey: "enable_debug_logging")
-    }
-    
-    func exportDebugLogs() {
-        advancedSettings.lastDebugExport = Date()
-        UserDefaults.standard.set(
-            advancedSettings.lastDebugExport?.timeIntervalSince1970,
-            forKey: "last_debug_export"
-        )
-        
-        diagnosticsService.exportLogs { [weak self] url in
-            guard let url = url else {
-                AppLogger.general.debug("[SettingsViewModel] Failed to export logs")
-                return
-            }
-            
-            Task { @MainActor in
-                self?.shareURL = url
-                self?.showingShareSheet = true
-            }
-        }
-    }
     
     // MARK: - Library Management
     func saveSelectedLibrary(_ libraryId: String?) {

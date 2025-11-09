@@ -19,14 +19,7 @@ struct ServerConfigState {
     var canLogin: Bool {
         isServerConfigured && !username.isEmpty && !password.isEmpty
     }
-    
-    mutating func loadFromDefaults() {
-        scheme = UserDefaults.standard.string(forKey: "server_scheme") ?? "http"
-        host = UserDefaults.standard.string(forKey: "server_host") ?? ""
-        port = UserDefaults.standard.string(forKey: "server_port") ?? ""
-        username = UserDefaults.standard.string(forKey: "stored_username") ?? ""
-    }
-    
+        
     func saveToDefaults() {
         UserDefaults.standard.set(scheme, forKey: "server_scheme")
         UserDefaults.standard.set(host, forKey: "server_host")
