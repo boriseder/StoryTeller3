@@ -22,6 +22,9 @@ struct AppSettings {
     var enableDebugLogging: Bool
     var autoCacheCleanup: Bool
     var cacheOptimizationEnabled: Bool
+    var openFullscreenPlayer: Bool
+    var autoPlayOnBookTap: Bool
+
 }
 
 // MARK: - Repository Protocol
@@ -126,7 +129,9 @@ class SettingsRepository: SettingsRepositoryProtocol {
             memoryCacheSize: userDefaults.integer(forKey: "memory_cache_size").orDefault(50),
             enableDebugLogging: userDefaults.bool(forKey: "enable_debug_logging"),
             autoCacheCleanup: userDefaults.bool(forKey: "auto_cache_cleanup"),
-            cacheOptimizationEnabled: userDefaults.bool(forKey: "cache_optimization_enabled")
+            cacheOptimizationEnabled: userDefaults.bool(forKey: "cache_optimization_enabled"),
+            openFullscreenPlayer: userDefaults.bool(forKey: "open_fullscreen_player"),
+            autoPlayOnBookTap: userDefaults.bool(forKey: "auto_play_on_book_tap")
         )
     }
     
@@ -138,7 +143,9 @@ class SettingsRepository: SettingsRepositoryProtocol {
         userDefaults.set(settings.enableDebugLogging, forKey: "enable_debug_logging")
         userDefaults.set(settings.autoCacheCleanup, forKey: "auto_cache_cleanup")
         userDefaults.set(settings.cacheOptimizationEnabled, forKey: "cache_optimization_enabled")
-        
+        userDefaults.set(settings.openFullscreenPlayer, forKey: "open_fullscreen_player")
+        userDefaults.set(settings.autoPlayOnBookTap, forKey: "auto_play_on_book_tap")
+
         AppLogger.general.debug("[SettingsRepository] Saved app settings")
     }
     
@@ -150,7 +157,10 @@ class SettingsRepository: SettingsRepositoryProtocol {
             memoryCacheSize: 50,
             enableDebugLogging: false,
             autoCacheCleanup: true,
-            cacheOptimizationEnabled: true
+            cacheOptimizationEnabled: true,
+            openFullscreenPlayer: false,
+            autoPlayOnBookTap: false
+
         )
         
         saveAppSettings(defaults)

@@ -11,6 +11,9 @@ struct LibraryView: View {
     // Workaround to hide nodata at start of app
     @State private var showEmptyState = false
     
+    private let autoPlay: Bool = true              // true = Auto-Start
+    private let playerMode: InitialPlayerMode = .fullscreen  // .mini oder .fullscreen
+
     var body: some View {
         ZStack {
             
@@ -53,7 +56,7 @@ struct LibraryView: View {
         .sheet(item: $selectedSeries) { series in
             SeriesDetailView(
                 seriesBook: series,
-                onBookSelected: viewModel.onBookSelected
+                onBookSelected: {}
             )
             .environmentObject(appState)
             .presentationDetents([.medium, .large])
@@ -167,7 +170,13 @@ struct LibraryView: View {
             selectedSeries = book
         } else {
             Task {
-                await viewModel.playBook(book, appState: appState)
+                await viewModel.playBook(
+                    book,
+                    appState: appState,
+                    autoPlay: autoPlay,
+                    initialPlayerMode: playerMode
+
+                )
             }
         }
     }

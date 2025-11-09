@@ -38,7 +38,9 @@ protocol PlayBookUseCaseProtocol {
         player: AudioPlayer,
         downloadManager: DownloadManager,
         appState: AppStateManager,
-        restoreState: Bool
+        restoreState: Bool,
+        autoPlay: Bool,
+
     ) async throws
 }
 
@@ -50,7 +52,9 @@ class PlayBookUseCase: PlayBookUseCaseProtocol {
         player: AudioPlayer,
         downloadManager: DownloadManager,
         appState: AppStateManager,
-        restoreState: Bool = true
+        restoreState: Bool = true,
+        autoPlay: Bool = false,
+
     ) async throws {
         
         // 1. EARLY EXIT: Check playback feasibility FIRST
@@ -88,7 +92,12 @@ class PlayBookUseCase: PlayBookUseCaseProtocol {
         // 5. Load player with appropriate mode
         await MainActor.run {
             let isOffline = playbackMode == .offline
-            player.load(book: fullBook, isOffline: isOffline, restoreState: restoreState)
+            player.load(
+                book: fullBook,
+                isOffline: isOffline,
+                restoreState: restoreState,
+                autoPlay: autoPlay 
+            )
             AppLogger.general.debug("[PlayBookUseCase] Loaded: \(fullBook.title) (\(playbackMode))")
         }
     }

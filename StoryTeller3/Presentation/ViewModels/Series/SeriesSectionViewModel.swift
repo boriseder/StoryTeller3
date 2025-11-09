@@ -1,6 +1,3 @@
-// REFACTORED: SeriesSectionViewModel
-// Changes: Container injection instead of direct player/downloadManager parameters
-
 import Foundation
 import SwiftUI
 

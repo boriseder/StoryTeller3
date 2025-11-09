@@ -3,7 +3,7 @@ import SwiftUI
 class PlayerStateManager: ObservableObject {
     @Published var showFullscreenPlayer: Bool = false
     @Published var showMiniPlayer: Bool = false
-    
+
     func showFullscreen() {
         showFullscreenPlayer = true
         showMiniPlayer = false
@@ -23,6 +23,15 @@ class PlayerStateManager: ObservableObject {
         showMiniPlayer = false
     }
     
+    func show(mode: InitialPlayerMode) {
+        switch mode {
+        case .mini:
+            showMini()
+        case .fullscreen:
+            showFullscreen()
+        }
+    }
+
     func updatePlayerState(hasBook: Bool) {
         // Wenn kein Buch geladen ist, beide Player verstecken
         if !hasBook {
@@ -66,3 +75,4 @@ enum PlayerMode {
     case mini
     case fullscreen
 }
+

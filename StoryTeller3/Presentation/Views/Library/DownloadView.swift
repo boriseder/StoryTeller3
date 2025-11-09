@@ -7,6 +7,9 @@ struct DownloadsView: View {
 
     @State private var showingStorageInfo = false
     
+    private let autoPlay: Bool = true              // true = Auto-Start
+    private let playerMode: InitialPlayerMode = .fullscreen  // .mini oder .fullscreen
+
     var body: some View {
         ZStack {
             
@@ -85,7 +88,11 @@ struct DownloadsView: View {
                                 api: viewModel.api,
                                 onTap: {
                                     Task {
-                                        await viewModel.playBook(book)
+                                        await viewModel.playBook(
+                                            book,
+                                            autoPlay: autoPlay,
+                                            initialPlayerMode: playerMode
+                                        )
                                     }
                                 },
                                 onDownload: {

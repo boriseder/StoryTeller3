@@ -76,8 +76,9 @@ class SettingsViewModel: ObservableObject {
 
     }
 
-    
+
     // MARK: - Computed Properties
+
     var canTestConnection: Bool {
         serverConfig.isServerConfigured && !isTestingConnection
     }
@@ -230,7 +231,9 @@ class SettingsViewModel: ObservableObject {
         }
     }
     
+    
     // MARK: - Storage Management
+    
     func calculateStorageInfo() async {
         storage.isCalculatingStorage = true
         
@@ -259,6 +262,7 @@ class SettingsViewModel: ObservableObject {
         downloadManager.deleteAllBooks()
         await calculateStorageInfo()
     }
+    
     
     // MARK: - Advanced Settings
     func saveNetworkSettings() {

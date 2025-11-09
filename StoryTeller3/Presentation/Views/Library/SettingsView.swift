@@ -5,17 +5,20 @@ struct SettingsView: View {
     @EnvironmentObject var theme: ThemeManager
 
     @State private var selectedColor: Color = .blue
+
+    @AppStorage("open_fullscreen_player") private var openFullscreenPlayer = false
+    @AppStorage("auto_play_on_book_tap") private var autoPlayOnBookTap = false
+
     let colors: [Color] = [.red, .orange, .green, .blue, .purple, .pink]
 
+    
+    
     var body: some View {
         NavigationStack {
             formContent
                 .navigationTitle("Settings")
                 .navigationBarTitleDisplayMode(.large)
                 .task {
-                    await viewModel.calculateStorageInfo()
-                }
-                .refreshable {
                     await viewModel.calculateStorageInfo()
                 }
                 .modifier(AlertsModifier(viewModel: viewModel))
@@ -25,26 +28,32 @@ struct SettingsView: View {
     private var formContent: some View {
         Form {
             themeSection
-            serverSection
-            
-            if viewModel.serverConfig.isServerConfigured {
-                connectionSection
-            }
-            
-            credentialsSection
+            playbackSection
             
             if viewModel.isLoggedIn {
                 librariesSection
             }
-            
+
             storageSection
+
+            serverSection
+            
+            credentialsSection
+
+            if viewModel.serverConfig.isServerConfigured {
+                connectionSection
+            }
+            
+            
+            
             aboutSection
             advancedSection
         }
     }
     
+    // MARK: Theme Settings
+    
     private var themeSection: some View {
-        Group {
             Section {
                 // Background Style
                 Picker("Select Theme", selection: $theme.backgroundStyle) {
@@ -82,9 +91,70 @@ struct SettingsView: View {
             } header: {
                 Label("Appearance", systemImage: "paintbrush")
             }
-        }
-        
     }
+    
+    
+    // MARK:  Playback Settings
+
+    private var playbackSection: some View {
+        Section {
+            // Background Style
+                Toggle("Fullscreen-Player on Play", isOn: $openFullscreenPlayer)
+                Toggle("Enable Autoplay on Book Tap", isOn: $autoPlayOnBookTap)
+
+
+        } header: {
+            Label("Playback modes", systemImage: "play.rectangle.on.rectangle")
+        }
+
+    }
+    
+    
+    // MARK: - Libraries Section
+    
+    private var librariesSection: some View {
+        Section {
+            if viewModel.libraries.isEmpty {
+                HStack {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                    Text("Loading libraries...")
+                        .font(DSText.detail)
+
+                }
+            } else {
+                Picker("Active Library", selection: $viewModel.selectedLibraryId) {
+                    Text("No selection").tag(nil as String?)
+                        .font(DSText.detail)
+
+                    ForEach(viewModel.libraries, id: \.id) { library in
+                        HStack {
+                            Text(library.name)
+                            .font(DSText.detail)
+
+                        }
+                        .tag(library.id as String?)
+                    }
+                }
+                .onChange(of: viewModel.selectedLibraryId) { _, newId in
+                    viewModel.saveSelectedLibrary(newId)
+                }
+                
+                HStack {
+                    Text("Total Libraries")
+                        .font(DSText.footnote)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Text("\(viewModel.libraries.count)")
+                        .font(DSText.footnote)
+                        .foregroundColor(.secondary)
+                }
+            }
+        } header: {
+            Label("Libraries", systemImage: "books.vertical")
+        } footer: { }
+    }
+
     // MARK: - Server Section
     
     private var serverSection: some View {
@@ -111,11 +181,11 @@ struct SettingsView: View {
             if viewModel.serverConfig.isServerConfigured {
                 HStack {
                     Text("Server URL")
-                        .font(.caption2)
+                        .font(DSText.footnote)
                         .foregroundColor(.secondary)
                     Spacer()
                     Text(viewModel.serverConfig.fullServerURL)
-                        .font(.caption2.monospaced())
+                        .font(DSText.footnote)
                         .foregroundColor(.secondary)
                         .lineLimit(1)
                         .truncationMode(.middle)
@@ -126,11 +196,11 @@ struct SettingsView: View {
         } footer: {
             if viewModel.serverConfig.scheme == "http" {
                 Label("HTTP is not secure. Use HTTPS when possible.", systemImage: "exclamationmark.triangle.fill")
-                    .font(.caption2)
+                    .font(DSText.footnote)
                     .foregroundColor(.orange)
             } else {
                 Text("Enter the address of your Audiobookshelf server")
-                    .font(.caption2)
+                    .font(DSText.footnote)
             }
         }
     }
@@ -171,6 +241,7 @@ struct SettingsView: View {
             Label("Connection Status", systemImage: "wifi")
         }
     }
+
     
     // MARK: - Credentials Section
 
@@ -231,53 +302,7 @@ struct SettingsView: View {
             }
         }
     }
-    // MARK: - Libraries Section
     
-    private var librariesSection: some View {
-        Section {
-            if viewModel.libraries.isEmpty {
-                HStack {
-                    ProgressView()
-                        .scaleEffect(0.8)
-                    Text("Loading libraries...")
-                        .foregroundColor(.secondary)
-                }
-            } else {
-                Picker("Active Library", selection: $viewModel.selectedLibraryId) {
-                    Text("No selection").tag(nil as String?)
-                    ForEach(viewModel.libraries, id: \.id) { library in
-                        HStack {
-                            Text(library.name)
-                            Spacer()
-                            if library.id == viewModel.selectedLibraryId {
-                                Image(systemName: "checkmark")
-                                    .foregroundColor(.accentColor)
-                            }
-                        }
-                        .tag(library.id as String?)
-                    }
-                }
-                .onChange(of: viewModel.selectedLibraryId) { _, newId in
-                    viewModel.saveSelectedLibrary(newId)
-                }
-                
-                HStack {
-                    Text("Total Libraries")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                    Spacer()
-                    Text("\(viewModel.libraries.count)")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                }
-            }
-        } header: {
-            Label("Libraries", systemImage: "books.vertical")
-        } footer: {
-            Text("Select which library to use for browsing and playback")
-                .font(.caption2)
-        }
-    }
     
     // MARK: - Storage Section
     
@@ -362,6 +387,7 @@ struct SettingsView: View {
         }
     }
     
+    
     // MARK: - About Section
     
     private var aboutSection: some View {
@@ -410,14 +436,6 @@ struct SettingsView: View {
     
     private var advancedSection: some View {
         Group {
-            Section {
-                NavigationLink(destination: AdvancedSettingsView(viewModel: viewModel)) {
-                    Label("Advanced Settings", systemImage: "gearshape.2")
-                }
-            } footer: {
-                Text("Network settings, cache configuration, and debug options")
-                    .font(.caption)
-            }
             
             Section {
                 NavigationLink(destination: DebugView()) {
@@ -426,6 +444,15 @@ struct SettingsView: View {
             } footer: {
                 Text("Enable or disable various features for development purposes")
                     .font(.caption2)
+            }
+
+            Section {
+                NavigationLink(destination: AdvancedSettingsView(viewModel: viewModel)) {
+                    Label("Advanced Settings", systemImage: "gearshape.2")
+                }
+            } footer: {
+                Text("Network settings, cache configuration, and debug options")
+                    .font(.caption)
             }
         }
     }

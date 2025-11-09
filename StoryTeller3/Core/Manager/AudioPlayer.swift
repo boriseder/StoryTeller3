@@ -96,8 +96,14 @@ class AudioPlayer: NSObject, ObservableObject {
     }
     
     // MARK: - Book Loading
+
     @MainActor
-    func load(book: Book, isOffline: Bool = false, restoreState: Bool = true) {
+    func load(
+        book: Book,
+        isOffline: Bool = false,
+        restoreState: Bool = true,
+        autoPlay: Bool = false
+    ) {
         self.book = book
         self.isOfflineMode = isOffline
         
@@ -114,10 +120,11 @@ class AudioPlayer: NSObject, ObservableObject {
             self.targetSeekTime = nil
         }
         
-        loadChapter()
+        loadChapter(shouldResumePlayback: autoPlay)
         updateNowPlaying()
     }
-    
+
+
     // MARK: - Chapter Loading
     func loadChapter(shouldResumePlayback: Bool = false) {
         guard let chapter = currentChapter else {

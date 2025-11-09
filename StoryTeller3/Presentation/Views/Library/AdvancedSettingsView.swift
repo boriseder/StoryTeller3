@@ -1,15 +1,3 @@
-//
-//  AdvancedSettingsView.swift
-//  StoryTeller3
-//
-//  Created by Boris Eder on 03.10.25.
-//
-
-
-//
-//  AdvancedSettingsView.swift
-//  StoryTeller3
-//
 
 import SwiftUI
 
@@ -30,12 +18,15 @@ struct AdvancedSettingsView: View {
     
     private var networkSection: some View {
         Section {
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: DSLayout.elementGap) {
                 HStack {
                     Text("Connection Timeout")
+                        .font(DSText.detail)
+
                     Spacer()
+                    
                     Text("\(Int(viewModel.advancedSettings.connectionTimeout))s")
-                        .foregroundColor(.secondary)
+                        .font(DSText.detail)
                         .monospacedDigit()
                 }
                 
@@ -45,25 +36,23 @@ struct AdvancedSettingsView: View {
                     }
                 
                 Text("Time to wait for server response before timing out")
-                    .font(.caption)
+                    .font(DSText.footnote)
                     .foregroundColor(.secondary)
             }
-            .padding(.vertical, 4)
-            
-            Divider()
-            
-            VStack(alignment: .leading, spacing: 8) {
-                Stepper("Max Concurrent Downloads: \(viewModel.advancedSettings.maxConcurrentDownloads)", 
+                        
+            VStack(alignment: .leading, spacing: DSLayout.elementGap) {
+                Stepper("Max Concurrent Downloads: \(viewModel.advancedSettings.maxConcurrentDownloads)",
                         value: $viewModel.advancedSettings.maxConcurrentDownloads, in: 1...5)
                     .onChange(of: viewModel.advancedSettings.maxConcurrentDownloads) { _, _ in
                         viewModel.saveDownloadSettings()
                     }
+                    .font(DSText.detail)
+
                 
                 Text("Higher values may improve download speed but use more bandwidth")
-                    .font(.caption)
+                    .font(DSText.footnote)
                     .foregroundColor(.secondary)
             }
-            .padding(.vertical, 4)
         } header: {
             Label("Network Settings", systemImage: "network")
         }
@@ -78,22 +67,30 @@ struct AdvancedSettingsView: View {
                 .onChange(of: viewModel.advancedSettings.coverCacheLimit) { _, _ in
                     viewModel.saveCacheSettings()
                 }
+                .font(DSText.detail)
+
             
             Stepper("Memory Cache: \(viewModel.advancedSettings.memoryCacheSize) MB", 
                     value: $viewModel.advancedSettings.memoryCacheSize, in: 25...200, step: 25)
                 .onChange(of: viewModel.advancedSettings.memoryCacheSize) { _, _ in
                     viewModel.saveCacheSettings()
                 }
+                .font(DSText.detail)
             
             Button("Reset to Defaults") {
                 viewModel.resetCacheDefaults()
             }
+            .font(DSText.detail)
             .foregroundColor(.accentColor)
+            
+
         } header: {
-            Label("Cache Configuration", systemImage: "memorychip")
+            VStack (alignment: .leading, spacing: DSLayout.elementGap) {
+                Label("Cache Configuration", systemImage: "memorychip")
+            }
         } footer: {
-            Text("Higher limits improve performance but use more device resources. Defaults: 100 covers, 50 MB memory.")
-                .font(.caption)
+            Text("Higher limits improve performance but use more device resources.")
+                .font(DSText.footnote)
         }
     }
     

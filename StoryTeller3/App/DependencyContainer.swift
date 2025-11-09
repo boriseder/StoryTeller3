@@ -34,7 +34,9 @@ final class DependencyContainer: ObservableObject {
             downloadManager: downloadManager,
             player: player,
             appState: appState,
-            onBookSelected: {}
+            onBookSelected: { [weak self] mode in
+                self?.playerStateManager.show(mode: mode)
+            }
         )
     }()
 
@@ -47,7 +49,9 @@ final class DependencyContainer: ObservableObject {
             downloadManager: downloadManager,
             player: player,
             appState: appState,
-            onBookSelected: {}
+            onBookSelected: { [weak self] mode in
+                self?.playerStateManager.show(mode: mode)
+            }
         )
     }()
 
@@ -60,7 +64,7 @@ final class DependencyContainer: ObservableObject {
             downloadManager: downloadManager,
             player: player,
             appState: appState,
-            onBookSelected: {}
+            onBookSelected: { }
         )
     }()
 
@@ -71,7 +75,9 @@ final class DependencyContainer: ObservableObject {
             api: apiClient!,
             appState: appState,
             storageMonitor: storageMonitor,
-            onBookSelected: {}
+            onBookSelected: { [weak self] mode in
+                self?.playerStateManager.show(mode: mode)
+            }
         )
     }()
 
