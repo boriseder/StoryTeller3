@@ -5,6 +5,7 @@ class AudiobookshelfClient {
     let libraries: LibraryServiceProtocol
     let books: BookServiceProtocol
     let series: SeriesServiceProtocol
+    let authors: AuthorsServiceProtocol
     let personalized: PersonalizedServiceProtocol
     let progress: ProgressServiceProtocol
     let converter: BookConverterProtocol
@@ -24,6 +25,7 @@ class AudiobookshelfClient {
         self.libraries = DefaultLibraryService(config: baseConfig, networkService: networkService)
         self.books = DefaultBookService(config: baseConfig, networkService: networkService, converter: converter, rateLimiter: rateLimiter)
         self.series = DefaultSeriesService(config: baseConfig, networkService: networkService, converter: converter)
+        self.authors = DefaultAuthorsService(config: baseConfig, networkService: networkService, rateLimiter: rateLimiter)
         self.personalized = DefaultPersonalizedService(config: baseConfig, networkService: networkService)
         self.progress = DefaultProgressService(config: baseConfig, networkService: networkService)
         self.converter = converter

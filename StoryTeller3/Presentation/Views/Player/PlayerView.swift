@@ -3,8 +3,7 @@ import AVKit
 
 struct PlayerView: View {
     @StateObject private var viewModel: PlayerViewModel
-    @EnvironmentObject private var sleepTimer: SleepTimerService  // ADD THIS
-
+    @EnvironmentObject private var sleepTimer: SleepTimerService
 
     init(player: AudioPlayer, api: AudiobookshelfClient) {
         self._viewModel = StateObject(wrappedValue: PlayerViewModel(
@@ -16,15 +15,12 @@ struct PlayerView: View {
     var body: some View {
         NavigationStack {
             GeometryReader { geometry in
-                VStack(spacing: 0) {
-                    // Cover Art Section
-                    coverArtSection
-                        .frame(height: geometry.size.height * 0.5)
-                    
-                    // Controls Section
-                    controlsSection
-                        .frame(maxHeight: .infinity)
-                        .padding(.horizontal, 24)
+                if DeviceType.current == .iPad && geometry.size.width > geometry.size.height {
+                    // iPad Landscape Layout
+                    iPadLandscapeLayout(geometry: geometry)
+                } else {
+                    // iPhone / iPad Portrait Layout
+                    standardLayout(geometry: geometry)
                 }
             }
             .background(Color(.systemGroupedBackground))
@@ -54,15 +50,65 @@ struct PlayerView: View {
         }
     }
     
-    // MARK: - Cover Art Section
+    // MARK: - iPad Landscape Layout
+    
+    private func iPadLandscapeLayout(geometry: GeometryProxy) -> some View {
+        HStack(spacing: 40) {
+            // Left Side: Cover Art
+            VStack {
+                Spacer()
+                coverArtView
+                    .frame(maxWidth: geometry.size.width * 0.4)
+                Spacer()
+            }
+            
+            // Right Side: Controls
+            VStack(spacing: 32) {
+                Spacer()
+                trackInfoSection
+                progressSection
+                mainControlsSection
+                secondaryControlsSection
+                Spacer()
+            }
+            .frame(maxWidth: geometry.size.width * 0.5)
+            .padding(.trailing, 40)
+        }
+        .padding(.horizontal, 40)
+    }
+    
+    // MARK: - Standard Layout (iPhone / iPad Portrait)
+    
+    private func standardLayout(geometry: GeometryProxy) -> some View {
+        VStack(spacing: 0) {
+            // Cover Art Section
+            coverArtSection
+                .frame(height: geometry.size.height * 0.5)
+            
+            // Controls Section
+            controlsSection
+                .frame(maxHeight: .infinity)
+                .padding(.horizontal, DeviceType.current == .iPad ? 40 : 24)
+        }
+    }
+    
+    // MARK: - Cover Art Components
+    
     private var coverArtSection: some View {
         VStack(spacing: 20) {
             Spacer()
-            
+            coverArtView
+            Spacer()
+        }
+        .padding(.horizontal, DeviceType.current == .iPad ? 60 : 32)
+    }
+    
+    private var coverArtView: some View {
+        Group {
             if let book = viewModel.player.book {
                 BookCoverView.square(
                     book: book,
-                    size: 300,
+                    size: ResponsiveLayout.playerCoverSize,
                     api: viewModel.api,
                     downloadManager: viewModel.player.downloadManagerReference
                 )
@@ -70,34 +116,27 @@ struct PlayerView: View {
             } else {
                 RoundedRectangle(cornerRadius: 16)
                     .fill(Color.gray.opacity(0.3))
-                    .frame(width: 300, height: 300)
+                    .frame(
+                        width: ResponsiveLayout.playerCoverSize,
+                        height: ResponsiveLayout.playerCoverSize
+                    )
                     .overlay(
                         Image(systemName: "book.fill")
                             .font(.system(size: 60))
                             .foregroundColor(.gray)
                     )
             }
-            
-            Spacer()
         }
-        .padding(.horizontal, 32)
     }
     
     // MARK: - Controls Section
+    
     private var controlsSection: some View {
-        VStack(spacing: 24) {
-            // Track Info
+        VStack(spacing: DeviceType.current == .iPad ? 32 : 24) {
             trackInfoSection
-            
-            // Progress
             progressSection
-            
-            // Main Controls
             mainControlsSection
-            
-            // Secondary Controls
             secondaryControlsSection
-            
             Spacer()
         }
     }
@@ -105,20 +144,19 @@ struct PlayerView: View {
     private var trackInfoSection: some View {
         VStack(spacing: 8) {
             Text(viewModel.player.book?.title ?? "No book selected")
-                .font(.title2)
+                .font(DeviceType.current == .iPad ? .title : .title2)
                 .fontWeight(.semibold)
                 .multilineTextAlignment(.center)
                 .lineLimit(2)
             
             Text(viewModel.player.book?.author ?? "")
-                .font(.subheadline)
+                .font(DeviceType.current == .iPad ? .body : .subheadline)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
                 .lineLimit(1)
             
             if let chapter = viewModel.player.currentChapter {
                 Button(action: {
-                    AppLogger.general.debug("[PlayerView] Chapter button tapped - showing chapters list")
                     viewModel.showingChaptersList = true
                 }) {
                     HStack {
@@ -137,7 +175,6 @@ struct PlayerView: View {
     
     private var progressSection: some View {
         VStack(spacing: 8) {
-            // Progress Slider
             Slider(
                 value: Binding(
                     get: { viewModel.sliderValue },
@@ -149,7 +186,6 @@ struct PlayerView: View {
             }
             .accentColor(.primary)
             
-            // Time Labels
             HStack {
                 Text(TimeFormatter.formatTime(viewModel.player.currentTime))
                     .font(.caption)
@@ -168,68 +204,61 @@ struct PlayerView: View {
     }
     
     private var mainControlsSection: some View {
-        HStack(spacing: 32) {
-            // Previous Chapter
+        let controlSpacing: CGFloat = DeviceType.current == .iPad ? 48 : 32
+        let buttonSize: CGFloat = DeviceType.current == .iPad ? 72 : 64
+        let iconSize: Font = DeviceType.current == .iPad ? .largeTitle : .title
+        
+        return HStack(spacing: controlSpacing) {
             Button(action: {
-                AppLogger.general.debug("[PlayerView] Previous chapter button tapped")
                 viewModel.player.previousChapter()
             }) {
                 Image(systemName: "backward.end.fill")
-                    .font(.title)
+                    .font(iconSize)
                     .foregroundColor(isFirstChapter ? .secondary : .primary)
             }
             .disabled(isFirstChapter)
             
-            // Rewind 15s
             Button(action: {
-                AppLogger.general.debug("[PlayerView] Rewind 15s button tapped")
                 viewModel.player.seek15SecondsBack()
             }) {
                 Image(systemName: "gobackward.15")
-                    .font(.title)
+                    .font(iconSize)
                     .foregroundColor(.primary)
             }
             
-            // Play/Pause
             Button(action: {
-                AppLogger.general.debug("[PlayerView] Play/pause button tapped - currently playing: \(viewModel.player.isPlaying)")
                 viewModel.player.togglePlayPause()
             }) {
                 ZStack {
                     Circle()
                         .fill(Color.accentColor)
-                        .frame(width: 64, height: 64)
+                        .frame(width: buttonSize, height: buttonSize)
                     
                     Image(systemName: viewModel.player.isPlaying ? "pause.fill" : "play.fill")
-                        .font(.title)
+                        .font(iconSize)
                         .foregroundColor(.white)
                 }
             }
             
-            // Fast Forward 15s
             Button(action: {
-                AppLogger.general.debug("[PlayerView] Fast forward 15s button tapped")
                 viewModel.player.seek15SecondsForward()
             }) {
                 Image(systemName: "goforward.15")
-                    .font(.title)
+                    .font(iconSize)
                     .foregroundColor(.primary)
             }
             
-            // Next Chapter
             Button(action: {
-                AppLogger.general.debug("[PlayerView] Next chapter button tapped")
                 viewModel.player.nextChapter()
             }) {
                 Image(systemName: "forward.end.fill")
-                    .font(.title)
+                    .font(iconSize)
                     .foregroundColor(isLastChapter ? .secondary : .primary)
             }
             .disabled(isLastChapter)
         }
     }
     
-    // MARK: - Computed Properties for Button States
     private var isFirstChapter: Bool {
         viewModel.player.currentChapterIndex == 0
     }
@@ -240,17 +269,12 @@ struct PlayerView: View {
     }
     
     private var secondaryControlsSection: some View {
-        HStack(spacing: 40) {
-            // Playback Speed
+        let controlSpacing: CGFloat = DeviceType.current == .iPad ? 56 : 40
+        
+        return HStack(spacing: controlSpacing) {
             speedButton
-            
-            // Sleep Timer
             sleepTimerButton
-            
-            // Audio Route
             audioRouteButton
-            
-            // Chapters
             chaptersButton
         }
         .foregroundColor(.primary)
@@ -258,15 +282,14 @@ struct PlayerView: View {
     
     private var speedButton: some View {
         Button(action: {
-            AppLogger.general.debug("[PlayerView] Speed button tapped - showing playback settings")
             viewModel.showingPlaybackSettings = true
         }) {
             VStack(spacing: 4) {
                 Text("\(viewModel.player.playbackRate, specifier: "%.1f")x")
-                    .font(.caption)
+                    .font(DeviceType.current == .iPad ? .body : .caption)
                     .fontWeight(.medium)
                 Text("Speed")
-                    .font(.caption2)
+                    .font(DeviceType.current == .iPad ? .caption : .caption2)
                     .foregroundColor(.secondary)
             }
         }
@@ -274,14 +297,13 @@ struct PlayerView: View {
     
     private var sleepTimerButton: some View {
         Button(action: {
-            AppLogger.general.debug("[PlayerView] Sleep timer button tapped")
             viewModel.showingSleepTimer = true
         }) {
             VStack(spacing: 4) {
                 Image(systemName: "moon")
-                    .font(.title3)
+                    .font(DeviceType.current == .iPad ? .title2 : .title3)
                 Text("Sleep")
-                    .font(.caption2)
+                    .font(DeviceType.current == .iPad ? .caption : .caption2)
                     .foregroundColor(.secondary)
             }
         }
@@ -289,33 +311,28 @@ struct PlayerView: View {
     
     private var audioRouteButton: some View {
         #if targetEnvironment(simulator)
-        // Simulator: Mock button with debug menu
         Menu {
-            Button("iPhone Speaker") {
-                AppLogger.general.debug("[PlayerView] Selected: iPhone Speaker")
-            }
-            Button("Bluetooth Headphones (Simulator)") {
-                AppLogger.general.debug("[PlayerView] Selected: Bluetooth Headphones")
-            }
-            Button("AirPlay Device (Simulator)") {
-                AppLogger.general.debug("[PlayerView] Selected: AirPlay Device")
-            }
+            Button("iPhone Speaker") {}
+            Button("Bluetooth Headphones (Simulator)") {}
+            Button("AirPlay Device (Simulator)") {}
         } label: {
             VStack(spacing: 4) {
                 Image(systemName: "speaker.fill")
-                    .font(.title3)
+                    .font(DeviceType.current == .iPad ? .title2 : .title3)
                 Text("Audio")
-                    .font(.caption2)
+                    .font(DeviceType.current == .iPad ? .caption : .caption2)
                     .foregroundColor(.secondary)
             }
         }
         #else
-        // Real device: Actual AVRoutePickerView
         VStack(spacing: 4) {
             AVRoutePickerViewWrapper()
-                .frame(width: 20, height: 20)
+                .frame(
+                    width: DeviceType.current == .iPad ? 24 : 20,
+                    height: DeviceType.current == .iPad ? 24 : 20
+                )
             Text("Audio")
-                .font(.caption2)
+                .font(DeviceType.current == .iPad ? .caption : .caption2)
                 .foregroundColor(.secondary)
         }
         #endif
@@ -323,14 +340,13 @@ struct PlayerView: View {
     
     private var chaptersButton: some View {
         Button(action: {
-            AppLogger.general.debug("[PlayerView] Chapters button tapped")
             viewModel.showingChaptersList = true
         }) {
             VStack(spacing: 4) {
                 Image(systemName: "list.bullet")
-                    .font(.title3)
+                    .font(DeviceType.current == .iPad ? .title2 : .title3)
                 Text("Chapters")
-                    .font(.caption2)
+                    .font(DeviceType.current == .iPad ? .caption : .caption2)
                     .foregroundColor(.secondary)
             }
         }
@@ -340,21 +356,18 @@ struct PlayerView: View {
     private var moreButton: some View {
         Menu {
             Button(action: {
-                AppLogger.general.debug("[PlayerView] More menu - playback settings")
                 viewModel.showingPlaybackSettings = true
             }) {
                 Label("Playback Settings", systemImage: "gearshape")
             }
             
             Button(action: {
-                AppLogger.general.debug("[PlayerView] More menu - sleep timer")
                 viewModel.showingSleepTimer = true
             }) {
                 Label("Sleep Timer", systemImage: "moon")
             }
             
             Button(action: {
-                AppLogger.general.debug("[PlayerView] More menu - stop playback")
                 viewModel.player.pause()
             }) {
                 Label("Stop Playback", systemImage: "stop")

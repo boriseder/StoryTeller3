@@ -1,19 +1,15 @@
 import SwiftUI
 import Combine
 
-// REFACTORED VERSION - Clean Dependency Injection
 struct ContentView: View {
-    // MARK: - Environment
     @EnvironmentObject private var appState: AppStateManager
     @EnvironmentObject private var theme: ThemeManager
     @EnvironmentObject private var dependencies: DependencyContainer
 
-    // MARK: - State Variables
     @State private var selectedTab: TabIndex = .home
     @State private var bookCount = 0
     @State private var cancellables = Set<AnyCancellable>()
     
-    // MARK: - Computed Properties for Dependencies
     private var player: AudioPlayer { dependencies.player }
     private var downloadManager: DownloadManager { dependencies.downloadManager }
     private var playerStateManager: PlayerStateManager { dependencies.playerStateManager }
@@ -27,7 +23,7 @@ struct ContentView: View {
             switch appState.loadingState {
             case .initial, .loadingCredentials, .credentialsFoundValidating, .loadingData:
                 LoadingView(message: "Loading data...")
-                    .padding(.top, 56)
+                    .padding(.bottom, 120)
 
             case .noCredentialsSaved, .authenticationError:
                 Color.clear
@@ -42,27 +38,26 @@ struct ContentView: View {
                     }
             
             case .networkError(let issueType):
-            if bookCount > 0 {
+                if bookCount > 0 {
                     mainContent
                         .onAppear {
                             appState.selectedTab = .downloads
                             appState.loadingState = .ready
                         }
-            } else {
-                NetworkErrorView(
-                    issueType: issueType,
-                    onRetry: { Task { setupApp() } },
-                    onViewDownloads: {
-                        appState.selectedTab = .downloads
-                        appState.loadingState = .ready
-                    },
-                    onSettings: { appState.showingSettings = true }
-                )
-            }
+                } else {
+                    NetworkErrorView(
+                        issueType: issueType,
+                        onRetry: { Task { setupApp() } },
+                        onViewDownloads: {
+                            appState.selectedTab = .downloads
+                            appState.loadingState = .ready
+                        },
+                        onSettings: { appState.showingSettings = true }
+                    )
+                }
                     
             case .ready:
                 mainContent
-                
             }
         }
         .onAppear(perform: setupApp)
@@ -78,18 +73,6 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: .init("ShowSettings"))) { _ in
             appState.showingSettings = true
         }
-        /*
-        .onChange(of: appState.isDeviceOnline) { oldValue, newValue in
-            if !oldValue && newValue {
-                Task {
-                    await appState.checkServerReachability()
-                    if appState.isServerReachable {
-                        await homeViewModel.refreshIfOnline() // nur Sections aktualisieren
-                    }
-                }
-            }
-        }
-         */
         .onDisappear {
             cancellables.removeAll()
         }
@@ -116,34 +99,214 @@ struct ContentView: View {
         }
     }
 
-    // MARK: - Main Content
     private var mainContent: some View {
-        
         FullscreenPlayerContainer(
             player: player,
             playerStateManager: playerStateManager,
             api: api
         ) {
-            TabView(selection: $appState.selectedTab) {
-                homeTab
-                libraryTab
-                seriesTab
-                downloadsTab
+            if DeviceType.current == .iPad {
+                iPadLayout
+            } else {
+                iPhoneLayout
             }
-            .accentColor(theme.accent)
-            .id(theme.accent)
         }
-        .environmentObject(dependencies.sleepTimerService)  // ADD THIS LINE
+        .environmentObject(dependencies.sleepTimerService)
+    }
 
+    
+    // MARK: - iPad Layout (Sidebar)
+    
+    private var iPadLayout: some View {
+        NavigationSplitView {
+            iPadSidebarContent
+                .environmentObject(dependencies)
+        } detail: {
+            selectedTabView
+        }
+        .accentColor(theme.accent)
+        .id(theme.accent)
     }
     
-    // MARK: - Tab Views - REFACTORED
+    private var iPadSidebarContent: some View {
+        List {
+            // Search Section (for Library and Series)
+            if appState.selectedTab == .library || appState.selectedTab == .series {
+                Section {
+                    if appState.selectedTab == .library {
+                        LibrarySidebarSearch()
+                            .environmentObject(dependencies)
+                    } else if appState.selectedTab == .series {
+                        SeriesSidebarSearch()
+                            .environmentObject(dependencies)
+                    }
+                }
+                .listRowInsets(EdgeInsets(top: 8, leading: 8, bottom: 8, trailing: 8))
+            }
+            
+            // Navigation Section
+            Section {
+                Button(action: { appState.selectedTab = .home }) {
+                    HStack {
+                        Label("Explore", systemImage: "sharedwithyou")
+                        Spacer()
+                    }
+                    .contentShape(Rectangle())
+                }
+                .listRowBackground(appState.selectedTab == .home ? Color.accentColor.opacity(0.15) : Color.clear)
+                
+                Button(action: { appState.selectedTab = .library }) {
+                    HStack {
+                        Label("Library", systemImage: "books.vertical.fill")
+                        Spacer()
+                    }
+                    .contentShape(Rectangle())
+                }
+                .listRowBackground(appState.selectedTab == .library ? Color.accentColor.opacity(0.15) : Color.clear)
+                
+                Button(action: { appState.selectedTab = .series }) {
+                    HStack {
+                        Label("Series", systemImage: "play.square.stack.fill")
+                        Spacer()
+                    }
+                    .contentShape(Rectangle())
+                }
+                .listRowBackground(appState.selectedTab == .series ? Color.accentColor.opacity(0.15) : Color.clear)
+                
+                Button(action: { appState.selectedTab = .downloads }) {
+                    HStack {
+                        Label("Downloads", systemImage: "arrow.down.circle.fill")
+                        Spacer()
+                        if downloadManager.downloadedBooks.count > 0 {
+                            Text("\(downloadManager.downloadedBooks.count)")
+                                .font(.caption)
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 2)
+                                .background(Color.accentColor)
+                                .clipShape(Capsule())
+                        }
+                    }
+                    .contentShape(Rectangle())
+                }
+                .listRowBackground(appState.selectedTab == .downloads ? Color.accentColor.opacity(0.15) : Color.clear)
+            }
+            
+            // Quick Actions Section
+            Section("Quick Actions") {
+                Button(action: {
+                    appState.showingSettings = true
+                }) {
+                    Label("Settings", systemImage: "gearshape")
+                }
+                
+                if appState.selectedTab == .library || appState.selectedTab == .series {
+                    Button(action: {
+                        NotificationCenter.default.post(name: .init("RefreshCurrentView"), object: nil)
+                    }) {
+                        Label("Refresh", systemImage: "arrow.clockwise")
+                    }
+                }
+            }
+            
+            // Filter & Sort Section (for Library)
+            if appState.selectedTab == .library {
+                LibrarySidebarFilters()
+                    .environmentObject(dependencies)
+            } else if appState.selectedTab == .series {
+                SeriesSidebarSort()
+                    .environmentObject(dependencies)
+            }
+            
+            // Library Info Section
+            if appState.selectedTab == .library || appState.selectedTab == .series || appState.selectedTab == .downloads {
+                Section("Library Info") {
+                    HStack {
+                        Image(systemName: "books.vertical.fill")
+                            .foregroundColor(.blue)
+                        Text("Books")
+                        Spacer()
+                        Text("\(dependencies.libraryViewModel.totalBooksCount)")
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    HStack {
+                        Image(systemName: "arrow.down.circle")
+                            .foregroundColor(.green)
+                        Text("Downloaded")
+                        Spacer()
+                        Text("\(downloadManager.downloadedBooks.count)")
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    HStack {
+                        Image(systemName: appState.isDeviceOnline ? "icloud" : "icloud.slash")
+                            .foregroundColor(appState.isDeviceOnline ? .green : .red)
+                        Text("Status")
+                        Spacer()
+                        Text(appState.isDeviceOnline ? "Online" : "Offline")
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .navigationTitle("StoryTeller")
+        .listStyle(.sidebar)
+    }
+    
+    // MARK: - iPhone Layout (TabView)
+    
+    private var iPhoneLayout: some View {
+        TabView(selection: $appState.selectedTab) {
+            homeTab
+            libraryTab
+            seriesTab
+            authorsTab
+            downloadsTab
+        }
+        .accentColor(theme.accent)
+        .id(theme.accent)
+    }
+   
+    
+    // MARK: - Selected Tab View (for iPad)
+    
+    @ViewBuilder
+    private var selectedTabView: some View {
+        switch appState.selectedTab {
+        case .home:
+            NavigationStack {
+                HomeView()
+            }
+            
+        case .library:
+            NavigationStack {
+                LibraryView()
+            }
+            
+        case .series:
+            NavigationStack {
+                SeriesView()
+            }
+            
+        case .authors:
+            NavigationStack {
+                AuthorsView()
+            }
+        
+        case .downloads:
+            NavigationStack {
+                DownloadsView()
+            }
+        }
+    }
+    
+    // MARK: - Tab Views (for iPhone)
     
     private var homeTab: some View {
         NavigationStack {
-            ZStack {
-                HomeView()
-            }
+            HomeView()
         }
         .tabItem {
             Image(systemName: "sharedwithyou")
@@ -165,7 +328,7 @@ struct ContentView: View {
     
     private var seriesTab: some View {
         NavigationStack {
-                SeriesView()
+            SeriesView()
         }
         .tabItem {
             Image(systemName: "play.square.stack.fill")
@@ -174,10 +337,20 @@ struct ContentView: View {
         .tag(TabIndex.series)
     }
     
+    private var authorsTab: some View {
+        NavigationStack {
+            AuthorsView()
+        }
+        .tabItem {
+            Image(systemName: "person.2")
+            Text("Authors")
+        }
+        .tag(TabIndex.authors)
+    }
+    
     private var downloadsTab: some View {
         NavigationStack {
-                DownloadsView()
-
+            DownloadsView()
         }
         .tabItem {
             Image(systemName: "arrow.down.circle.fill")
@@ -186,8 +359,10 @@ struct ContentView: View {
         .badge(downloadManager.downloadedBooks.count)
         .tag(TabIndex.downloads)
     }
+  
     
-    // MARK: - Setup Methods
+    // MARK: - Setup Methods (unchanged)
+    
     private func setupApp() {
         Task { @MainActor in
             appState.loadingState = .loadingCredentials
@@ -198,9 +373,8 @@ struct ContentView: View {
                 return
             }
             
-            //wait unti ldownloadManager.repository is initialized
             while downloadManager.repository == nil {
-                try? await Task.sleep(nanoseconds: 50_000_000) // 50ms
+                try? await Task.sleep(nanoseconds: 50_000_000)
             }
 
             self.bookCount = await downloadManager.preloadDownloadedBooksCount()
@@ -209,9 +383,6 @@ struct ContentView: View {
                        
             do {
                 let token = try KeychainService.shared.getToken(for: username)
-                //let client = AudiobookshelfClient(baseURL: baseURL, authToken: token)
-                
-                // API global in Container konfigurieren
                 DependencyContainer.shared.configureAPI(baseURL: baseURL, token: token)
                 let client = DependencyContainer.shared.apiClient!
 
@@ -310,7 +481,6 @@ struct ContentView: View {
     }
 }
 
-
 enum ConnectionTestResult {
     case success
     case networkError(ConnectionIssueType)
@@ -318,4 +488,193 @@ enum ConnectionTestResult {
     case failed
 }
 
+// MARK: - Library Sidebar Search Component
+struct LibrarySidebarSearch: View {
+    @EnvironmentObject var dependencies: DependencyContainer
+    
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+                .foregroundColor(.secondary)
+            
+            TextField("Search books...", text: Binding(
+                get: { dependencies.libraryViewModel.filterState.searchText },
+                set: { dependencies.libraryViewModel.filterState.searchText = $0 }
+            ))
+            .textFieldStyle(.plain)
+            
+            if !dependencies.libraryViewModel.filterState.searchText.isEmpty {
+                Button(action: {
+                    dependencies.libraryViewModel.filterState.searchText = ""
+                }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(8)
+        .background(Color(.systemGray6))
+        .cornerRadius(8)
+    }
+}
 
+// MARK: - Series Sidebar Search Component
+struct SeriesSidebarSearch: View {
+    @EnvironmentObject var dependencies: DependencyContainer
+    
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+                .foregroundColor(.secondary)
+            
+            TextField("Search series...", text: Binding(
+                get: { dependencies.seriesViewModel.filterState.searchText },
+                set: { dependencies.seriesViewModel.filterState.searchText = $0 }
+            ))
+            .textFieldStyle(.plain)
+            
+            if !dependencies.seriesViewModel.filterState.searchText.isEmpty {
+                Button(action: {
+                    dependencies.seriesViewModel.filterState.searchText = ""
+                }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(8)
+        .background(Color(.systemGray6))
+        .cornerRadius(8)
+    }
+}
+
+// MARK: - Library Sidebar Filters
+struct LibrarySidebarFilters: View {
+    @EnvironmentObject var dependencies: DependencyContainer
+    
+    private var viewModel: LibraryViewModel {
+        dependencies.libraryViewModel
+    }
+    
+    var body: some View {
+        Section("Filters & Sorting") {
+            // Sort Options
+            Menu {
+                ForEach(LibrarySortOption.allCases) { option in
+                    Button {
+                        viewModel.filterState.selectedSortOption = option
+                        viewModel.filterState.saveToDefaults()
+                    } label: {
+                        HStack {
+                            Text(option.rawValue)
+                            if viewModel.filterState.selectedSortOption == option {
+                                Image(systemName: "checkmark")
+                            }
+                        }
+                    }
+                }
+            } label: {
+                HStack {
+                    Image(systemName: "arrow.up.arrow.down")
+                    Text("Sort: \(viewModel.filterState.selectedSortOption.rawValue)")
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+            
+            // Sort Direction
+            Button {
+                viewModel.filterState.sortAscending.toggle()
+                viewModel.filterState.saveToDefaults()
+            } label: {
+                HStack {
+                    Image(systemName: viewModel.filterState.sortAscending ? "arrow.up" : "arrow.down")
+                    Text(viewModel.filterState.sortAscending ? "Ascending" : "Descending")
+                    Spacer()
+                }
+            }
+            
+            // Downloaded Only Filter
+            Button {
+                viewModel.toggleDownloadFilter()
+            } label: {
+                HStack {
+                    Label("Downloaded Only", systemImage: "arrow.down.circle")
+                    Spacer()
+                    if viewModel.filterState.showDownloadedOnly {
+                        Image(systemName: "checkmark")
+                            .foregroundColor(.accentColor)
+                    }
+                }
+            }
+            
+            // Series Grouped
+            Button {
+                viewModel.toggleSeriesMode()
+            } label: {
+                HStack {
+                    Label("Group Series", systemImage: "square.stack.3d.up")
+                    Spacer()
+                    if viewModel.filterState.showSeriesGrouped {
+                        Image(systemName: "checkmark")
+                            .foregroundColor(.accentColor)
+                    }
+                }
+            }
+            
+            // Reset Filters
+            if viewModel.filterState.hasActiveFilters {
+                Button(role: .destructive) {
+                    withAnimation(.spring(response: 0.3)) {
+                        viewModel.resetFilters()
+                    }
+                } label: {
+                    Label("Reset Filters", systemImage: "arrow.counterclockwise")
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Series Sidebar Sort
+struct SeriesSidebarSort: View {
+    @EnvironmentObject var dependencies: DependencyContainer
+    
+    private var viewModel: SeriesViewModel {
+        dependencies.seriesViewModel
+    }
+    
+    var body: some View {
+        Section("Sorting") {
+            Menu {
+                ForEach(SeriesSortOption.allCases, id: \.self) { option in
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            viewModel.filterState.selectedSortOption = option
+                        }
+                    } label: {
+                        HStack {
+                            Text(option.rawValue)
+                            if viewModel.filterState.selectedSortOption == option {
+                                Image(systemName: "checkmark")
+                            }
+                        }
+                    }
+                }
+            } label: {
+                HStack {
+                    Image(systemName: "arrow.up.arrow.down")
+                    Text("Sort: \(viewModel.filterState.selectedSortOption.rawValue)")
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+        }
+    }
+}

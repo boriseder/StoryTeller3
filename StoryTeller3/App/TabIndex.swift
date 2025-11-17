@@ -9,5 +9,5 @@
 import Foundation
 
 enum TabIndex: Hashable {
-    case home, library, series, downloads
+    case home, library, series, authors, downloads
 }

@@ -7,12 +7,11 @@ struct DownloadsView: View {
 
     @State private var showingStorageInfo = false
     
-    private let autoPlay: Bool = true              // true = Auto-Start
-    private let playerMode: InitialPlayerMode = .fullscreen  // .mini oder .fullscreen
+    private let autoPlay: Bool = true
+    private let playerMode: InitialPlayerMode = .fullscreen
 
     var body: some View {
         ZStack {
-            
             if theme.backgroundStyle == .dynamic {
                 Color.accent.ignoresSafeArea()
             }
@@ -20,20 +19,22 @@ struct DownloadsView: View {
             if viewModel.downloadedBooks.isEmpty {
                 NoDownloadsView()
             } else {
-                contentView
+                GeometryReader { geometry in
+                    contentView(geometry: geometry)
+                }
             }
         }
         .navigationTitle("Downloaded")
         .navigationBarTitleDisplayMode(.large)
         .toolbarBackground(.visible, for: .navigationBar)
         .toolbarBackground(.clear, for: .navigationBar)
-        .toolbarColorScheme(
-            theme.colorScheme,
-            for: .navigationBar
-        )
+        .toolbarColorScheme(theme.colorScheme, for: .navigationBar)
         .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                toolbarButtons
+            // Only show toolbar buttons on iPhone
+            if DeviceType.current == .iPhone {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    toolbarButtons
+                }
             }
         }
         .alert("Delete book", isPresented: $viewModel.showingDeleteConfirmation) {
@@ -58,28 +59,29 @@ struct DownloadsView: View {
         }
     }
     
-    // MARK: - Content View
-    private var contentView: some View {
-        ZStack {
-            
+    private func contentView(geometry: GeometryProxy) -> some View {
+        let hasSidebar = DeviceType.current == .iPad
+        let columns = ResponsiveLayout.columns(for: geometry.size, hasSidebar: hasSidebar)
+        
+        return ZStack {
             if theme.backgroundStyle == .dynamic {
                 DynamicBackground()
             }
             
-            // Storage info banner
             if viewModel.showStorageWarning {
-                storageWarningBanner
+                VStack {
+                    storageWarningBanner
+                        .padding(.horizontal, DSLayout.adaptiveScreenPadding)
+                    Spacer()
+                }
             }
             
-            // Downloads grid
             ScrollView {
-                LazyVStack(spacing: DSLayout.contentGap) {
-                    // Statistics card
+                LazyVStack(spacing: DSLayout.adaptiveContentGap) {
                     downloadStatsCard
                         .padding(.bottom, DSLayout.contentPadding)
 
-                    // Books grid
-                    LazyVGrid(columns: DSGridColumns.two) {
+                    LazyVGrid(columns: columns) {
                         ForEach(viewModel.downloadedBooks) { book in
                             let bookVM = BookCardStateViewModel(book: book)
                             
@@ -103,27 +105,24 @@ struct DownloadsView: View {
                                 onDelete: {
                                     viewModel.requestDeleteBook(book)
                                 },
-                                style: .library
+                                style: .library,
+                                containerSize: geometry.size
                             )
                         }
                     }
                     
                     Spacer()
-                        .frame(height: DSLayout.miniPlayerHeight)
+                        .frame(height: DSLayout.adaptiveMiniPlayerHeight)
                 }
-                Spacer()
-                .frame(height: DSLayout.miniPlayerHeight)
             }
             .scrollIndicators(.hidden)
-            .padding(.horizontal, DSLayout.screenPadding)
+            .padding(.horizontal, DSLayout.adaptiveScreenPadding)
         }
         .opacity(viewModel.contentLoaded ? 1 : 0)
         .animation(.easeInOut(duration: 0.5), value: viewModel.contentLoaded)
         .onAppear { viewModel.contentLoaded = true }
-
     }
     
-    // MARK: - Storage Warning Banner
     private var storageWarningBanner: some View {
         HStack(spacing: 12) {
             Image(systemName: "exclamationmark.triangle.fill")
@@ -151,7 +150,7 @@ struct DownloadsView: View {
                     .foregroundColor(.blue)
             }
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, DSLayout.adaptiveScreenPadding)
         .padding(.vertical, 12)
         .background(Color.orange.opacity(0.1))
         .overlay(
@@ -162,15 +161,16 @@ struct DownloadsView: View {
         )
     }
     
-    // MARK: - Download Stats Card
     private var downloadStatsCard: some View {
-        VStack(spacing: DSLayout.elementGap) {
-            HStack {
-                VStack(alignment: .leading, spacing: DSLayout.tightGap) {
+        VStack(spacing: DSLayout.adaptiveElementGap) {
+            
+            HStack(spacing: DSLayout.tightGap) {
+                VStack(spacing: 0) {
                     Text("\(viewModel.downloadedBooks.count) \(viewModel.downloadedBooks.count == 1 ? "book" : "books") available offline")
-                        .font(.caption)
+                        .font(DSText.footnote)
                         .foregroundColor(.secondary)
                 }
+                .padding(.leading, DSLayout.elementPadding)
                 
                 Spacer()
                 
@@ -178,20 +178,22 @@ struct DownloadsView: View {
                     showingStorageInfo = true
                 }) {
                     Image(systemName: "info.circle")
-                        .font(.system(size: 20))
+                        .font(.system(size: DSLayout.icon))
+                        .frame(width: DSLayout.largeIcon, height: DSLayout.largeIcon)
                         .foregroundColor(.blue)
                 }
             }
             
             Divider()
             
-            HStack(spacing: DSLayout.contentGap) {
+            HStack(spacing: DSLayout.elementGap) {
                 StatItem(
                     icon: "externaldrive.fill",
                     title: "Storage Used",
                     value: viewModel.formatBytes(viewModel.totalStorageUsed),
                     color: .blue
                 )
+                .frame(maxWidth: .infinity, alignment: .center)
                 
                 Divider()
                     .frame(height: 40)
@@ -202,15 +204,16 @@ struct DownloadsView: View {
                     value: viewModel.formatBytes(viewModel.availableStorage),
                     color: viewModel.availableStorage < viewModel.storageThreshold ? .orange : .green
                 )
+                .frame(maxWidth: .infinity, alignment: .center)
             }
         }
-        .padding(DSLayout.contentPadding)
-        .background(.regularMaterial)
+        .padding(.vertical, DSLayout.elementPadding)
+        .padding(.horizontal, DSLayout.adaptiveElementGap)
+        .background(.ultraThinMaterial)
         .clipShape(RoundedRectangle(cornerRadius: DSCorners.element))
         .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
     }
     
-    // MARK: - Toolbar Buttons
     private var toolbarButtons: some View {
         HStack(spacing: 12) {
             Button(action: {
@@ -223,11 +226,9 @@ struct DownloadsView: View {
         }
     }
     
-    // MARK: - Storage Info Sheet
     private var storageInfoSheet: some View {
         NavigationStack {
             List {
-                // Storage overview section
                 Section {
                     StorageRow(
                         title: "Total Storage Used",
@@ -253,7 +254,6 @@ struct DownloadsView: View {
                     Label("Storage Overview", systemImage: "chart.pie.fill")
                 }
                 
-                // Per-book storage section
                 if !viewModel.downloadedBooks.isEmpty {
                     Section {
                         ForEach(viewModel.downloadedBooks) { book in
@@ -294,7 +294,6 @@ struct DownloadsView: View {
                     }
                 }
                 
-                // Storage tips section
                 Section {
                     TipRow(
                         icon: "lightbulb.fill",
@@ -317,7 +316,6 @@ struct DownloadsView: View {
                     Label("Storage Tips", systemImage: "info.circle")
                 }
                 
-                // Danger zone section
                 if !viewModel.downloadedBooks.isEmpty {
                     Section {
                         Button(role: .destructive, action: {
@@ -358,26 +356,22 @@ struct StatItem: View {
     let color: Color
     
     var body: some View {
-        HStack(spacing: DSLayout.elementGap) {
+        HStack(spacing: DSLayout.tightGap) {
             Image(systemName: icon)
                 .font(.system(size: DSLayout.icon))
                 .foregroundColor(color)
                 .frame(width: DSLayout.largeIcon, height: DSLayout.largeIcon)
-                .background(color.opacity(0.1))
-                .clipShape(Circle())
             
-            VStack(alignment: .leading, spacing: DSLayout.tightGap) {
+            VStack(alignment: .center, spacing: DSLayout.tightGap) {
                 Text(title)
-                    .font(.caption)
+                    .font(DSText.footnote)
                     .foregroundColor(.secondary)
                 
                 Text(value)
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.primary)
+                    .font(DSText.prominent)
             }
-            
-            Spacer()
+            .frame(maxWidth: .infinity, alignment: .center)
+
         }
     }
 }
@@ -428,4 +422,3 @@ struct TipRow: View {
         }
     }
 }
-

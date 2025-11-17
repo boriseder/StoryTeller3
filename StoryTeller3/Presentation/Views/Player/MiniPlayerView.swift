@@ -10,20 +10,24 @@ struct MiniPlayerView: View {
     @State private var dragOffset: CGFloat = 0
     @State private var isDragging = false
     
-    private let miniPlayerHeight: CGFloat = 64
-    private let expandedPlayerHeight: CGFloat = 140
+    private var miniPlayerHeight: CGFloat {
+        DeviceType.current == .iPad ? 80 : 64
+    }
+    
+    private var expandedPlayerHeight: CGFloat {
+        DeviceType.current == .iPad ? 180 : 140
+    }
+    
     private let progressBarHeight: CGFloat = 3
     
     var body: some View {
         VStack(spacing: 0) {
             if let book = player.book {
                 VStack(spacing: 0) {
-                    // Progress Bar an der oberen Kante
                     progressBar
                         .frame(height: progressBarHeight)
                         .clipped()
                     
-                    // MiniPlayer Content
                     miniPlayerContent(book: book)
                         .frame(height: isExpanded ? expandedPlayerHeight - progressBarHeight : miniPlayerHeight - progressBarHeight)
                 }
@@ -41,16 +45,13 @@ struct MiniPlayerView: View {
         }
     }
     
-    // MARK: - Progress Bar
     private var progressBar: some View {
         GeometryReader { geometry in
             ZStack(alignment: .leading) {
-                // Background Track
                 Rectangle()
                     .fill(Color.secondary.opacity(0.3))
                     .frame(height: progressBarHeight)
                 
-                // Progress Fill
                 Rectangle()
                     .fill(
                         LinearGradient(
@@ -71,7 +72,6 @@ struct MiniPlayerView: View {
         }
         .frame(height: progressBarHeight)
         .onTapGesture { location in
-            // Allow seeking by tapping on progress bar
             let progress = location.x / UIScreen.main.bounds.width
             let seekTime = progress * player.duration
             player.seek(to: seekTime)
@@ -84,17 +84,13 @@ struct MiniPlayerView: View {
                 if !isDragging {
                     isDragging = true
                 }
-                
-                // Only allow downward dragging to dismiss
                 let translation = max(0, value.translation.height)
                 dragOffset = translation
             }
             .onEnded { value in
                 isDragging = false
                 
-                // Dismiss threshold
                 if value.translation.height > 80 {
-                    // Hide mini player with animation
                     withAnimation(.easeInOut(duration: 0.3)) {
                         dragOffset = 200
                     }
@@ -103,7 +99,6 @@ struct MiniPlayerView: View {
                         dragOffset = 0
                     }
                 } else {
-                    // Snap back
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                         dragOffset = 0
                     }
@@ -114,26 +109,23 @@ struct MiniPlayerView: View {
     @ViewBuilder
     private func miniPlayerContent(book: Book) -> some View {
         VStack(spacing: 0) {
-            // Main mini player row
-            HStack(spacing: 12) {
-                // Book cover
+            HStack(spacing: DeviceType.current == .iPad ? 16 : 12) {
                 bookCoverSection(book: book)
                 
-                // Book info
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: DeviceType.current == .iPad ? 3 : 2) {
                     Text(book.title)
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(.system(size: DeviceType.current == .iPad ? 16 : 14, weight: .semibold))
                         .lineLimit(1)
                         .foregroundColor(.primary)
                     
                     Text(book.author ?? "Unbekannter Autor")
-                        .font(.system(size: 12))
+                        .font(.system(size: DeviceType.current == .iPad ? 14 : 12))
                         .lineLimit(1)
                         .foregroundColor(.secondary)
                     
                     if let chapter = player.currentChapter {
                         Text(chapter.title)
-                            .font(.system(size: 11))
+                            .font(.system(size: DeviceType.current == .iPad ? 13 : 11))
                             .lineLimit(1)
                             .foregroundColor(.secondary.opacity(0.8))
                     }
@@ -141,11 +133,10 @@ struct MiniPlayerView: View {
                 
                 Spacer(minLength: 8)
                 
-                // Playback controls
                 playbackControls
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
+            .padding(.horizontal, DeviceType.current == .iPad ? 20 : 16)
+            .padding(.vertical, DeviceType.current == .iPad ? 12 : 8)
             .contentShape(Rectangle())
             .onTapGesture {
                 if !isExpanded {
@@ -153,7 +144,6 @@ struct MiniPlayerView: View {
                 }
             }
             
-            // Expanded content
             if isExpanded {
                 expandedContent
                     .transition(.asymmetric(
@@ -170,21 +160,23 @@ struct MiniPlayerView: View {
     }
     
     private func bookCoverSection(book: Book) -> some View {
-        Group {
+        let coverSize: CGFloat = DeviceType.current == .iPad ? 64 : 48
+        
+        return Group {
             if let api = api {
                 BookCoverView.square(
                     book: book,
-                    size: 48,
+                    size: coverSize,
                     api: api,
                     downloadManager: player.downloadManagerReference
                 )
             } else {
                 RoundedRectangle(cornerRadius: 8)
                     .fill(Color.gray.opacity(0.3))
-                    .frame(width: 48, height: 48)
+                    .frame(width: coverSize, height: coverSize)
                     .overlay(
                         Image(systemName: "book.fill")
-                            .font(.system(size: 20))
+                            .font(.system(size: coverSize * 0.4))
                             .foregroundColor(.gray)
                     )
             }
@@ -193,38 +185,39 @@ struct MiniPlayerView: View {
     }
     
     private var playbackControls: some View {
-        HStack(spacing: 16) {
-            // Previous chapter button
+        let buttonSpacing: CGFloat = DeviceType.current == .iPad ? 20 : 16
+        let playButtonSize: CGFloat = DeviceType.current == .iPad ? 48 : 40
+        let iconSize: CGFloat = DeviceType.current == .iPad ? 20 : 16
+        
+        return HStack(spacing: buttonSpacing) {
             Button(action: {
                 player.previousChapter()
             }) {
                 Image(systemName: "backward.end.fill")
-                    .font(.system(size: 16))
+                    .font(.system(size: iconSize))
                     .foregroundColor(.primary)
             }
             .disabled(player.currentChapterIndex == 0)
             
-            // Play/Pause button
             Button(action: {
                 player.togglePlayPause()
             }) {
                 ZStack {
                     Circle()
                         .fill(Color.accentColor)
-                        .frame(width: 40, height: 40)
+                        .frame(width: playButtonSize, height: playButtonSize)
                     
                     Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
-                        .font(.system(size: 16))
+                        .font(.system(size: iconSize))
                         .foregroundColor(.white)
                 }
             }
             
-            // Next chapter button
             Button(action: {
                 player.nextChapter()
             }) {
                 Image(systemName: "forward.end.fill")
-                    .font(.system(size: 16))
+                    .font(.system(size: iconSize))
                     .foregroundColor(.primary)
             }
             .disabled(player.book == nil ||
@@ -233,70 +226,66 @@ struct MiniPlayerView: View {
     }
     
     private var expandedContent: some View {
-        VStack(spacing: 12) {
-            // Detailed progress section (in expanded view)
+        let controlSpacing: CGFloat = DeviceType.current == .iPad ? 32 : 24
+        
+        return VStack(spacing: DeviceType.current == .iPad ? 16 : 12) {
             expandedProgressSection
             
-            // Additional controls
-            HStack(spacing: 24) {
-                // Speed control
+            HStack(spacing: controlSpacing) {
                 Button(action: {
                     cyclePlaybackSpeed()
                 }) {
                     Text("\(player.playbackRate, specifier: "%.1f")x")
-                        .font(.system(size: 12, weight: .medium))
+                        .font(.system(size: DeviceType.current == .iPad ? 14 : 12, weight: .medium))
                         .foregroundColor(.accentColor)
-                        .frame(width: 40, height: 24)
+                        .frame(width: DeviceType.current == .iPad ? 50 : 40,
+                               height: DeviceType.current == .iPad ? 28 : 24)
                         .background(Color.accentColor.opacity(0.1))
                         .clipShape(Capsule())
                 }
                 
-                // Seek back 15s
                 Button(action: {
                     player.seek15SecondsBack()
                 }) {
                     Image(systemName: "gobackward.15")
-                        .font(.system(size: 18))
+                        .font(.system(size: DeviceType.current == .iPad ? 22 : 18))
                         .foregroundColor(.primary)
                 }
                 
                 Spacer()
                 
-                // Seek forward 15s
                 Button(action: {
                     player.seek15SecondsForward()
                 }) {
                     Image(systemName: "goforward.15")
-                        .font(.system(size: 18))
+                        .font(.system(size: DeviceType.current == .iPad ? 22 : 18))
                         .foregroundColor(.primary)
                 }
                 
-                // Expand to full player
                 Button(action: onTap) {
                     Image(systemName: "chevron.up")
-                        .font(.system(size: 14))
+                        .font(.system(size: DeviceType.current == .iPad ? 16 : 14))
                         .foregroundColor(.secondary)
-                        .frame(width: 24, height: 24)
+                        .frame(width: DeviceType.current == .iPad ? 28 : 24,
+                               height: DeviceType.current == .iPad ? 28 : 24)
                         .background(Color.secondary.opacity(0.1))
                         .clipShape(Circle())
                 }
             }
-            .padding(.horizontal, 16)
+            .padding(.horizontal, DeviceType.current == .iPad ? 20 : 16)
         }
-        .padding(.bottom, 8)
+        .padding(.bottom, DeviceType.current == .iPad ? 12 : 8)
     }
     
     private var expandedProgressSection: some View {
         VStack(spacing: 4) {
-            // Detailed progress bar (for expanded view)
             ProgressView(value: player.currentTime, total: max(player.duration, 1))
                 .progressViewStyle(LinearProgressViewStyle(tint: .accentColor))
-                .scaleEffect(x: 1, y: 1.5) // Slightly thicker in expanded view
+                .scaleEffect(x: 1, y: 1.5)
             
-            // Time labels
             HStack {
                 Text(TimeFormatter.formatTime(player.currentTime))
-                    .font(.system(size: 10))
+                    .font(.system(size: DeviceType.current == .iPad ? 12 : 10))
                     .foregroundColor(.secondary)
                     .monospacedDigit()
                 
@@ -304,15 +293,13 @@ struct MiniPlayerView: View {
                 
                 let remaining = max(0, player.duration - player.currentTime)
                 Text("-\(TimeFormatter.formatTime(remaining))")
-                    .font(.system(size: 10))
+                    .font(.system(size: DeviceType.current == .iPad ? 12 : 10))
                     .foregroundColor(.secondary)
                     .monospacedDigit()
             }
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, DeviceType.current == .iPad ? 20 : 16)
     }
-    
-    // MARK: - Helper Methods
     
     private func cyclePlaybackSpeed() {
         let speeds: [Double] = [0.75, 1.0, 1.25, 1.5, 1.75, 2.0]
@@ -322,7 +309,7 @@ struct MiniPlayerView: View {
             let nextIndex = (currentIndex + 1) % speeds.count
             player.setPlaybackRate(speeds[nextIndex])
         } else {
-            player.setPlaybackRate(1.0) // Default fallback
+            player.setPlaybackRate(1.0)
         }
     }
 }

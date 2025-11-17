@@ -1,71 +1,117 @@
 import SwiftUI
 
 struct AuthorDetailView: View {
+    let author: Author
+    let onBookSelected: (InitialPlayerMode) -> Void
+
     @StateObject private var viewModel: AuthorDetailViewModel
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var appState: AppStateManager
-    
-    init(authorName: String, onBookSelected: @escaping () -> Void) {
+    @EnvironmentObject var theme: ThemeManager
+
+    init(author: Author, onBookSelected: @escaping (InitialPlayerMode) -> Void) {
+        self.author = author
+        self.onBookSelected = onBookSelected
+
+        // Dependencies vom Container holen
+        let container = DependencyContainer.shared
         _viewModel = StateObject(wrappedValue: AuthorDetailViewModel(
-            authorName: authorName,
-            container: .shared,
-            onBookSelected: onBookSelected
+            bookRepository: container.bookRepository,     // ← BookRepositoryProtocol
+            api: container.apiClient!,                    // ← AudiobookshelfClient
+            downloadManager: container.downloadManager,
+            player: container.player,
+            appState: container.appState,                 // ← Wird später in task gesetzt
+            playBookUseCase: PlayBookUseCase(),           // ← PlayBookUseCase Instance
+            author: author,                               // ← Author Object
+            onBookSelected: onBookSelected                // ← Closure
         ))
     }
-    
+
     var body: some View {
         NavigationStack {
-            VStack(alignment: .leading, spacing: DSLayout.contentGap) {
-                authorHeaderView
-                
-                Divider()
-                
-                booksGridView
+            GeometryReader { geometry in
+                contentView(geometry: geometry)
             }
             .navigationTitle("")
             .navigationBarHidden(true)
             .task {
                 viewModel.onDismiss = { dismiss() }
-                await viewModel.loadAuthorBooks()
+                await viewModel.loadAuthorDetails()
+            }
+        }
+    }
+    
+    private func contentView(geometry: GeometryProxy) -> some View {
+        ZStack {
+                        
+            VStack(alignment: .leading, spacing: DSLayout.adaptiveContentGap) {
+                authorHeaderView                
+                
+                ScrollView {
+                    LazyVGrid(columns: ResponsiveLayout.columns(for: geometry.size), spacing: DSLayout.adaptiveContentGap) {
+                        ForEach(viewModel.authorBooks, id: \.id) { book in
+                            let cardViewModel = BookCardStateViewModel(book: book)
+                            BookCardView(
+                                viewModel: cardViewModel,
+                                api: viewModel.api,  // ← Muss public sein!
+                                onTap: {
+                                    Task {
+                                        await viewModel.playBook(book, appState: appState)
+                                    }
+                                },
+                                onDownload: {
+                                    Task {
+                                        await viewModel.downloadBook(book)
+                                    }
+                                },
+                                onDelete: {
+                                    viewModel.deleteBook(book.id)
+                                },
+                                style: .library,
+                                containerSize: geometry.size
+                            )
+                        }
+                    }
+                    .padding(.horizontal, DSLayout.contentPadding)
+                    .padding(.top, DSLayout.adaptiveContentGap)
+                }
             }
         }
     }
     
     private var authorHeaderView: some View {
-        HStack(alignment: .top) {
-            Circle()
-                .fill(Color.accentColor.opacity(0.2))
-                .frame(width: 60, height: 60)
-                .overlay(
-                    Text(String(viewModel.authorName.prefix(2).uppercased()))
-                        .font(.system(size: 28, weight: .semibold))
-                        .foregroundColor(.accentColor)
-                )
+        
+        HStack(alignment: .center) {
+            // Author Image
+            AuthorImageView(
+                author: author,
+                api: DependencyContainer.shared.apiClient,
+                size: DSLayout.smallAvatar
+            )
             
-            VStack(alignment: .leading, spacing: 4) {
-                Text(viewModel.authorName)
-                    .font(.title2)
-                    .fontWeight(.semibold)
+            VStack(alignment: .leading, spacing: DSLayout.tightGap) {
+                Text(viewModel.author.name)
+                    .font(DSText.itemTitle)
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
                 
                 if !viewModel.authorBooks.isEmpty {
-                    HStack(spacing: 8) {
-                        Text("\(viewModel.authorBooks.count) books")
-                        
+                    HStack(spacing: DSLayout.elementGap) {
+                        Text("\(author.numBooks ?? 0) \((author.numBooks ?? 0) == 1 ? "Book" : "Books")")
+
                         if viewModel.downloadedCount > 0 {
-                            Text("• \(viewModel.downloadedCount) downloaded")
+                            Text(" • \(viewModel.downloadedCount) downloaded")
                         }
                         
                         if viewModel.totalDuration > 0 {
-                            Text("• \(TimeFormatter.formatTimeCompact(viewModel.totalDuration))")
+                            Text(" • \(TimeFormatter.formatTimeCompact(viewModel.totalDuration)) total")
                         }
                     }
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                    .font(DSText.metadata)
                 }
             }
             .layoutPriority(1)
+            .padding(.leading, DSLayout.elementGap)
             
             Spacer()
             
@@ -73,41 +119,12 @@ struct AuthorDetailView: View {
                 dismiss()
             } label: {
                 Image(systemName: "xmark.circle.fill")
-                    .font(.title2)
+                    .font(DeviceType.current == .iPad ? .largeTitle : .title2)
                     .foregroundColor(.secondary)
             }
             .buttonStyle(.plain)
         }
-        .padding(.horizontal, DSLayout.screenPadding)
-        .padding(.top, DSLayout.comfortPadding)
-    }
-    
-    private var booksGridView: some View {
-        ScrollView {
-            LazyVGrid(columns: DSGridColumns.two, spacing: 0) {
-                ForEach(viewModel.authorBooks, id: \.id) { book in
-                    let cardViewModel = BookCardStateViewModel(book: book)
-                    BookCardView(
-                        viewModel: cardViewModel,
-                        api: viewModel.api,
-                        onTap: {
-                            Task {
-                                await viewModel.playBook(book, appState: appState)
-                            }
-                        },
-                        onDownload: {
-                            Task {
-                                await viewModel.downloadBook(book)
-                            }
-                        },
-                        onDelete: {
-                            viewModel.deleteBook(book.id)
-                        },
-                        style: .library
-                    )
-                }
-            }
-            .padding(.horizontal, DSLayout.contentPadding)
-        }
+        .padding(.horizontal, DSLayout.adaptiveScreenPadding)
+        .padding(.top, DSLayout.adaptiveContentGap)
     }
 }

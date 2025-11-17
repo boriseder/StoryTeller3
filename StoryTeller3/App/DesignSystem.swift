@@ -44,7 +44,7 @@ enum DSLayout {
     //static let cardCover: CGFloat = 140     // Grid cards
     static let detailCover: CGFloat = 300   // Detail views
     static let fullCover: CGFloat = 400     // Full screen
-    static let smallAvatar: CGFloat = 72    // User avatars
+    static let smallAvatar: CGFloat = 60    // Author avatars
     static let avatar: CGFloat = 100        // Large avatars
     
     // MARK: Content Width

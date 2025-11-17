@@ -6,12 +6,10 @@ struct SeriesView: View {
     @EnvironmentObject var theme: ThemeManager
     @EnvironmentObject var seriesViewModel: SeriesViewModel
 
-    // Workaround to hide nodata at start of app
     @State private var showEmptyState = false
 
     var body: some View {
         ZStack {
-            
             if theme.backgroundStyle == .dynamic {
                 Color.accent.ignoresSafeArea()
             }
@@ -25,10 +23,7 @@ struct SeriesView: View {
         .navigationBarTitleDisplayMode(.large)
         .toolbarBackground(.visible, for: .navigationBar)
         .toolbarBackground(.clear, for: .navigationBar)
-        .toolbarColorScheme(
-            theme.colorScheme,
-            for: .navigationBar
-        )
+        .toolbarColorScheme(theme.colorScheme, for: .navigationBar)
         .searchable(text: $viewModel.filterState.searchText, prompt: "Serien durchsuchen...")
         .refreshable {
             await viewModel.loadSeries()
@@ -56,8 +51,6 @@ struct SeriesView: View {
         }
     }
     
-    // MARK: - Subviews
-        
     private var contentView: some View {
         ZStack {
             if theme.backgroundStyle == .dynamic {
@@ -65,30 +58,26 @@ struct SeriesView: View {
             }
 
             ScrollView {
-                LazyVStack(spacing: DSLayout.contentGap) {
+                LazyVStack(spacing: DSLayout.adaptiveContentGap) {
                     ForEach(viewModel.filteredAndSortedSeries) { series in
                         SeriesSectionView(
                             series: series,
                             api: viewModel.api,
-                            onBookSelected: {
-                                // Book selection is handled inside SeriesSectionView
-                            }
+                            onBookSelected: {}
                         )
                         .environmentObject(appState)
                     }
                 }
                 Spacer()
-                .frame(height: DSLayout.miniPlayerHeight)
+                    .frame(height: DSLayout.adaptiveMiniPlayerHeight)
             }
             .scrollIndicators(.hidden)
-            .padding(.horizontal, DSLayout.screenPadding)
+            .padding(.horizontal, DSLayout.adaptiveScreenPadding)
         }
         .opacity(viewModel.contentLoaded ? 1 : 0)
         .animation(.easeInOut(duration: 0.5), value: viewModel.contentLoaded)
         .onAppear { viewModel.contentLoaded = true }
     }
-    
-    // MARK: - Toolbar Components
     
     private var sortMenu: some View {
         Menu {

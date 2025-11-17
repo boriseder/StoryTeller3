@@ -7,45 +7,46 @@ struct LibraryView: View {
     
     @State private var selectedSeries: Book?
     @State private var bookCardVMs: [BookCardStateViewModel] = []
-    
-    // Workaround to hide nodata at start of app
     @State private var showEmptyState = false
     
-    private let autoPlay: Bool = true              // true = Auto-Start
-    private let playerMode: InitialPlayerMode = .fullscreen  // .mini oder .fullscreen
+    private let autoPlay: Bool = true
+    private let playerMode: InitialPlayerMode = .fullscreen
 
     var body: some View {
         ZStack {
-            
             if theme.backgroundStyle == .dynamic {
                 Color.accent.ignoresSafeArea()
             }
             
-            contentView
-                .transition(.opacity)
+            GeometryReader { geometry in
+                contentView(geometry: geometry)
+                    .transition(.opacity)
+            }
         }
         .navigationTitle(viewModel.libraryName)
         .navigationBarTitleDisplayMode(.large)
         .toolbarBackground(.visible, for: .navigationBar)
         .toolbarBackground(.clear, for: .navigationBar)
-        .toolbarColorScheme(
-            theme.colorScheme,
-            for: .navigationBar
-        )
-        .searchable(
-            text: $viewModel.filterState.searchText,
-            placement: .automatic,
-            prompt: "Search books...")
+        .toolbarColorScheme(theme.colorScheme, for: .navigationBar)
+        .if(DeviceType.current == .iPhone) { view in
+            view.searchable(
+                text: $viewModel.filterState.searchText,
+                placement: .automatic,
+                prompt: "Search books..."
+            )
+        }
         .refreshable {
             await viewModel.loadBooks()
         }
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                HStack(spacing: 12) {
-                    if !viewModel.books.isEmpty {
-                        filterAndSortMenu
+        .if(DeviceType.current == .iPhone) { view in
+            view.toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    HStack(spacing: 12) {
+                        if !viewModel.books.isEmpty {
+                            filterAndSortMenu
+                        }
+                        SettingsButton()
                     }
-                    SettingsButton()
                 }
             }
         }
@@ -54,13 +55,10 @@ struct LibraryView: View {
             updateBookCardViewModels()
         }
         .sheet(item: $selectedSeries) { series in
-            SeriesDetailView(
-                seriesBook: series,
-                onBookSelected: {}
-            )
-            .environmentObject(appState)
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
+            SeriesDetailView(seriesBook: series, onBookSelected: {})
+                .environmentObject(appState)
+                .presentationDetents(presentationDetents)
+                .presentationDragIndicator(.visible)
         }
         .onChange(of: viewModel.filteredAndSortedBooks.count) {
             updateBookCardViewModels()
@@ -73,14 +71,21 @@ struct LibraryView: View {
         }
     }
     
-    private var contentView: some View {
-        ZStack {
+    private var presentationDetents: Set<PresentationDetent> {
+        DeviceType.current == .iPad ? [.large] : [.medium, .large]
+    }
+    
+    private func contentView(geometry: GeometryProxy) -> some View {
+        // On iPad with sidebar, we need to account for reduced space
+        let hasSidebar = DeviceType.current == .iPad
+        let columns = ResponsiveLayout.columns(for: geometry.size, hasSidebar: hasSidebar)
+        
+        return ZStack {
             if theme.backgroundStyle == .dynamic {
                 DynamicBackground()
             }
             
             ScrollView {
-                
                 OfflineBanner()
                 
                 if viewModel.filterState.showDownloadedOnly {
@@ -98,44 +103,37 @@ struct LibraryView: View {
                     )
                 }
                 
-                LazyVGrid(columns: DSGridColumns.two, spacing: 0) {
+                LazyVGrid(columns: columns, spacing: 0) {
                     ForEach(bookCardVMs) { bookVM in
                         BookCardView(
                             viewModel: bookVM,
                             api: viewModel.api,
-                            onTap: {
-                                handleBookTap(bookVM.book)
-                            },
-                            onDownload: {
-                                startDownload(bookVM.book)
-                            },
-                            onDelete: {
-                                deleteDownload(bookVM.book)
-                            },
-                            style: .library
+                            onTap: { handleBookTap(bookVM.book) },
+                            onDownload: { startDownload(bookVM.book) },
+                            onDelete: { deleteDownload(bookVM.book) },
+                            style: .library,
+                            containerSize: geometry.size,
+                            hasSidebar: hasSidebar
                         )
-                        
                     }
                     .padding(.vertical, DSLayout.contentPadding)
                 }
 
                 Spacer()
-                    .frame(height: DSLayout.miniPlayerHeight)
+                    .frame(height: DSLayout.adaptiveMiniPlayerHeight)
             }
             .scrollIndicators(.hidden)
-            .padding(.horizontal, DSLayout.screenPadding)
-
+            .padding(.horizontal, DSLayout.adaptiveScreenPadding)
         }
         .opacity(viewModel.contentLoaded ? 1 : 0)
         .animation(.easeInOut(duration: 0.5), value: viewModel.contentLoaded)
         .onAppear { viewModel.contentLoaded = true }
     }
     
-    // MARK: - Ultra-Optimized Update Logic
+    // MARK: - Update Logic (unchanged)
     
     private func updateBookCardViewModels() {
         let books = viewModel.filteredAndSortedBooks
-        
         Task { @MainActor in
             let newVMs = books.map { book in
                 BookCardStateViewModel(book: book)
@@ -149,13 +147,11 @@ struct LibraryView: View {
               let index = bookCardVMs.firstIndex(where: { $0.id == currentBookId }) else {
             return
         }
-        
         bookCardVMs[index] = BookCardStateViewModel(book: bookCardVMs[index].book)
     }
     
     private func updateDownloadingBooksOnly() {
         let downloadingIds = Set(viewModel.downloadManager.downloadProgress.keys)
-        
         for (index, vm) in bookCardVMs.enumerated() {
             if downloadingIds.contains(vm.id) {
                 bookCardVMs[index] = BookCardStateViewModel(book: vm.book)
@@ -163,20 +159,14 @@ struct LibraryView: View {
         }
     }
     
-    // MARK: - Actions
+    // MARK: - Actions (unchanged)
     
     private func handleBookTap(_ book: Book) {
         if book.isCollapsedSeries {
             selectedSeries = book
         } else {
             Task {
-                await viewModel.playBook(
-                    book,
-                    appState: appState,
-                    autoPlay: autoPlay,
-                    initialPlayerMode: playerMode
-
-                )
+                await viewModel.playBook(book, appState: appState, autoPlay: autoPlay, initialPlayerMode: playerMode)
             }
         }
     }
@@ -191,11 +181,10 @@ struct LibraryView: View {
         viewModel.downloadManager.deleteBook(book.id)
     }
     
-    // MARK: - Toolbar Components
+    // MARK: - Toolbar Components (unchanged)
     
     private var filterAndSortMenu: some View {
         Menu {
-            // MARK: - Sort Section
             Section("SORTING") {
                 ForEach(LibrarySortOption.allCases) { option in
                     Button {
@@ -214,7 +203,6 @@ struct LibraryView: View {
                     viewModel.filterState.sortAscending.toggle()
                     viewModel.filterState.saveToDefaults()
                 } label: {
-                    // Zeigt aktuelle Richtung mit Icon UND Text
                     Label(
                         viewModel.filterState.sortAscending ? "Ascending" : "Descending",
                         systemImage: viewModel.filterState.sortAscending ? "arrow.up" : "arrow.down"
@@ -224,7 +212,6 @@ struct LibraryView: View {
             
             Divider()
             
-            // MARK: - Filter Section
             Section("FILTER") {
                 Button {
                     viewModel.toggleDownloadFilter()
@@ -239,12 +226,10 @@ struct LibraryView: View {
             
             Divider()
             
-            // MARK: - View Section
             Section("VIEW") {
                 Button {
                     viewModel.toggleSeriesMode()
                 } label: {
-                    // Filled icon = ON, outline = OFF
                     Label(
                         "Group series",
                         systemImage: viewModel.filterState.showSeriesGrouped
@@ -254,10 +239,8 @@ struct LibraryView: View {
                 }
             }
             
-            // MARK: - Reset Section
             if viewModel.filterState.hasActiveFilters {
                 Divider()
-                
                 Button(role: .destructive) {
                     withAnimation(.spring(response: 0.3)) {
                         viewModel.resetFilters()
@@ -266,27 +249,20 @@ struct LibraryView: View {
                     Label("Reset all filters", systemImage: "arrow.counterclockwise")
                 }
             }
-            
         } label: {
-            // MARK: - Toolbar Icon mit Badge
             ZStack {
-                // Background circle
                 Circle()
                     .fill(viewModel.filterState.hasActiveFilters
                           ? Color.accentColor.opacity(0.15)
                           : Color.clear)
                     .frame(width: 32, height: 32)
                 
-                // Main icon
                 Image(systemName: viewModel.filterState.hasActiveFilters
                       ? "line.3.horizontal.decrease.circle.fill"
                       : "line.3.horizontal.decrease.circle")
                 .font(.system(size: 20, weight: .medium))
-                .foregroundColor(viewModel.filterState.hasActiveFilters
-                                 ? .accentColor
-                                 : .primary)
+                .foregroundColor(viewModel.filterState.hasActiveFilters ? .accentColor : .primary)
                 
-                // Badge indicator
                 if viewModel.filterState.hasActiveFilters {
                     Circle()
                         .fill(
@@ -297,10 +273,7 @@ struct LibraryView: View {
                             )
                         )
                         .frame(width: 10, height: 10)
-                        .overlay(
-                            Circle()
-                                .stroke(Color(.systemBackground), lineWidth: 2)
-                        )
+                        .overlay(Circle().stroke(Color(.systemBackground), lineWidth: 2))
                         .offset(x: 10, y: -10)
                 }
             }
@@ -309,22 +282,23 @@ struct LibraryView: View {
     }
 }
 
-// MARK: - Filter Status Banner Component
+// Banner Views bleiben unverändert...
 struct FilterStatusBannerView: View {
     let count: Int
     let totalDownloaded: Int
     let onDismiss: () -> Void
     
     var body: some View {
-        HStack(spacing: DSLayout.elementGap) {
+        HStack(spacing: DSLayout.tightGap) {
             Image(systemName: "arrow.down.circle.fill")
-                .font(.system(size: DSLayout.smallIcon))
+                .font(.system(size: DSLayout.icon))
                 .foregroundColor(.orange)
+                .frame(width: DSLayout.largeIcon, height: DSLayout.largeIcon)
             
             Text("Show \(count) of \(totalDownloaded) downloaded books")
-                .font(.subheadline)
-                .foregroundColor(.primary)
-            
+                .font(DSText.footnote)
+                .foregroundColor(.secondary)
+
             Spacer()
             
             Button(action: onDismiss) {
@@ -334,15 +308,14 @@ struct FilterStatusBannerView: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, DSLayout.contentGap)
-        .padding(.horizontal, DSLayout.contentGap)
-        .background(.regularMaterial)
+        .padding(.vertical, DSLayout.tightPadding)
+        .padding(.horizontal, DSLayout.elementPadding)
+        .background(.ultraThinMaterial)
         .clipShape(RoundedRectangle(cornerRadius: DSCorners.element))
         .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
     }
 }
 
-// MARK: - Series Status Banner Component
 struct SeriesStatusBannerView: View {
     let books: [Book]
     let onDismiss: () -> Void
@@ -383,7 +356,7 @@ struct SeriesStatusBannerView: View {
                     .foregroundColor(.secondary)
             }
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, DSLayout.adaptiveScreenPadding)
         .padding(.vertical, 8)
         .background(.regularMaterial)
         .overlay(
@@ -392,29 +365,5 @@ struct SeriesStatusBannerView: View {
                 .foregroundColor(Color(.separator)),
             alignment: .bottom
         )
-    }
-}
-
-// MARK: - Library Stats Component
-struct LibraryStatsView: View {
-    let viewModel: LibraryViewModel
-    let isSeriesMode: Bool
-    
-    private var seriesCount: Int {
-        viewModel.filteredAndSortedBooks.lazy.filter { $0.isCollapsedSeries }.count
-    }
-    
-    private var booksCount: Int {
-        viewModel.filteredAndSortedBooks.count - seriesCount
-    }
-    
-    var body: some View {
-        HStack {
-            if isSeriesMode {
-                Text("\(seriesCount) Series • \(booksCount) Books")
-            } else {
-                Text("\(viewModel.totalBooksCount) Books")
-            }
-        }
     }
 }

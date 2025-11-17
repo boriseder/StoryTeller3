@@ -46,7 +46,7 @@ struct BookCoverView: View {
                     .clipped()
                     .transition(.opacity.combined(with: .scale(scale: 0.95)))
             } else if loader.isLoading {
-                loadingView
+                LoadingView()
             } else {
                 placeholderView
             }
@@ -62,29 +62,7 @@ struct BookCoverView: View {
         }
         .animation(.easeInOut(duration: 0.3), value: loader.image != nil)
     }
-    
-    private var loadingView: some View {
-        ZStack {
-            Color.gray.opacity(0.2)
-            
-            VStack(spacing: 8) {
-                if showLoadingProgress && loader.downloadProgress > 0 {
-                    ProgressView(value: loader.downloadProgress)
-                        .progressViewStyle(LinearProgressViewStyle(tint: .accentColor))
-                        .frame(width: size.width * 0.6)
-                    
-                    Text("\(Int(loader.downloadProgress * 100))%")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                } else {
-                    ProgressView()
-                        .scaleEffect(0.8)
-                        .tint(.accentColor)
-                }
-            }
-        }
-    }
-    
+        
     private var placeholderView: some View {
         ZStack {
             LinearGradient(

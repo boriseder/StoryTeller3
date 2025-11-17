@@ -6,32 +6,27 @@ struct HomeView: View {
     @EnvironmentObject var theme: ThemeManager
 
     @State private var selectedSeries: Series?
-    @State private var selectedAuthor: IdentifiableString?
-    
-    // Workaround to hide nodata at start of app
+    @State private var selectedAuthor: Author?
+        
     @State private var showEmptyState = false
 
-    private let autoPlay: Bool = true              // true = Auto-Start
-    private let playerMode: InitialPlayerMode = .fullscreen  // .mini oder .fullscreen
+    private let autoPlay: Bool = true
+    private let playerMode: InitialPlayerMode = .fullscreen
 
     var body: some View {
         ZStack {
-            
             if theme.backgroundStyle == .dynamic {
                 Color.accent.ignoresSafeArea()
             }
           
             contentView
-                .transition(.opacity)
-       }
+
+        }
         .navigationTitle("Explore & listen")
         .navigationBarTitleDisplayMode(.large)
         .toolbarBackground(.visible, for: .navigationBar)
         .toolbarBackground(.clear, for: .navigationBar)
-        .toolbarColorScheme(
-            theme.colorScheme,
-            for: .navigationBar
-        )
+        .toolbarColorScheme(theme.colorScheme, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 SettingsButton()
@@ -44,27 +39,24 @@ struct HomeView: View {
             await viewModel.loadPersonalizedSectionsIfNeeded()
         }
         .sheet(item: $selectedSeries) { series in
-            SeriesDetailView(
-                series: series,
-                onBookSelected: {}
-            )
-            .environmentObject(appState)
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
+            SeriesDetailView(series: series, onBookSelected: {})
+                .environmentObject(appState)
+                .presentationDetents([.medium])
+                .presentationDragIndicator(.visible)
+                .presentationBackground(.black.opacity(0.65))
         }
-        .sheet(item: $selectedAuthor) { authorWrapper in
+        .sheet(item: $selectedAuthor) { author in
             AuthorDetailView(
-                authorName: authorWrapper.value,
-                onBookSelected: {}
+                author: author,
+                onBookSelected: {_ in }
             )
-            .environmentObject(appState)
-            .presentationDetents([.medium, .large])
+            .presentationDetents([.medium])
             .presentationDragIndicator(.visible)
+            .presentationBackground(.black.opacity(0.65))
         }
+
     }
-    
-    // MARK: - Content View
-    
+        
     private var contentView: some View {
         ZStack {
             if theme.backgroundStyle == .dynamic {
@@ -72,12 +64,11 @@ struct HomeView: View {
             }
 
             ScrollView {
-                LazyVStack(spacing: DSLayout.contentGap) {
-                    
+                LazyVStack(spacing: DSLayout.adaptiveContentGap) {
                     OfflineBanner()
                     
                     homeHeaderView
-                        .padding(.bottom, DSLayout.elementPadding)
+                        .padding(.bottom, DSLayout.adaptiveElementGap)
                     
                     ForEach(Array(viewModel.personalizedSections.enumerated()), id: \.element.id) { index, section in
                         PersonalizedSectionView(
@@ -86,19 +77,20 @@ struct HomeView: View {
                             api: viewModel.api,
                             downloadManager: viewModel.downloadManager,
                             onBookSelected: { book in
-                                Task { await viewModel.playBook(
-                                    book,
-                                    appState: appState,
-                                    autoPlay: autoPlay,
-                                    initialPlayerMode: playerMode
-                                )
+                                Task {
+                                    await viewModel.playBook(
+                                        book,
+                                        appState: appState,
+                                        autoPlay: autoPlay,
+                                        initialPlayerMode: playerMode
+                                    )
                                 }
                             },
                             onSeriesSelected: { series in
                                 selectedSeries = series
                             },
-                            onAuthorSelected: { authorName in
-                                selectedAuthor = authorName.asIdentifiable()
+                            onAuthorSelected: { author in
+                                selectedAuthor = author
                             }
                         )
                         .environmentObject(appState)
@@ -108,17 +100,14 @@ struct HomeView: View {
                             value: viewModel.sectionsLoaded
                         )
                     }
-
                 }
                 Spacer()
-                .frame(height: DSLayout.miniPlayerHeight)
-
+                    .frame(height: DSLayout.adaptiveMiniPlayerHeight)
             }
             .scrollIndicators(.hidden)
-            .padding(.horizontal, DSLayout.screenPadding)
+            .padding(.horizontal, DSLayout.adaptiveScreenPadding)
         }
-        .opacity(viewModel.contentLoaded ? 1 : 0)
-        .animation(.easeInOut(duration: 0.5), value: viewModel.contentLoaded)
+        .transition(.opacity)
         .onAppear {
             viewModel.contentLoaded = true
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
@@ -129,72 +118,68 @@ struct HomeView: View {
     
     private var homeHeaderView: some View {
         HStack(spacing: DSLayout.elementGap) {
-            // First section
-            HStack(spacing: DSLayout.elementGap) {
+            HStack(spacing: DSLayout.tightGap) {
                 Image(systemName: "books.vertical.fill")
-                    .font(.system(size: DSLayout.smallIcon))
+                    .font(.system(size: 20))
                     .foregroundColor(.blue)
-                    .frame(width: DSLayout.icon, height: DSLayout.icon)
+                    .frame(width: DSLayout.largeIcon, height: DSLayout.largeIcon)
 
-                VStack(spacing: DSLayout.tightGap) {
+                VStack(alignment: .center, spacing: 0) {
                     Text("Books in library")
                         .font(DSText.footnote)
                         .foregroundColor(.secondary)
+                    
                     Text(String(viewModel.totalItemsCount))
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
+                        .font(DSText.prominent)
                 }
-                
-                Spacer()
+                .frame(maxWidth: .infinity, alignment: .center)
+
             }
 
             Divider()
 
-            // Second section
-            HStack(spacing: DSLayout.elementGap) {
+            HStack(spacing: DSLayout.tightGap) {
                 Image(systemName: "arrow.down.circle")
-                    .font(.system(size: DSLayout.smallIcon))
+                    .font(.system(size: DSLayout.icon))
                     .foregroundColor(.green)
-                    .frame(width: DSLayout.icon, height: DSLayout.icon)
+                    .frame(width: DSLayout.largeIcon, height: DSLayout.largeIcon)
 
-                VStack(spacing: DSLayout.tightGap) {
+                VStack(alignment: .center, spacing: 0) {
                     Text("Downloads")
                         .font(DSText.footnote)
                         .foregroundColor(.secondary)
+                    
                     Text(String(viewModel.downloadedCount))
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
+                        .font(DSText.prominent)
                 }
-                Spacer()
+                .frame(maxWidth: .infinity, alignment: .center)
+
             }
 
             Divider()
 
-            // Third section
             Button {
                 Task {
                     await appState.checkServerReachability()
                 }
             } label: {
                 Image(systemName: appState.isDeviceOnline ? "icloud" : "icloud.slash")
-                    .font(.system(size: DSLayout.smallIcon))
+                    .font(.system(size: DSLayout.icon))
                     .foregroundColor(appState.isDeviceOnline ? Color.green : Color.red)
-                    .frame(width: DSLayout.icon, height: DSLayout.icon)
-                    .background(appState.isDeviceOnline ? Color.green.opacity(0.1) : Color.red.opacity(0.1))
-                    .clipShape(Circle())
+                    .frame(width: DSLayout.largeIcon, height: DSLayout.largeIcon)
+
             }
-            
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, DSLayout.tightGap)
-        .padding(.horizontal, DSLayout.elementGap)
-        .background(.regularMaterial)
+        .padding(.vertical, DSLayout.elementPadding)
+        .padding(.horizontal, DSLayout.adaptiveElementGap)
+        .background(.ultraThinMaterial)
         .clipShape(RoundedRectangle(cornerRadius: DSCorners.element))
         .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
     }
 }
 
-// MARK: - Personalized Section View
+// MARK: - Personalized Section View with iPad Support
 struct PersonalizedSectionView: View {
     let section: PersonalizedSection
     @ObservedObject var player: AudioPlayer
@@ -202,35 +187,29 @@ struct PersonalizedSectionView: View {
     @ObservedObject var downloadManager: DownloadManager
     let onBookSelected: (Book) -> Void
     let onSeriesSelected: (Series) -> Void
-    let onAuthorSelected: (String) -> Void
+    let onAuthorSelected: (Author) -> Void
     
     @EnvironmentObject var theme: ThemeManager
     
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Section Header
             sectionHeader
             
-            // Section Content based on type
             switch section.type {
             case "book":
                 bookSection
-
             case "series":
                 seriesSection
-
             case "authors":
                 authorsSection
-
             default:
-                // Fallback for unknown types - treat as books
                 bookSection
             }
         }
     }
     
     private var sectionHeader: some View {
-        HStack(alignment: .firstTextBaseline){
+        HStack(alignment: .firstTextBaseline) {
             Image(systemName: sectionIcon)
                 .font(DSText.itemTitle)
                 .foregroundColor(theme.textColor)
@@ -239,30 +218,21 @@ struct PersonalizedSectionView: View {
                 .font(DSText.itemTitle)
                 .fontWeight(.semibold)
                 .foregroundColor(theme.textColor)
-        
+            
             Spacer()
         }
-
     }
     
     private var sectionIcon: String {
         switch section.id {
-        case "continue-listening":
-            return "play.circle.fill"
-        case "recently-added":
-            return "clock.fill"
-        case "recent-series":
-            return "rectangle.stack.fill"
-        case "discover":
-            return "sparkles"
-        case "newest-authors":
-            return "person.2.fill"
-        default:
-            return "books.vertical.fill"
+        case "continue-listening": return "play.circle.fill"
+        case "recently-added": return "clock.fill"
+        case "recent-series": return "rectangle.stack.fill"
+        case "discover": return "sparkles"
+        case "newest-authors": return "person.2.fill"
+        default: return "books.vertical.fill"
         }
     }
-    
-    // MARK: - Section Content Types
     
     private var bookSection: some View {
         let books = section.entities.compactMap { entity -> Book? in
@@ -281,7 +251,7 @@ struct PersonalizedSectionView: View {
     
     private var seriesSection: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            LazyHStack(spacing: DSLayout.contentGap) {
+            LazyHStack(spacing: DSLayout.adaptiveContentGap) {
                 ForEach(section.entities.indices, id: \.self) { index in
                     let entity = section.entities[index]
                     
@@ -302,45 +272,22 @@ struct PersonalizedSectionView: View {
     
     private var authorsSection: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack{
-                ForEach(extractAuthors(), id: \.self) { authorName in
+            HStack(spacing: DSLayout.adaptiveContentGap) {
+                ForEach(section.entities.compactMap { $0.asAuthor }, id: \.id) { author in
                     AuthorCardView(
-                        authorName: authorName,
+                        author: author,
                         onTap: {
-                            onAuthorSelected(authorName)
+                            onAuthorSelected(author)
                         }
                     )
                 }
             }
         }
     }
-    
-    // MARK: - Helper Methods
-    
-    private func convertToSeries() -> [Series] {
-        // Convert entities to Series objects
-        return section.entities.compactMap { entity -> Series? in
-            return entity.asSeries
-        }
-    }
-    
-    private func extractAuthors() -> [String] {
-        return section.entities.compactMap { entity -> String? in
-            // For author sections, the name should be the author name
-            if let name = entity.name {
-                return name
-            }
-            // Fallback: extract from book metadata
-            if let libraryItem = entity.asLibraryItem {
-                return libraryItem.media.metadata.author
-            }
-            return nil
-        }
-        .uniqued() // Remove duplicates
-    }
+
 }
 
-// MARK: - Series Card View
+// MARK: - Series Card View with iPad Support
 struct SeriesCardView: View {
     let entity: PersonalizedEntity
     let api: AudiobookshelfClient
@@ -350,8 +297,11 @@ struct SeriesCardView: View {
     private let cardStyle: BookCardStyle = .series
     @EnvironmentObject var theme: ThemeManager
     
+    private var cardWidth: CGFloat {
+        DeviceType.current == .iPad ? 200 : BookCardStyle.library.dimensions().width
+    }
+    
     var body: some View {
-
         Button(action: onTap) {
             VStack(alignment: .leading, spacing: 0) {
                 Group {
@@ -361,7 +311,7 @@ struct SeriesCardView: View {
                         
                         BookCoverView.square(
                             book: coverBook,
-                            size: cardStyle.coverSize,
+                            size: cardWidth,
                             api: api,
                             downloadManager: downloadManager
                         )
@@ -374,16 +324,14 @@ struct SeriesCardView: View {
                     .font(DSText.metadata)
                     .foregroundColor(theme.textColor)
                     .lineLimit(1)
-                    .frame(maxWidth: BookCardStyle.library.dimensions.width, alignment: .leading)
+                    .frame(maxWidth: cardWidth, alignment: .leading)
                     .fixedSize(horizontal: true, vertical: true)
-                    .padding(.horizontal, DSLayout.contentPadding)  // do not remove
+                    .padding(.horizontal, DSLayout.contentPadding)
                     .padding(.vertical, DSLayout.elementPadding)
-
             }
-            .frame(width: BookCardStyle.library.dimensions.width, height: BookCardStyle.library.dimensions.height)
+            .frame(width: cardWidth, height: cardWidth * 1.30)
             .scaleEffect(1.0)
             .transition(.opacity)
-            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: 1)
         }
         .buttonStyle(.plain)
     }
@@ -391,65 +339,55 @@ struct SeriesCardView: View {
     private var displayName: String {
         return entity.name ?? entity.asSeries?.name ?? "Unknown Series"
     }
-    
-    private var displayAuthor: String? {
-        if let series = entity.asSeries {
-            return series.author
-        }
-        if let libraryItem = entity.asLibraryItem {
-            return libraryItem.media.metadata.author
-        }
-        return nil
-    }
-    
-    private var displayBookCount: String {
-        if let series = entity.asSeries {
-            return "\(series.bookCount) books"
-        }
-        if let numBooks = entity.numBooks {
-            return "\(numBooks) books"
-        }
-        return "Series"
-    }
 }
 
-// MARK: - Author Card View
+// MARK: - Author Card View with iPad Support
 struct AuthorCardView: View {
-    let authorName: String
+    let author: Author
     let onTap: () -> Void
     
     @EnvironmentObject var theme: ThemeManager
+    
+    private var avatarSize: CGFloat {
+        DeviceType.current == .iPad ? 100 : 80
+    }
 
     var body: some View {
         Button(action: onTap) {
-            VStack(spacing: DSLayout.contentGap) {
-                // Author Avatar
-                Circle()
+            VStack(spacing: DSLayout.adaptiveContentGap) {
+                /*
+                 Circle()
                     .fill(Color.accentColor.opacity(0.2))
-                    .frame(width: 80, height: 80)
+                    .frame(width: avatarSize, height: avatarSize)
                     .overlay(
-                        Text(String(authorName.prefix(2).uppercased()))
-                            .font(.system(size: 24, weight: .semibold))
+                        Text(String(author.name.prefix(2).uppercased()))
+                            .font(.system(size: avatarSize * 0.3, weight: .semibold))
                             .foregroundColor(.accentColor)
                     )
+                */
                 
-                Text(authorName)
-                    .font(.system(size: 14, weight: .medium))
+                AuthorImageView(
+                    author: author,
+                    api: DependencyContainer.shared.apiClient,
+                    size: 60
+                )
+
+                
+                Text(author.name)
+                    .font(.system(size: DeviceType.current == .iPad ? 16 : 14, weight: .medium))
                     .foregroundColor(theme.textColor)
                     .lineLimit(2)
                     .multilineTextAlignment(.center)
-                    .frame(width: 80)
+                    .frame(width: avatarSize)
             }
             .padding(.vertical, DSLayout.elementPadding)
             .transition(.opacity)
-            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: 1)
         }
         .buttonStyle(.plain)
     }
-
 }
 
-// MARK: - Array Extension for Unique
+// MARK: - Array Extension
 extension Array where Element: Hashable {
     func uniqued() -> [Element] {
         var seen = Set<Element>()

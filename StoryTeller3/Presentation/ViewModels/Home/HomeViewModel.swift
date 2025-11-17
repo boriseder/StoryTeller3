@@ -177,7 +177,7 @@ class HomeViewModel: ObservableObject {
             AppLogger.general.debug("Error loading series: \(error)")
         }
     }
-    
+   /*
     func searchBooksByAuthor(_ authorName: String, appState: AppStateManager) async {
         AppLogger.general.debug("Searching books by author: \(authorName)")
         
@@ -211,7 +211,7 @@ class HomeViewModel: ObservableObject {
             AppLogger.general.debug("Error searching books by author: \(error)")
         }
     }
-    
+    */
     // MARK: - Private Helpers
     private func getAllBooksFromSections() -> [Book] {
         var allBooks: [Book] = []

@@ -25,9 +25,14 @@ struct NoDownloadsView: View {
                     Text("No downloaded books found")
                         .font(DSText.itemTitle)
 
-                    Text("You haven't downloaded any books. Download books to enjoy them offline.")
+                    Text("You haven't downloaded any books.")
                         .font(DSText.footnote)
                         .multilineTextAlignment(.center)
+                    
+                    Text("Download books to enjoy them offline.")
+                        .font(DSText.footnote)
+                        .multilineTextAlignment(.center)
+
                 }
             }
             .padding(.horizontal, 40)

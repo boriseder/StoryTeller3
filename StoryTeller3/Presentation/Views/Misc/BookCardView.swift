@@ -1,24 +1,21 @@
 import SwiftUI
 
-// MARK: - Design System Constants
-
-// MARK: - BookCard Style
+// MARK: - BookCard Style with iPad Support
 enum BookCardStyle {
     case library
     case series
     
-    var coverSize: CGFloat {
-        switch self {
-        case .library: return DSLayout.cardCoverNoPadding
-        case .series: return DSLayout.cardCoverNoPadding
+    func coverSize(containerSize: CGSize? = nil, hasSidebar: Bool = false) -> CGFloat {
+        if let size = containerSize {
+            return ResponsiveLayout.coverSize(for: size, hasSidebar: hasSidebar)
         }
+        return DSLayout.adaptiveCardCover
     }
     
-    var dimensions: (width: CGFloat, height: CGFloat, infoHeight: CGFloat) {
-        let cardWidth = coverSize
+    func dimensions(containerSize: CGSize? = nil, hasSidebar: Bool = false) -> (width: CGFloat, height: CGFloat, infoHeight: CGFloat) {
+        let cardWidth = coverSize(containerSize: containerSize, hasSidebar: hasSidebar)
         let cardHeight = cardWidth * 1.30
-        let infoHeight = cardHeight - coverSize - 3 * DSLayout.elementPadding
-                  
+        let infoHeight = cardHeight - cardWidth - 3 * DSLayout.elementPadding
         return (width: cardWidth, height: cardHeight, infoHeight: infoHeight)
     }
 }
@@ -31,22 +28,42 @@ struct BookCardView: View {
     let onDownload: () -> Void
     let onDelete: () -> Void
     let style: BookCardStyle
+    let containerSize: CGSize?
+    let hasSidebar: Bool
     
     @State private var isPressed = false
     @EnvironmentObject var theme: ThemeManager
 
+    init(
+        viewModel: BookCardStateViewModel,
+        api: AudiobookshelfClient?,
+        onTap: @escaping () -> Void,
+        onDownload: @escaping () -> Void,
+        onDelete: @escaping () -> Void,
+        style: BookCardStyle,
+        containerSize: CGSize? = nil,
+        hasSidebar: Bool = false
+    ) {
+        self.viewModel = viewModel
+        self.api = api
+        self.onTap = onTap
+        self.onDownload = onDownload
+        self.onDelete = onDelete
+        self.style = style
+        self.containerSize = containerSize
+        self.hasSidebar = hasSidebar
+    }
+
     private var dimensions: (width: CGFloat, height: CGFloat, infoHeight: CGFloat) {
-        style.dimensions
+        style.dimensions(containerSize: containerSize, hasSidebar: hasSidebar)
     }
     
     var body: some View {
         ZStack {
             VStack(alignment: .leading, spacing: DSLayout.elementPadding) {
                 bookCoverSection
-                
                 bookInfoSection
                     .padding(.bottom, DSLayout.elementPadding)
-
             }
             .frame(width: dimensions.width, height: dimensions.height)
             .scaleEffect(isPressed ? 0.95 : 1.0)
@@ -70,21 +87,21 @@ struct BookCardView: View {
         )
     }
     
-    // MARK: - Book Cover Section (Modern Overlays)
-
+    // MARK: - Book Cover Section
+    
     private var bookCoverSection: some View {
-        ZStack {
-            // Base Cover
+        let coverSize = style.coverSize(containerSize: containerSize)
+        
+        return ZStack {
             BookCoverView.square(
                 book: viewModel.book,
-                size: style.coverSize,
+                size: coverSize,
                 api: api,
                 downloadManager: nil,
                 showProgress: false
             )
             .clipShape(RoundedRectangle(cornerRadius: DSCorners.element))
             
-            // Bottom: Reading/Listening Progress (2px)
             if viewModel.duration > 0 {
                 VStack {
                     Spacer()
@@ -92,11 +109,8 @@ struct BookCardView: View {
                 }
             }
 
-            // Top Layer: Series Badge & Download Status
             VStack {
                 HStack(alignment: .top) {
-                    // Top Left: Series Badge
-                    // if viewModel.book.isCollapsedSeries && style == .library && !viewModel.isDownloading {
                     if viewModel.book.isCollapsedSeries && style == .library && !viewModel.isDownloading {
                         seriesBadge
                             .transition(.scale.combined(with: .opacity))
@@ -104,17 +118,13 @@ struct BookCardView: View {
 
                     Spacer()
 
-                    // Top Right: Download Status Layer (Button / Progress / Downloaded)
-                    //if style == .library  {
-                        downloadStatusView
-                            .transition(.scale.combined(with: .opacity))
-                    //}
+                    downloadStatusView
+                        .transition(.scale.combined(with: .opacity))
                 }
                 .padding(DSLayout.elementPadding)
 
                 Spacer()
 
-                // Bottom Center: Play/Pause Overlay
                 if viewModel.isCurrentBook && style == .library && !viewModel.isDownloading {
                     currentBookStatusOverlay
                         .padding(.bottom, DSLayout.elementPadding)
@@ -122,12 +132,11 @@ struct BookCardView: View {
                 }
             }
         }
-        .frame(width: style.coverSize, height: style.coverSize)
+        .frame(width: coverSize, height: coverSize)
         .animation(.spring(response: 0.35, dampingFraction: 0.75), value: viewModel.isDownloading)
         .animation(.spring(response: 0.35, dampingFraction: 0.75), value: viewModel.isCurrentBook)
         .animation(.spring(response: 0.35, dampingFraction: 0.75), value: viewModel.isDownloaded)
     }
-
 
     // MARK: - Info Section
 
@@ -139,7 +148,6 @@ struct BookCardView: View {
                 .lineLimit(1)
                 .frame(maxWidth: dimensions.width - 2 * DSLayout.elementPadding, alignment: .leading)
                 .fixedSize(horizontal: true, vertical: true)
-
 
             if style == .library {
                 VStack(alignment: .leading, spacing: DSLayout.tightGap) {
@@ -157,22 +165,20 @@ struct BookCardView: View {
             }
         }
         .padding(.horizontal, DSLayout.elementPadding)
-
     }
 
-
-    // MARK: - Download Status Layer (Top Right, komplett gekoppelt)
+    // MARK: - Download Status Layer
     
     private var downloadStatusView: some View {
-        ZStack {
-            // Hintergrundkreis
+        let buttonSize = DeviceType.current == .iPad ?
+            DSLayout.actionButtonSize * 1.2 : DSLayout.actionButtonSize
+        
+        return ZStack {
             Circle()
                 .fill(.white.opacity(0.95))
-                .frame(width: DSLayout.actionButtonSize, height: DSLayout.actionButtonSize)
-                .shadow(color: .black.opacity(DSLayout.shadowOpacity),
-                        radius: 6, x: 0, y: 2)
+                .frame(width: buttonSize, height: buttonSize)
+                .shadow(color: .black.opacity(DSLayout.shadowOpacity), radius: 6, x: 0, y: 2)
 
-            // Fortschrittsring (nur sichtbar beim Download)
             if viewModel.isDownloading {
                 Circle()
                     .trim(from: 0, to: viewModel.downloadProgress)
@@ -184,11 +190,10 @@ struct BookCardView: View {
                         style: StrokeStyle(lineWidth: 3, lineCap: .round)
                     )
                     .rotationEffect(.degrees(-90))
-                    .frame(width: DSLayout.actionButtonSize, height: DSLayout.actionButtonSize)
+                    .frame(width: buttonSize, height: buttonSize)
                     .animation(.linear(duration: 0.2), value: viewModel.downloadProgress)
             }
 
-            // Symbol je nach Zustand
             Image(systemName: {
                 if viewModel.isDownloading {
                     "arrow.down.circle"
@@ -201,7 +206,7 @@ struct BookCardView: View {
             .symbolRenderingMode(.hierarchical)
             .resizable()
             .scaledToFit()
-            .frame(width: 18, height: 18)
+            .frame(width: buttonSize * 0.45, height: buttonSize * 0.45)
             .foregroundStyle(viewModel.isDownloaded ? .green : Color.black)
             .transition(.opacity.combined(with: .scale))
             .animation(.easeInOut(duration: 0.25), value: viewModel.isDownloading)
@@ -219,16 +224,19 @@ struct BookCardView: View {
     // MARK: - Series Badge
     
     private var seriesBadge: some View {
-        HStack(spacing: 4) {
+        let fontSize: CGFloat = DeviceType.current == .iPad ? 13 : 11
+        let iconSize: CGFloat = DeviceType.current == .iPad ? 12 : 11
+        
+        return HStack(spacing: 4) {
             Image(systemName: "books.vertical.fill")
-                .font(.system(size: 11, weight: .semibold))
+                .font(.system(size: iconSize, weight: .semibold))
                 .foregroundColor(.white)
             Text("\(viewModel.book.seriesBookCount)")
-                .font(.system(size: 12, weight: .bold))
+                .font(.system(size: fontSize, weight: .bold))
                 .foregroundColor(.white)
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 5)
+        .padding(.horizontal, DeviceType.current == .iPad ? 10 : 8)
+        .padding(.vertical, DeviceType.current == .iPad ? 6 : 5)
         .background(
             Capsule()
                 .fill(LinearGradient(colors: [.blue.opacity(0.85), .blue], startPoint: .topLeading, endPoint: .bottomTrailing))
@@ -237,26 +245,27 @@ struct BookCardView: View {
         .scaleEffect(1.0)
         .animation(.spring(response: 0.35, dampingFraction: 0.7), value: viewModel.book.seriesBookCount)
     }
-
     
     // MARK: - Play/Pause Overlay
     
     private var currentBookStatusOverlay: some View {
-        HStack(spacing: 6) {
+        let fontSize: CGFloat = DeviceType.current == .iPad ? 12 : 11
+        
+        return HStack(spacing: 6) {
             Image(systemName: viewModel.isPlaying ? "speaker.wave.2.fill" : "pause.fill")
-                .font(.system(size: 11, weight: .semibold))
+                .font(.system(size: fontSize, weight: .semibold))
                 .foregroundColor(.white)
                 .if(viewModel.isPlaying) { view in
                     view.symbolEffect(.pulse, options: .repeating, value: viewModel.isPlaying)
                 }
             
             Text(viewModel.isPlaying ? "Läuft" : "Pausiert")
-                .font(.caption)
+                .font(DeviceType.current == .iPad ? .caption : .caption)
                 .foregroundColor(.white)
                 .fontWeight(.semibold)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
+        .padding(.horizontal, DeviceType.current == .iPad ? 14 : 12)
+        .padding(.vertical, DeviceType.current == .iPad ? 7 : 6)
         .background(
             Capsule()
                 .fill(
@@ -270,9 +279,8 @@ struct BookCardView: View {
         .scaleEffect(viewModel.isPlaying ? 1.05 : 1.0)
         .animation(.spring(response: 0.35, dampingFraction: 0.75), value: viewModel.isPlaying)
     }
-
     
-    // MARK: - Reading/Listening Progress Bar
+    // MARK: - Progress Bar
     
     private var bookProgressIndicator: some View {
         GeometryReader { geometry in
@@ -293,9 +301,9 @@ struct BookCardView: View {
         .padding(.horizontal, 2)
         .padding(.bottom, 2)
     }
-
     
     // MARK: - Context Menu
+    
     private var contextMenuItems: some View {
         Group {
             Button(action: onTap) {
@@ -332,10 +340,4 @@ extension View {
             self
         }
     }
-}
-
-enum BookStatus {
-    case downloaded
-    case streamable
-    case unavailable
 }

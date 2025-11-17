@@ -4,10 +4,13 @@ import Foundation
 protocol BookRepositoryProtocol {
     func fetchBooks(libraryId: String, collapseSeries: Bool) async throws -> [Book]
     func fetchBookDetails(bookId: String) async throws -> Book
-    func searchBooks(libraryId: String, query: String) async throws -> [Book]
+ //   func searchBooks(libraryId: String, query: String) async throws -> [Book]
     func fetchSeries(libraryId: String) async throws -> [Series]
     func fetchSeriesBooks(libraryId: String, seriesId: String) async throws -> [Book]
     func fetchPersonalizedSections(libraryId: String) async throws -> [PersonalizedSection]
+    func fetchAuthors(libraryId: String) async throws -> [Author]
+    func fetchAuthorDetails(authorId: String, libraryId: String) async throws -> Author
+
 }
 
 // MARK: - Repository Errors
@@ -197,6 +200,61 @@ class BookRepository: BookRepositoryProtocol {
         }
     }
     
+    // MARK: - Authors
+    
+    func fetchAuthors(libraryId: String) async throws -> [Author] {
+        do {
+            let authors = try await api.authors.fetchAuthors(libraryId: libraryId)
+            
+            // Cache successful fetch
+            cache?.cacheAuthors(authors, for: libraryId)
+            
+            AppLogger.general.debug("[BookRepository] Fetched \(authors.count) authors")
+            return authors
+            
+        } catch let decodingError as DecodingError {
+            // Try cache on decoding error
+            if let cachedAuthors = cache?.getCachedAuthors(for: libraryId) {
+                AppLogger.general.debug("[BookRepository] Returning \(cachedAuthors.count) cached authors")
+                return cachedAuthors
+            }
+            throw RepositoryError.decodingError(decodingError)
+            
+        } catch let urlError as URLError {
+            // Try cache on network error (offline)
+            if let cachedAuthors = cache?.getCachedAuthors(for: libraryId) {
+                AppLogger.general.debug("[BookRepository] Returning \(cachedAuthors.count) cached authors (offline)")
+                return cachedAuthors
+            }
+            throw RepositoryError.networkError(urlError)
+            
+        } catch {
+            throw RepositoryError.networkError(error)
+        }
+    }
+
+    func fetchAuthorDetails(authorId: String, libraryId: String) async throws -> Author {
+        do {
+            let author = try await api.authors.fetchAuthor(
+                authorId: authorId,
+                libraryId: libraryId,
+                includeBooks: true,
+                includeSeries: true
+            )
+            // cache?.cacheAuthorDetails(author, authorId: authorId)
+            return author
+            
+        } catch let urlError as URLError {
+            /*
+            if let cached = cache?.getCachedAuthorDetails(authorId: authorId) {
+                return cached
+            }
+             */
+            throw RepositoryError.networkError(urlError)
+        }
+    }
+    
+/*
     func searchBooks(libraryId: String, query: String) async throws -> [Book] {
         guard !query.isEmpty else {
             return []
@@ -218,7 +276,8 @@ class BookRepository: BookRepositoryProtocol {
             throw error
         }
     }
-
+*/
+    
     func clearCache() {
         cache?.clearCache()
         AppLogger.general.debug("[BookRepository] Cache cleared")
@@ -242,6 +301,11 @@ protocol BookCacheProtocol {
     func getCachedSeries(for libraryId: String) -> [Series]?
     func getCacheTimestamp(for key: String) -> Date?
     func clearExpiredCache(maxAge: TimeInterval)
+    
+    // Authors
+    func cacheAuthors(_ authors: [Author], for libraryId: String)
+    func getCachedAuthors(for libraryId: String) -> [Author]?
+
 }
 
 // MARK: - Simple In-Memory Cache Implementation
@@ -251,6 +315,7 @@ class BookCache: BookCacheProtocol {
     private var bookDetailsCache: [String: Book] = [:]
     private var sectionsCache: [String: [PersonalizedSection]] = [:]
     private var seriesCache: [String: [Series]] = [:]
+    private var authorsCache: [String: [Author]] = [:]  // ← NEU
     private let cacheQueue = DispatchQueue(label: "com.storyteller3.bookcache")
     
     // ADD: Disk persistence
@@ -322,13 +387,38 @@ class BookCache: BookCacheProtocol {
         }
     }
     
+    func cacheAuthors(_ authors: [Author], for libraryId: String) {
+        cacheQueue.async {
+            self.authorsCache[libraryId] = authors
+            self.saveToDisk(authors, key: "authors_\(libraryId)")
+        }
+    }
+    
+    func getCachedAuthors(for libraryId: String) -> [Author]? {
+        cacheQueue.sync {
+            // Check memory first
+            if let cached = authorsCache[libraryId] {
+                return cached
+            }
+            
+            // Try disk if not in memory
+            if let diskCached: [Author] = loadFromDisk(key: "authors_\(libraryId)") {
+                authorsCache[libraryId] = diskCached
+                return diskCached
+            }
+            
+            return nil
+        }
+    }
+    
     func clearCache() {
         cacheQueue.async {
             self.booksCache.removeAll()
             self.bookDetailsCache.removeAll()
             self.sectionsCache.removeAll()
             self.seriesCache.removeAll()
-            
+            self.authorsCache.removeAll()
+
             // Clear disk cache
             try? self.fileManager.removeItem(at: self.diskCacheURL)
             try? self.fileManager.createDirectory(at: self.diskCacheURL, withIntermediateDirectories: true)

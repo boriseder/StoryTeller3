@@ -15,15 +15,40 @@ class AuthorDetailViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var showingErrorAlert = false
     
-    let authorName: String
-    let onBookSelected: () -> Void
+    let author: Author
+    let includeSeries = true
+    let includeBooks = true
+    
+    let onBookSelected: (InitialPlayerMode) -> Void
     var onDismiss: (() -> Void)?
     
-    private let container: DependencyContainer
-    
-    var player: AudioPlayer { container.player }
-    var api: AudiobookshelfClient { container.apiClient! }
-    var downloadManager: DownloadManager { container.downloadManager }
+    // MARK: - Dependencies
+    let api: AudiobookshelfClient
+    private let downloadManager: DownloadManager
+    private let player: AudioPlayer
+    private let appState: AppStateManager
+    private let bookRepository: BookRepositoryProtocol
+    private let playBookUseCase: PlayBookUseCase
+
+    init(
+        bookRepository: BookRepositoryProtocol,
+        api: AudiobookshelfClient,
+        downloadManager: DownloadManager,
+        player: AudioPlayer,
+        appState: AppStateManager,
+        playBookUseCase: PlayBookUseCase,
+        author: Author,
+        onBookSelected: @escaping (InitialPlayerMode) -> Void
+    ) {
+        self.bookRepository = bookRepository
+        self.api = api
+        self.downloadManager = downloadManager
+        self.player = player
+        self.appState = appState
+        self.playBookUseCase = playBookUseCase
+        self.author = author
+        self.onBookSelected = onBookSelected
+    }
     
     var downloadedCount: Int {
         authorBooks.filter { downloadManager.isBookDownloaded($0.id) }.count
@@ -31,25 +56,63 @@ class AuthorDetailViewModel: ObservableObject {
     
     var totalDuration: Double {
         authorBooks.reduce(0.0) { total, book in
-            total + (book.chapters.reduce(0.0) { chapterTotal, chapter in
+            total + book.chapters.reduce(0.0) { chapterTotal, chapter in
                 chapterTotal + ((chapter.end ?? 0) - (chapter.start ?? 0))
-            })
+            }
         }
     }
+
+
     
-    private let playBookUseCase: PlayBookUseCase
     
-    init(
-        authorName: String,
-        container: DependencyContainer = .shared,
-        onBookSelected: @escaping () -> Void
-    ) {
-        self.authorName = authorName
-        self.container = container
-        self.onBookSelected = onBookSelected
-        self.playBookUseCase = PlayBookUseCase()
+    
+    func loadAuthorDetails() async {
+        guard let libraryId = LibraryHelpers.getCurrentLibraryId() else {
+            errorMessage = "No library selected"
+            showingErrorAlert = true
+            return
+        }
+
+        isLoading = true
+        defer { isLoading = false }  // Stellt sicher, dass isLoading am Ende zurückgesetzt wird
+
+        do {
+            
+            // Fetch author details from the repository
+            let author = try await bookRepository.fetchAuthorDetails(
+                authorId: author.id,
+                libraryId: libraryId
+            )
+
+            // Safely unwrap optional libraryItems, fallback to empty array
+            let items: [LibraryItem] = author.libraryItems ?? []
+
+            // Convert LibraryItem -> Book
+            let converter = DefaultBookConverter()
+            let books = items.compactMap { converter.convertLibraryItemToBook($0) }
+
+            // Sort alphabetically by book title
+            let sortedBooks = books.sorted { $0.title.localizedCompare($1.title) == .orderedAscending }
+
+            // Assign to published property with animation
+            withAnimation(.easeInOut(duration: 0.3)) {
+                authorBooks = sortedBooks
+            }
+
+            // Preload covers
+            CoverPreloadHelpers.preloadIfNeeded(
+                books: sortedBooks,
+                api: api,
+                downloadManager: downloadManager
+            )
+
+        } catch {
+            errorMessage = error.localizedDescription
+            showingErrorAlert = true
+            AppLogger.general.debug("Error loading author books: \(error)")
+        }
     }
-    
+
     func loadAuthorBooks() async {
         guard let libraryId = LibraryHelpers.getCurrentLibraryId() else {
             errorMessage = "No library selected"
@@ -64,7 +127,7 @@ class AuthorDetailViewModel: ObservableObject {
         do {
             let allBooks = try await api.books.fetchBooks(libraryId: libraryId, limit: 0, collapseSeries: false)
             let filteredBooks = allBooks.filter { book in
-                book.author?.localizedCaseInsensitiveContains(authorName) == true
+                book.author?.localizedCaseInsensitiveContains(author.name) == true
             }
             
             let sortedBooks = filteredBooks.sorted { book1, book2 in
@@ -90,7 +153,14 @@ class AuthorDetailViewModel: ObservableObject {
         isLoading = false
     }
     
-    func playBook(_ book: Book, appState: AppStateManager) async {
+    func playBook(
+        _ book: Book,
+        appState: AppStateManager,
+        restoreState: Bool = true,
+        autoPlay: Bool = false,
+        initialPlayerMode: InitialPlayerMode = .mini
+
+    ) async {
         isLoading = true
         
         do {
@@ -100,10 +170,11 @@ class AuthorDetailViewModel: ObservableObject {
                 player: player,
                 downloadManager: downloadManager,
                 appState: appState,
-                restoreState: true
+                restoreState: true,
+                autoPlay: autoPlay
             )
             onDismiss?()
-            onBookSelected()
+            onBookSelected(initialPlayerMode)
         } catch {
             errorMessage = error.localizedDescription
             showingErrorAlert = true

@@ -68,6 +68,14 @@ final class DependencyContainer: ObservableObject {
         )
     }()
 
+    lazy var authorsViewModel: AuthorsViewModel = {
+        AuthorsViewModel(
+            fetchAuthorsUseCase: makeFetchAuthorsUseCase(),
+            libraryRepository: libraryRepository,
+            api: apiClient!
+       )
+    }()
+
     lazy var downloadsViewModel: DownloadsViewModel = {
         DownloadsViewModel(
             downloadManager: downloadManager,
@@ -148,6 +156,10 @@ final class DependencyContainer: ObservableObject {
         FetchSeriesUseCase(bookRepository: bookRepository)
     }
 
+    func makeFetchAuthorsUseCase() -> FetchAuthorsUseCase {
+        FetchAuthorsUseCase(bookRepository: bookRepository)
+    }
+    
     func makeFetchPersonalizedSectionsUseCase() -> FetchPersonalizedSectionsUseCase {
         FetchPersonalizedSectionsUseCase(bookRepository: bookRepository)
     }

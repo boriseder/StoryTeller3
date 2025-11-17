@@ -32,12 +32,19 @@ struct PersonalizedEntity: Codable, Identifiable {
     let addedAt: TimeInterval?          // For series
     
     // Author-specific properties (if applicable)
-    let numBooks: Int?                  // For authors
-    
+    let numBooks: Int?
+    let authorDescription: String?        // for Authors in PersonalizedSections)
+    let imagePath: String?          // for Authors in PersonalizedSections)
+    let updatedAt: TimeInterval?    // optional
+
     private enum CodingKeys: String, CodingKey {
         case id, media, libraryId, collapsedSeries
         case name, nameIgnorePrefix, books, addedAt, numBooks
+        case authorDescription = "description"
+        case imagePath = "imagePath"
+        case updatedAt = "updatedAt"
     }
+    
     
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -55,6 +62,11 @@ struct PersonalizedEntity: Codable, Identifiable {
         
         // Author properties
         numBooks = try container.decodeIfPresent(Int.self, forKey: .numBooks)
+        authorDescription = try container.decodeIfPresent(String.self, forKey: .authorDescription)
+        imagePath = try container.decodeIfPresent(String.self, forKey: .imagePath)
+        updatedAt = try container.decodeIfPresent(TimeInterval.self, forKey: .updatedAt)
+
+
     }
     
     // MARK: - Convenience Properties
@@ -88,14 +100,24 @@ struct PersonalizedEntity: Codable, Identifiable {
     }
     
     var asAuthor: Author? {
-        guard let name = name else { return nil }
-        
+        guard let name = name,
+              let libraryId = libraryId else { return nil }
+
         return Author(
             id: id,
             name: name,
-            numBooks: numBooks ?? 0
+            description: authorDescription,
+            imagePath: imagePath,
+            libraryId: libraryId,
+            addedAt: Int64(addedAt ?? Date().timeIntervalSince1970 * 1000),
+            updatedAt: Int64(updatedAt ?? Date().timeIntervalSince1970 * 1000),
+            numBooks: numBooks,
+            lastFirst: nil,      // optional, wenn du das später berechnest
+            libraryItems: nil,   // nur in Details
+            series: nil          // nur in Details
         )
     }
+
     
     // Determine entity type based on available properties
     var entityType: PersonalizedEntityType {
@@ -119,18 +141,7 @@ enum PersonalizedEntityType {
     case unknown
 }
 
-// MARK: - Author Model
-struct Author: Identifiable, Decodable {
-    let id: String
-    let name: String
-    let numBooks: Int
-    
-    init(id: String, name: String, numBooks: Int) {
-        self.id = id
-        self.name = name
-        self.numBooks = numBooks
-    }
-}
+
 
 // MARK: - Personalized Section Types
 enum PersonalizedSectionType: String, CaseIterable {
