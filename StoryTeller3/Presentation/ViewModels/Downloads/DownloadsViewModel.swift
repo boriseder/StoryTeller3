@@ -20,7 +20,7 @@ class DownloadsViewModel: ObservableObject {
     let player: AudioPlayer
     let api: AudiobookshelfClient
     let appState: AppStateManager
-    let onBookSelected: (InitialPlayerMode) -> Void
+    let onBookSelected: () -> Void
 
     // MARK: - Computed Properties for UI
     var downloadedBooks: [Book] {
@@ -65,7 +65,7 @@ class DownloadsViewModel: ObservableObject {
         api: AudiobookshelfClient,
         appState: AppStateManager,
         storageMonitor: StorageMonitor = StorageMonitor(),
-        onBookSelected: @escaping (InitialPlayerMode) -> Void
+        onBookSelected: @escaping () -> Void
     ) {
         self.downloadManager = downloadManager
         self.player = player
@@ -114,8 +114,7 @@ class DownloadsViewModel: ObservableObject {
     // MARK: - Playback
     func playBook(
         _ book: Book,
-        autoPlay: Bool = false,
-        initialPlayerMode: InitialPlayerMode = .mini
+        autoPlay: Bool = false
     ) async {
         guard downloadManager.isBookDownloaded(book.id) else {
             errorMessage = "Book is not downloaded"
@@ -133,7 +132,7 @@ class DownloadsViewModel: ObservableObject {
                 restoreState: true,
                 autoPlay: autoPlay
             )
-            onBookSelected(initialPlayerMode)
+            onBookSelected()
         } catch {
             errorMessage = error.localizedDescription
             showingErrorAlert = true

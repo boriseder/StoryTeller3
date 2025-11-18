@@ -1,10 +1,3 @@
-//
-//  SeriesDetailViewModel.swift
-//  StoryTeller3
-//
-//  Created by Boris Eder on 08.11.25.
-//
-
 
 import SwiftUI
 

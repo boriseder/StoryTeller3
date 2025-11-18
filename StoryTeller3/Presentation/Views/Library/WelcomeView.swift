@@ -1,9 +1,4 @@
-//
-//  WelcomeView.swift
-//  StoryTeller3
-//
-//  Created by Boris Eder on 03.11.25.
-//
+
 import SwiftUI
 
 // MARK: - Welcome View

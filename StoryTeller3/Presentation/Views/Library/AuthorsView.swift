@@ -47,7 +47,7 @@ struct AuthorsView: View {
         .sheet(item: $selectedAuthor) { author in
             AuthorDetailView(
                 author: author,
-                onBookSelected: { _ in }
+                onBookSelected: { }
             )
             .presentationDetents([.medium])
             .presentationDragIndicator(.visible)

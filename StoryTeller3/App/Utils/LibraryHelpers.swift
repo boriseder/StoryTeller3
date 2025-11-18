@@ -1,17 +1,3 @@
-//
-//  LibraryHelpers.swift
-//  StoryTeller3
-//
-//  Created by Boris Eder on 29.09.25.
-//
-
-
-//
-//  LibraryHelpers.swift
-//  StoryTeller3
-//
-//  Centralized library selection utilities
-//
 
 import Foundation
 

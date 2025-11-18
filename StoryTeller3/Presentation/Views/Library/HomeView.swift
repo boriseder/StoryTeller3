@@ -10,8 +10,8 @@ struct HomeView: View {
         
     @State private var showEmptyState = false
 
-    private let autoPlay: Bool = true
-    private let playerMode: InitialPlayerMode = .fullscreen
+    @AppStorage("open_fullscreen_player") private var playerMode = false
+    @AppStorage("auto_play_on_book_tap") private var autoPlay = false
 
     var body: some View {
         ZStack {
@@ -48,7 +48,7 @@ struct HomeView: View {
         .sheet(item: $selectedAuthor) { author in
             AuthorDetailView(
                 author: author,
-                onBookSelected: {_ in }
+                onBookSelected: { }
             )
             .presentationDetents([.medium])
             .presentationDragIndicator(.visible)
@@ -81,8 +81,7 @@ struct HomeView: View {
                                     await viewModel.playBook(
                                         book,
                                         appState: appState,
-                                        autoPlay: autoPlay,
-                                        initialPlayerMode: playerMode
+                                        autoPlay: autoPlay
                                     )
                                 }
                             },
@@ -236,19 +235,26 @@ struct PersonalizedSectionView: View {
     
     private var bookSection: some View {
         let books = section.entities.compactMap { entity -> Book? in
-            guard let libraryItem = entity.asLibraryItem else { return nil }
-            return api.converter.convertLibraryItemToBook(libraryItem)
+            guard let li = entity.asLibraryItem else { return nil }
+            return api.converter.convertLibraryItemToBook(li)
         }
-        
-        return HorizontalBookScrollView(
-            books: books,
-            api: api,
-            downloadManager: downloadManager,
-            onBookSelected: onBookSelected,
-            cardStyle: .series
-        )
+
+        return ScrollView(.horizontal, showsIndicators: false) {
+            LazyHStack(spacing: DSLayout.contentGap) {
+                ForEach(books) { book in
+                    BookCardView(
+                        viewModel: BookCardStateViewModel(book: book),
+                        api: api,
+                        onTap: { onBookSelected(book) },
+                        onDownload: { Task { await downloadManager.downloadBook(book, api: api) } },
+                        onDelete: { downloadManager.deleteBook(book.id) },
+                        style: .series
+                    )
+                }
+            }
+        }
     }
-    
+
     private var seriesSection: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             LazyHStack(spacing: DSLayout.adaptiveContentGap) {

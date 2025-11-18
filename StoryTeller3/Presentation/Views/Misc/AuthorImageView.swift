@@ -1,9 +1,4 @@
-//
-//  AuthorImageView.swift
-//  StoryTeller3
-//
-//  Created by Boris Eder on 16.11.25.
-//
+
 import SwiftUI
 
 // MARK: - Author Image View

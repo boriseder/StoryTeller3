@@ -1,10 +1,3 @@
-//
-//  CollapsedSeries.swift
-//  StoryTeller3
-//
-//  Created by Boris Eder on 09.09.25.
-//
-
 
 import Foundation
 

@@ -1,17 +1,3 @@
-//
-//  BookSortHelpers.swift
-//  StoryTeller3
-//
-//  Created by Boris Eder on 29.09.25.
-//
-
-
-//
-//  BookSortHelpers.swift
-//  StoryTeller3
-//
-//  Centralized book sorting utilities
-//
 
 import Foundation
 

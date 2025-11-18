@@ -25,7 +25,7 @@ class HomeViewModel: ObservableObject {
     let downloadManager: DownloadManager
     let player: AudioPlayer
     let appState: AppStateManager
-    let onBookSelected: (InitialPlayerMode) -> Void
+    let onBookSelected: () -> Void
 
     // MARK: - Computed Properties for UI
     var totalItemsCount: Int {
@@ -49,7 +49,7 @@ class HomeViewModel: ObservableObject {
         downloadManager: DownloadManager,
         player: AudioPlayer,
         appState: AppStateManager,
-        onBookSelected: @escaping (InitialPlayerMode) -> Void
+        onBookSelected: @escaping () -> Void
     ) {
         self.fetchPersonalizedSectionsUseCase = fetchPersonalizedSectionsUseCase
         self.playBookUseCase = PlayBookUseCase()
@@ -126,8 +126,7 @@ class HomeViewModel: ObservableObject {
         _ book: Book,
         appState: AppStateManager,
         restoreState: Bool = true,
-        autoPlay: Bool = false,
-        initialPlayerMode: InitialPlayerMode = .mini
+        autoPlay: Bool = false
 
     ) async {
         isLoading = true
@@ -142,7 +141,7 @@ class HomeViewModel: ObservableObject {
                 restoreState: restoreState,
                 autoPlay: autoPlay
             )
-            onBookSelected(initialPlayerMode)
+            onBookSelected()
         } catch {
             errorMessage = error.localizedDescription
             showingErrorAlert = true

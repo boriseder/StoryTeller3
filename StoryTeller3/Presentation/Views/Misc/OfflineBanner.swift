@@ -1,9 +1,3 @@
-//
-//  OfflineBanner.swift
-//  StoryTeller3
-//
-//  Created by Boris Eder on 07.11.25.
-//
 
 import SwiftUI
 

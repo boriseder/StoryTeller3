@@ -1,15 +1,3 @@
-//
-//  LoginCredentials.swift
-//  StoryTeller3
-//
-//  Created by Boris Eder on 24.09.25.
-//
-
-
-//
-//  AuthenticationService.swift
-//  StoryTeller3
-//
 
 import Foundation
 

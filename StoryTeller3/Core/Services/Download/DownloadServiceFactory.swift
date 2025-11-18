@@ -1,10 +1,3 @@
-//
-//  DownloadServiceFactory.swift
-//  StoryTeller3
-//
-//  Created by Boris Eder on 24.10.25.
-//
-
 
 import Foundation
 

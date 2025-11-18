@@ -2,14 +2,17 @@ import SwiftUI
 
 struct AuthorDetailView: View {
     let author: Author
-    let onBookSelected: (InitialPlayerMode) -> Void
+    let onBookSelected: () -> Void
 
     @StateObject private var viewModel: AuthorDetailViewModel
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var appState: AppStateManager
     @EnvironmentObject var theme: ThemeManager
 
-    init(author: Author, onBookSelected: @escaping (InitialPlayerMode) -> Void) {
+    @AppStorage("open_fullscreen_player") private var playerMode = false
+    @AppStorage("auto_play_on_book_tap") private var autoPlay = false
+
+    init(author: Author, onBookSelected: @escaping () -> Void) {
         self.author = author
         self.onBookSelected = onBookSelected
 

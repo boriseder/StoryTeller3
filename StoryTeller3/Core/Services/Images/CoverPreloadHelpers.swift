@@ -1,17 +1,3 @@
-//
-//  CoverPreloadHelpers.swift
-//  StoryTeller3
-//
-//  Created by Boris Eder on 29.09.25.
-//
-
-
-//
-//  CoverPreloadHelpers.swift
-//  StoryTeller3
-//
-//  Centralized cover preloading utilities
-//
 
 import Foundation
 

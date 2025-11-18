@@ -1,72 +1,45 @@
 import SwiftUI
 
 class PlayerStateManager: ObservableObject {
-    @Published var showFullscreenPlayer: Bool = false
-    @Published var showMiniPlayer: Bool = false
-
+    @Published var mode: PlayerMode = .hidden
+    
     func showFullscreen() {
-        showFullscreenPlayer = true
-        showMiniPlayer = false
+        mode = .fullscreen
     }
     
     func showMini() {
-        showFullscreenPlayer = false
-        showMiniPlayer = true
+        mode = .mini
     }
     
     func dismissFullscreen() {
-        showFullscreenPlayer = false
-        showMiniPlayer = true
+        mode = .mini
     }
     
     func hideMiniPlayer() {
-        showMiniPlayer = false
+        if mode == .mini {
+            mode = .hidden
+        }
     }
     
-    func show(mode: InitialPlayerMode) {
-        switch mode {
-        case .mini:
-            showMini()
-        case .fullscreen:
-            showFullscreen()
-        }
+    func showPlayerBasedOnSettings() {
+        let openFullscreen = UserDefaults.standard.bool(forKey: "open_fullscreen_player")
+        mode = openFullscreen ? .fullscreen : .mini
     }
 
     func updatePlayerState(hasBook: Bool) {
-        // Wenn kein Buch geladen ist, beide Player verstecken
-        if !hasBook {
-            showFullscreenPlayer = false
-            showMiniPlayer = false
-        }
-        // Wenn ein Buch geladen ist und kein Player sichtbar ist, MiniPlayer zeigen
-        else if !showFullscreenPlayer && !showMiniPlayer {
-            showMiniPlayer = true
-        }
+        mode = hasBook ? (mode == .hidden ? .mini : mode) : .hidden
     }
     
-    // Neue Convenience-Methoden
     func toggleMiniPlayer() {
-        showMiniPlayer.toggle()
+        mode = (mode == .mini) ? .hidden : .mini
     }
     
     func reset() {
-        showFullscreenPlayer = false
-        showMiniPlayer = false
+        mode = .hidden
     }
     
-    // Getter für UI-Status
     var isPlayerVisible: Bool {
-        showFullscreenPlayer || showMiniPlayer
-    }
-    
-    var playerMode: PlayerMode {
-        if showFullscreenPlayer {
-            return .fullscreen
-        } else if showMiniPlayer {
-            return .mini
-        } else {
-            return .hidden
-        }
+        mode != .hidden
     }
 }
 
@@ -75,4 +48,3 @@ enum PlayerMode {
     case mini
     case fullscreen
 }
-

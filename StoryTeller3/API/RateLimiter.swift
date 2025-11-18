@@ -1,9 +1,4 @@
-//
-//  RateLimiter.swift
-//  StoryTeller3
-//
-//  Created by Boris Eder on 03.10.25.
-//
+
 import SwiftUI
 
 actor RateLimiter {

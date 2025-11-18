@@ -29,7 +29,7 @@ struct FullscreenPlayerContainer<Content: View>: View {
                 content
                 
                 // MiniPlayer overlay
-                if playerStateManager.showMiniPlayer && player.book != nil && !playerStateManager.showFullscreenPlayer {
+                if playerStateManager.mode == .mini, player.book != nil {
                     VStack {
                         Spacer()
                         
@@ -53,7 +53,7 @@ struct FullscreenPlayerContainer<Content: View>: View {
                 }
                 
                 // Fullscreen Player
-                if playerStateManager.showFullscreenPlayer {
+                if playerStateManager.mode == .fullscreen {
                     if DeviceType.current == .iPad {
                         iPadFullscreenPlayer(geometry: geometry)
                     } else {
@@ -62,8 +62,7 @@ struct FullscreenPlayerContainer<Content: View>: View {
                 }
             }
         }
-        .animation(.easeInOut(duration: 0.3), value: playerStateManager.showMiniPlayer)
-        .animation(.easeInOut(duration: 0.4), value: playerStateManager.showFullscreenPlayer)
+        .animation(.easeInOut(duration: 0.3), value: playerStateManager.mode)
         .onChange(of: player.book) { _, newBook in
             playerStateManager.updatePlayerState(hasBook: newBook != nil)
         }

@@ -23,7 +23,7 @@ class LibraryViewModel: ObservableObject {
     let downloadManager: DownloadManager
     let player: AudioPlayer
     let appState: AppStateManager
-    let onBookSelected: (InitialPlayerMode) -> Void  
+    let onBookSelected: () -> Void
     
     // MARK: - Computed Properties for UI
     var filteredAndSortedBooks: [Book] {
@@ -64,7 +64,7 @@ class LibraryViewModel: ObservableObject {
         downloadManager: DownloadManager,
         player: AudioPlayer,
         appState: AppStateManager,
-        onBookSelected: @escaping (InitialPlayerMode) -> Void
+        onBookSelected: @escaping () -> Void
     ) {
         self.fetchBooksUseCase = fetchBooksUseCase
         self.playBookUseCase = PlayBookUseCase()
@@ -132,7 +132,6 @@ class LibraryViewModel: ObservableObject {
         appState: AppStateManager,
         restoreState: Bool = true,
         autoPlay: Bool = false,
-        initialPlayerMode: InitialPlayerMode = .mini
     ) async {
         isLoading = true
         
@@ -146,7 +145,7 @@ class LibraryViewModel: ObservableObject {
                 restoreState: restoreState,
                 autoPlay: autoPlay
             )
-            onBookSelected(initialPlayerMode)
+            onBookSelected()
         } catch {
             errorMessage = error.localizedDescription
             showingErrorAlert = true

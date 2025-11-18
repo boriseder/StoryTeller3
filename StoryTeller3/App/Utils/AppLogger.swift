@@ -1,9 +1,3 @@
-//
-//  AppLogger.swift
-//  NavidromeClient
-//
-//  Created by Boris Eder on 16.10.25.
-//
 
 import os
 import Foundation

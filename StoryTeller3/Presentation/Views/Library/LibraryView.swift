@@ -9,9 +9,10 @@ struct LibraryView: View {
     @State private var bookCardVMs: [BookCardStateViewModel] = []
     @State private var showEmptyState = false
     
-    private let autoPlay: Bool = true
-    private let playerMode: InitialPlayerMode = .fullscreen
+    @AppStorage("open_fullscreen_player") private var playerMode = false
+    @AppStorage("auto_play_on_book_tap") private var autoPlay = false
 
+    
     var body: some View {
         ZStack {
             if theme.backgroundStyle == .dynamic {
@@ -166,7 +167,11 @@ struct LibraryView: View {
             selectedSeries = book
         } else {
             Task {
-                await viewModel.playBook(book, appState: appState, autoPlay: autoPlay, initialPlayerMode: playerMode)
+                await viewModel.playBook(
+                    book,
+                    appState: appState,
+                    autoPlay: autoPlay
+                    )
             }
         }
     }

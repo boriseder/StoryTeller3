@@ -1,9 +1,3 @@
-//
-//  NoDownloadsView.swift
-//  StoryTeller3
-//
-//  Created by Boris Eder on 23.09.25.
-//
 
 import SwiftUI
 

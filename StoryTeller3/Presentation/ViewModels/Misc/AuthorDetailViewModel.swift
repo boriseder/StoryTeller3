@@ -1,10 +1,3 @@
-//
-//  AuthorDetailViewModel.swift
-//  StoryTeller3
-//
-//  Created by Boris Eder on 08.11.25.
-//
-
 
 import SwiftUI
 
@@ -19,7 +12,7 @@ class AuthorDetailViewModel: ObservableObject {
     let includeSeries = true
     let includeBooks = true
     
-    let onBookSelected: (InitialPlayerMode) -> Void
+    let onBookSelected: () -> Void
     var onDismiss: (() -> Void)?
     
     // MARK: - Dependencies
@@ -38,7 +31,7 @@ class AuthorDetailViewModel: ObservableObject {
         appState: AppStateManager,
         playBookUseCase: PlayBookUseCase,
         author: Author,
-        onBookSelected: @escaping (InitialPlayerMode) -> Void
+        onBookSelected: @escaping () -> Void
     ) {
         self.bookRepository = bookRepository
         self.api = api
@@ -157,8 +150,7 @@ class AuthorDetailViewModel: ObservableObject {
         _ book: Book,
         appState: AppStateManager,
         restoreState: Bool = true,
-        autoPlay: Bool = false,
-        initialPlayerMode: InitialPlayerMode = .mini
+        autoPlay: Bool = false
 
     ) async {
         isLoading = true
@@ -174,7 +166,7 @@ class AuthorDetailViewModel: ObservableObject {
                 autoPlay: autoPlay
             )
             onDismiss?()
-            onBookSelected(initialPlayerMode)
+            onBookSelected()
         } catch {
             errorMessage = error.localizedDescription
             showingErrorAlert = true

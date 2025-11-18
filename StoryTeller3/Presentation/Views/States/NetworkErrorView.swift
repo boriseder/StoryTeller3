@@ -1,10 +1,3 @@
-//
-//  NetworkErrorView.swift
-//  StoryTeller3
-//
-//  Created by Boris Eder on 02.10.25.
-//
-
 
 import SwiftUI
 

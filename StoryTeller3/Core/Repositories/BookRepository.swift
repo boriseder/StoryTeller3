@@ -241,19 +241,38 @@ class BookRepository: BookRepositoryProtocol {
                 includeBooks: true,
                 includeSeries: true
             )
-            // cache?.cacheAuthorDetails(author, authorId: authorId)
+            
+            // Write cache
+            cache?.cacheAuthorDetails(author, authorId: authorId)
+            
+            AppLogger.general.debug("[BookRepository] Fetched author details: \(author.name)")
             return author
             
-        } catch let urlError as URLError {
-            /*
+        } catch let decodingError as DecodingError {
+            AppLogger.general.debug("[BookRepository] Decoding error for author \(authorId): \(decodingError)")
+            
+            // Read cache on error
             if let cached = cache?.getCachedAuthorDetails(authorId: authorId) {
+                AppLogger.general.debug("[BookRepository] Returning cached author details")
                 return cached
             }
-             */
+            
+            throw RepositoryError.decodingError(decodingError)
+            
+        } catch let urlError as URLError {
+            
+            // Read cache on network error
+            if let cached = cache?.getCachedAuthorDetails(authorId: authorId) {
+                AppLogger.general.debug("[BookRepository] Returning cached author details (offline)")
+                return cached
+            }
+            
             throw RepositoryError.networkError(urlError)
+            
+        } catch {
+            throw RepositoryError.networkError(error)
         }
     }
-    
 /*
     func searchBooks(libraryId: String, query: String) async throws -> [Book] {
         guard !query.isEmpty else {
@@ -305,6 +324,8 @@ protocol BookCacheProtocol {
     // Authors
     func cacheAuthors(_ authors: [Author], for libraryId: String)
     func getCachedAuthors(for libraryId: String) -> [Author]?
+    func cacheAuthorDetails(_ author: Author, authorId: String)
+    func getCachedAuthorDetails(authorId: String) -> Author?
 
 }
 
@@ -315,7 +336,8 @@ class BookCache: BookCacheProtocol {
     private var bookDetailsCache: [String: Book] = [:]
     private var sectionsCache: [String: [PersonalizedSection]] = [:]
     private var seriesCache: [String: [Series]] = [:]
-    private var authorsCache: [String: [Author]] = [:]  // ← NEU
+    private var authorsCache: [String: [Author]] = [:] 
+    private var authorDetailsCache: [String: Author] = [:]
     private let cacheQueue = DispatchQueue(label: "com.storyteller3.bookcache")
     
     // ADD: Disk persistence
@@ -411,23 +433,32 @@ class BookCache: BookCacheProtocol {
         }
     }
     
-    func clearCache() {
+    func cacheAuthorDetails(_ author: Author, authorId: String) {
         cacheQueue.async {
-            self.booksCache.removeAll()
-            self.bookDetailsCache.removeAll()
-            self.sectionsCache.removeAll()
-            self.seriesCache.removeAll()
-            self.authorsCache.removeAll()
-
-            // Clear disk cache
-            try? self.fileManager.removeItem(at: self.diskCacheURL)
-            try? self.fileManager.createDirectory(at: self.diskCacheURL, withIntermediateDirectories: true)
-            
-            AppLogger.general.debug("[BookCache] Cache cleared")
+            self.authorDetailsCache[authorId] = author
+            self.saveToDisk(author, key: "author_details_\(authorId)")
         }
     }
     
-    // ADD: New methods for sections and series
+    func getCachedAuthorDetails(authorId: String) -> Author? {
+        cacheQueue.sync {
+            // Check memory first
+            if let cached = authorDetailsCache[authorId] {
+                return cached
+            }
+            
+            // Try disk if not in memory
+            if let diskCached: Author = loadFromDisk(key: "author_details_\(authorId)") {
+                authorDetailsCache[authorId] = diskCached
+                return diskCached
+            }
+            
+            return nil
+        }
+    }
+
+    
+    // Methods for sections and series
     func cacheSections(_ sections: [PersonalizedSection], for libraryId: String) {
         cacheQueue.async {
             self.sectionsCache[libraryId] = sections
@@ -472,7 +503,25 @@ class BookCache: BookCacheProtocol {
         }
     }
     
-    // ADD: Cache timestamp tracking
+    func clearCache() {
+        cacheQueue.async {
+            self.booksCache.removeAll()
+            self.bookDetailsCache.removeAll()
+            self.sectionsCache.removeAll()
+            self.seriesCache.removeAll()
+            self.authorsCache.removeAll()
+            self.authorDetailsCache.removeAll()
+            
+            // Clear disk cache
+            try? self.fileManager.removeItem(at: self.diskCacheURL)
+            try? self.fileManager.createDirectory(at: self.diskCacheURL, withIntermediateDirectories: true)
+            
+            AppLogger.general.debug("[BookCache] Cache cleared")
+        }
+    }
+
+    
+    // Cache timestamp tracking
     func getCacheTimestamp(for key: String) -> Date? {
         let metadataURL = diskCacheURL.appendingPathComponent("\(key)_metadata.json")
         
