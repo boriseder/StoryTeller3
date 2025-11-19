@@ -50,8 +50,7 @@ struct SeriesSectionView: View {
                         },
                         onDelete: {
                             handleDelete(for: book)
-                        },
-                        style: .series
+                        }
                     )
                 }
             }

@@ -1,24 +1,5 @@
 import SwiftUI
 
-// MARK: - BookCard Style with iPad Support
-enum BookCardStyle {
-    case library
-    case series
-    
-    func coverSize(containerSize: CGSize? = nil, hasSidebar: Bool = false) -> CGFloat {
-        if let size = containerSize {
-            return ResponsiveLayout.coverSize(for: size, hasSidebar: hasSidebar)
-        }
-        return DSLayout.adaptiveCardCover
-    }
-    
-    func dimensions(containerSize: CGSize? = nil, hasSidebar: Bool = false) -> (width: CGFloat, height: CGFloat, infoHeight: CGFloat) {
-        let cardWidth = coverSize(containerSize: containerSize, hasSidebar: hasSidebar)
-        let cardHeight = cardWidth * 1.30
-        let infoHeight = cardHeight - cardWidth - 3 * DSLayout.elementPadding
-        return (width: cardWidth, height: cardHeight, infoHeight: infoHeight)
-    }
-}
 
 // MARK: - Book Card View
 struct BookCardView: View {
@@ -27,48 +8,42 @@ struct BookCardView: View {
     let onTap: () -> Void
     let onDownload: () -> Void
     let onDelete: () -> Void
-    let style: BookCardStyle
-    let containerSize: CGSize?
-    let hasSidebar: Bool
     
     @State private var isPressed = false
     @EnvironmentObject var theme: ThemeManager
 
+    var cardWidth: CGFloat
+    var cardHeight: CGFloat
+    var infoHeight: CGFloat
+    
     init(
         viewModel: BookCardStateViewModel,
         api: AudiobookshelfClient?,
         onTap: @escaping () -> Void,
         onDownload: @escaping () -> Void,
-        onDelete: @escaping () -> Void,
-        style: BookCardStyle,
-        containerSize: CGSize? = nil,
-        hasSidebar: Bool = false
+        onDelete: @escaping () -> Void
     ) {
         self.viewModel = viewModel
         self.api = api
         self.onTap = onTap
         self.onDownload = onDownload
         self.onDelete = onDelete
-        self.style = style
-        self.containerSize = containerSize
-        self.hasSidebar = hasSidebar
+        
+        cardWidth = DSLayout.cardCoverNoPadding
+        cardHeight = cardWidth * 1.30
+        infoHeight = cardHeight - DSLayout.cardCoverNoPadding - 3 * DSLayout.elementPadding
+
     }
 
-    private var dimensions: (width: CGFloat, height: CGFloat, infoHeight: CGFloat) {
-        style.dimensions(containerSize: containerSize, hasSidebar: hasSidebar)
-    }
-    
     var body: some View {
         ZStack {
-            VStack(alignment: .leading, spacing: DSLayout.elementPadding) {
+            VStack(alignment: .leading, spacing: 0) {
                 bookCoverSection
                 bookInfoSection
-                    .padding(.bottom, DSLayout.elementPadding)
+                    .padding(.top, DSLayout.tightPadding)
+                
             }
-            .frame(width: dimensions.width, height: dimensions.height)
-            .scaleEffect(isPressed ? 0.95 : 1.0)
-            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isPressed)
-            .animation(.easeInOut(duration: 0.2), value: viewModel.isCurrentBook)
+            .frame(width: cardWidth, height: cardHeight)
         }
         .contentShape(Rectangle())
         .onTapGesture { onTap() }
@@ -90,12 +65,11 @@ struct BookCardView: View {
     // MARK: - Book Cover Section
     
     private var bookCoverSection: some View {
-        let coverSize = style.coverSize(containerSize: containerSize)
         
-        return ZStack {
+        ZStack {
             BookCoverView.square(
                 book: viewModel.book,
-                size: coverSize,
+                size: DSLayout.cardCoverNoPadding,
                 api: api,
                 downloadManager: nil,
                 showProgress: false
@@ -111,7 +85,7 @@ struct BookCardView: View {
 
             VStack {
                 HStack(alignment: .top) {
-                    if viewModel.book.isCollapsedSeries && style == .library && !viewModel.isDownloading {
+                    if viewModel.book.isCollapsedSeries && !viewModel.isDownloading {
                         seriesBadge
                             .transition(.scale.combined(with: .opacity))
                     }
@@ -125,17 +99,14 @@ struct BookCardView: View {
 
                 Spacer()
 
-                if viewModel.isCurrentBook && style == .library && !viewModel.isDownloading {
+                if viewModel.isCurrentBook && !viewModel.isDownloading {
                     currentBookStatusOverlay
                         .padding(.bottom, DSLayout.elementPadding)
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
             }
         }
-        .frame(width: coverSize, height: coverSize)
-        .animation(.spring(response: 0.35, dampingFraction: 0.75), value: viewModel.isDownloading)
-        .animation(.spring(response: 0.35, dampingFraction: 0.75), value: viewModel.isCurrentBook)
-        .animation(.spring(response: 0.35, dampingFraction: 0.75), value: viewModel.isDownloaded)
+        .frame(width: DSLayout.cardCoverNoPadding, height: DSLayout.cardCoverNoPadding)
     }
 
     // MARK: - Info Section
@@ -146,23 +117,20 @@ struct BookCardView: View {
                 .font(DSText.detail)
                 .foregroundColor(theme.textColor)
                 .lineLimit(1)
-                .frame(maxWidth: dimensions.width - 2 * DSLayout.elementPadding, alignment: .leading)
+                .frame(maxWidth: cardWidth - 2 * DSLayout.elementPadding, alignment: .leading)
                 .fixedSize(horizontal: true, vertical: true)
 
-            if style == .library {
-                VStack(alignment: .leading, spacing: DSLayout.tightGap) {
+                VStack(alignment: .leading, spacing: 0) {
                     Text(viewModel.book.author ?? "Unknown Author")
                         .font(DSText.metadata)
                         .foregroundColor(theme.textColor.opacity(0.85))
                         .lineLimit(1)
                     
-                    if viewModel.isCurrentBook && viewModel.duration > 0 && style == .library {
+                    if viewModel.isCurrentBook && viewModel.duration > 0 {
                         bookProgressIndicator
                     }
-                    
                     Spacer()
                 }
-            }
         }
         .padding(.horizontal, DSLayout.elementPadding)
     }
@@ -170,13 +138,11 @@ struct BookCardView: View {
     // MARK: - Download Status Layer
     
     private var downloadStatusView: some View {
-        let buttonSize = DeviceType.current == .iPad ?
-            DSLayout.actionButtonSize * 1.2 : DSLayout.actionButtonSize
         
-        return ZStack {
+        ZStack {
             Circle()
                 .fill(.white.opacity(0.95))
-                .frame(width: buttonSize, height: buttonSize)
+                .frame(width: DSLayout.actionButtonSize, height: DSLayout.actionButtonSize)
                 .shadow(color: .black.opacity(DSLayout.shadowOpacity), radius: 6, x: 0, y: 2)
 
             if viewModel.isDownloading {
@@ -190,7 +156,7 @@ struct BookCardView: View {
                         style: StrokeStyle(lineWidth: 3, lineCap: .round)
                     )
                     .rotationEffect(.degrees(-90))
-                    .frame(width: buttonSize, height: buttonSize)
+                    .frame(width: DSLayout.actionButtonSize, height: DSLayout.actionButtonSize)
                     .animation(.linear(duration: 0.2), value: viewModel.downloadProgress)
             }
 
@@ -206,7 +172,7 @@ struct BookCardView: View {
             .symbolRenderingMode(.hierarchical)
             .resizable()
             .scaledToFit()
-            .frame(width: buttonSize * 0.45, height: buttonSize * 0.45)
+            .frame(width: DSLayout.actionButtonSize * 0.45, height: DSLayout.actionButtonSize * 0.45)
             .foregroundStyle(viewModel.isDownloaded ? .green : Color.black)
             .transition(.opacity.combined(with: .scale))
             .animation(.easeInOut(duration: 0.25), value: viewModel.isDownloading)
@@ -224,19 +190,17 @@ struct BookCardView: View {
     // MARK: - Series Badge
     
     private var seriesBadge: some View {
-        let fontSize: CGFloat = DeviceType.current == .iPad ? 13 : 11
-        let iconSize: CGFloat = DeviceType.current == .iPad ? 12 : 11
-        
-        return HStack(spacing: 4) {
+
+        HStack(spacing: DSLayout.tightGap) {
             Image(systemName: "books.vertical.fill")
-                .font(.system(size: iconSize, weight: .semibold))
+                .font(.system(size: DSLayout.icon, weight: .semibold))
                 .foregroundColor(.white)
             Text("\(viewModel.book.seriesBookCount)")
-                .font(.system(size: fontSize, weight: .bold))
+                .font(.system(size: DSLayout.icon, weight: .bold))
                 .foregroundColor(.white)
         }
-        .padding(.horizontal, DeviceType.current == .iPad ? 10 : 8)
-        .padding(.vertical, DeviceType.current == .iPad ? 6 : 5)
+        .padding(.horizontal, DSLayout.contentPadding)
+        .padding(.vertical, DSLayout.elementPadding)
         .background(
             Capsule()
                 .fill(LinearGradient(colors: [.blue.opacity(0.85), .blue], startPoint: .topLeading, endPoint: .bottomTrailing))
@@ -249,23 +213,22 @@ struct BookCardView: View {
     // MARK: - Play/Pause Overlay
     
     private var currentBookStatusOverlay: some View {
-        let fontSize: CGFloat = DeviceType.current == .iPad ? 12 : 11
         
-        return HStack(spacing: 6) {
+        HStack(spacing: DSLayout.contentGap) {
             Image(systemName: viewModel.isPlaying ? "speaker.wave.2.fill" : "pause.fill")
-                .font(.system(size: fontSize, weight: .semibold))
+                .font(DSText.button)
                 .foregroundColor(.white)
                 .if(viewModel.isPlaying) { view in
                     view.symbolEffect(.pulse, options: .repeating, value: viewModel.isPlaying)
                 }
             
-            Text(viewModel.isPlaying ? "Läuft" : "Pausiert")
-                .font(DeviceType.current == .iPad ? .caption : .caption)
+            Text(viewModel.isPlaying ? "Play" : "Paused")
+                .font(DSText.detail)
                 .foregroundColor(.white)
                 .fontWeight(.semibold)
         }
-        .padding(.horizontal, DeviceType.current == .iPad ? 14 : 12)
-        .padding(.vertical, DeviceType.current == .iPad ? 7 : 6)
+        .padding(.horizontal, DSLayout.contentPadding)
+        .padding(.vertical, DSLayout.elementPadding)
         .background(
             Capsule()
                 .fill(

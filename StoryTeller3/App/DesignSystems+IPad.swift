@@ -10,6 +10,8 @@ enum DeviceType {
     }
 }
 
+/*
+
 // MARK: - iPad-Optimized Design System
 extension DSLayout {
     // Dynamic values based on device
@@ -84,6 +86,7 @@ struct ResponsiveLayout {
     }
     
     static var playerCoverSize: CGFloat {
-        DeviceType.current == .iPad ? 400 : 300
+        DeviceType.current == .iPad ? 500 : 356
     }
 }
+*/

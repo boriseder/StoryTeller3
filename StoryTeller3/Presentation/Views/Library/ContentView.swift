@@ -14,6 +14,8 @@ struct ContentView: View {
     private var downloadManager: DownloadManager { dependencies.downloadManager }
     private var playerStateManager: PlayerStateManager { dependencies.playerStateManager }
     
+    @State var columnVisibility: NavigationSplitViewVisibility = .automatic
+
     let api = DependencyContainer.shared.apiClient
     
     var body: some View {
@@ -118,7 +120,7 @@ struct ContentView: View {
     // MARK: - iPad Layout (Sidebar)
     
     private var iPadLayout: some View {
-        NavigationSplitView {
+        NavigationSplitView(columnVisibility: $columnVisibility) {
             iPadSidebarContent
                 .environmentObject(dependencies)
         } detail: {
@@ -130,19 +132,6 @@ struct ContentView: View {
     
     private var iPadSidebarContent: some View {
         List {
-            // Search Section (for Library and Series)
-            if appState.selectedTab == .library || appState.selectedTab == .series {
-                Section {
-                    if appState.selectedTab == .library {
-                        LibrarySidebarSearch()
-                            .environmentObject(dependencies)
-                    } else if appState.selectedTab == .series {
-                        SeriesSidebarSearch()
-                            .environmentObject(dependencies)
-                    }
-                }
-                .listRowInsets(EdgeInsets(top: 8, leading: 8, bottom: 8, trailing: 8))
-            }
             
             // Navigation Section
             Section {
@@ -282,7 +271,7 @@ struct ContentView: View {
             
         case .library:
             NavigationStack {
-                LibraryView()
+                LibraryView(columnVisibility: $columnVisibility)
             }
             
         case .series:
@@ -317,7 +306,7 @@ struct ContentView: View {
     
     private var libraryTab: some View {
         NavigationStack {
-            LibraryView()
+            LibraryView(columnVisibility: $columnVisibility)
         }
         .tabItem {
             Image(systemName: "books.vertical.fill")
@@ -488,67 +477,6 @@ enum ConnectionTestResult {
     case failed
 }
 
-// MARK: - Library Sidebar Search Component
-struct LibrarySidebarSearch: View {
-    @EnvironmentObject var dependencies: DependencyContainer
-    
-    var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "magnifyingglass")
-                .foregroundColor(.secondary)
-            
-            TextField("Search books...", text: Binding(
-                get: { dependencies.libraryViewModel.filterState.searchText },
-                set: { dependencies.libraryViewModel.filterState.searchText = $0 }
-            ))
-            .textFieldStyle(.plain)
-            
-            if !dependencies.libraryViewModel.filterState.searchText.isEmpty {
-                Button(action: {
-                    dependencies.libraryViewModel.filterState.searchText = ""
-                }) {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundColor(.secondary)
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .padding(8)
-        .background(Color(.systemGray6))
-        .cornerRadius(8)
-    }
-}
-
-// MARK: - Series Sidebar Search Component
-struct SeriesSidebarSearch: View {
-    @EnvironmentObject var dependencies: DependencyContainer
-    
-    var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "magnifyingglass")
-                .foregroundColor(.secondary)
-            
-            TextField("Search series...", text: Binding(
-                get: { dependencies.seriesViewModel.filterState.searchText },
-                set: { dependencies.seriesViewModel.filterState.searchText = $0 }
-            ))
-            .textFieldStyle(.plain)
-            
-            if !dependencies.seriesViewModel.filterState.searchText.isEmpty {
-                Button(action: {
-                    dependencies.seriesViewModel.filterState.searchText = ""
-                }) {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundColor(.secondary)
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .padding(8)
-        .background(Color(.systemGray6))
-        .cornerRadius(8)
-    }
-}
 
 // MARK: - Library Sidebar Filters
 struct LibrarySidebarFilters: View {

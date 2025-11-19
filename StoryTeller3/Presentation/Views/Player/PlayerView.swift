@@ -23,7 +23,7 @@ struct PlayerView: View {
                     standardLayout(geometry: geometry)
                 }
             }
-            .background(Color(.systemGroupedBackground))
+            .background(DSColor.background)
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -80,7 +80,7 @@ struct PlayerView: View {
     // MARK: - Standard Layout (iPhone / iPad Portrait)
     
     private func standardLayout(geometry: GeometryProxy) -> some View {
-        VStack(spacing: 0) {
+        VStack(spacing: DSLayout.contentGap) {
             // Cover Art Section
             coverArtSection
                 .frame(height: geometry.size.height * 0.5)
@@ -88,19 +88,19 @@ struct PlayerView: View {
             // Controls Section
             controlsSection
                 .frame(maxHeight: .infinity)
-                .padding(.horizontal, DeviceType.current == .iPad ? 40 : 24)
+                .padding(.horizontal, DeviceType.current == .iPad ? 40 : DSLayout.screenPadding)
         }
     }
     
     // MARK: - Cover Art Components
     
     private var coverArtSection: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: DSLayout.contentGap) {
             Spacer()
             coverArtView
             Spacer()
         }
-        .padding(.horizontal, DeviceType.current == .iPad ? 60 : 32)
+        .padding(.horizontal, DeviceType.current == .iPad ? 60 : DSLayout.screenPadding)
     }
     
     private var coverArtView: some View {
@@ -108,7 +108,7 @@ struct PlayerView: View {
             if let book = viewModel.player.book {
                 BookCoverView.square(
                     book: book,
-                    size: ResponsiveLayout.playerCoverSize,
+                    size: DSLayout.fullCover,
                     api: viewModel.api,
                     downloadManager: viewModel.player.downloadManagerReference
                 )
@@ -117,8 +117,8 @@ struct PlayerView: View {
                 RoundedRectangle(cornerRadius: 16)
                     .fill(Color.gray.opacity(0.3))
                     .frame(
-                        width: ResponsiveLayout.playerCoverSize,
-                        height: ResponsiveLayout.playerCoverSize
+                        width: DSLayout.fullCover,
+                        height: DSLayout.fullCover
                     )
                     .overlay(
                         Image(systemName: "book.fill")

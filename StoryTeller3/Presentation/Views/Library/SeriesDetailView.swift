@@ -100,8 +100,7 @@ struct SeriesDetailView: View {
                         },
                         onDelete: {
                             viewModel.deleteBook(book.id)
-                        },
-                        style: .series
+                        }
                     )
                 }
             }

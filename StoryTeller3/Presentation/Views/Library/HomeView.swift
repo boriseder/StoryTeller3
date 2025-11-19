@@ -20,9 +20,10 @@ struct HomeView: View {
             }
           
             contentView
+                .transition(.opacity)
 
         }
-        .navigationTitle("Explore & listen")
+        .navigationTitle("Personalized")
         .navigationBarTitleDisplayMode(.large)
         .toolbarBackground(.visible, for: .navigationBar)
         .toolbarBackground(.clear, for: .navigationBar)
@@ -58,17 +59,19 @@ struct HomeView: View {
     }
         
     private var contentView: some View {
+        
         ZStack {
             if theme.backgroundStyle == .dynamic {
                 DynamicBackground()
             }
 
             ScrollView {
-                LazyVStack(spacing: DSLayout.adaptiveContentGap) {
+                LazyVStack(spacing: DSLayout.contentGap) {
+                    
                     OfflineBanner()
                     
                     homeHeaderView
-                        .padding(.bottom, DSLayout.adaptiveElementGap)
+                        .padding(.vertical, DSLayout.elementGap)
                     
                     ForEach(Array(viewModel.personalizedSections.enumerated()), id: \.element.id) { index, section in
                         PersonalizedSectionView(
@@ -93,18 +96,13 @@ struct HomeView: View {
                             }
                         )
                         .environmentObject(appState)
-                        .opacity(viewModel.sectionsLoaded ? 1 : 0)
-                        .animation(
-                            .easeInOut(duration: 0.4).delay(0.1 + Double(index) * 0.1),
-                            value: viewModel.sectionsLoaded
-                        )
                     }
                 }
                 Spacer()
-                    .frame(height: DSLayout.adaptiveMiniPlayerHeight)
+                    .frame(height: DSLayout.miniPlayerHeight)
             }
             .scrollIndicators(.hidden)
-            .padding(.horizontal, DSLayout.adaptiveScreenPadding)
+            .padding(.horizontal, DSLayout.screenPadding)
         }
         .transition(.opacity)
         .onAppear {
@@ -116,6 +114,7 @@ struct HomeView: View {
     }
     
     private var homeHeaderView: some View {
+        
         HStack(spacing: DSLayout.elementGap) {
             HStack(spacing: DSLayout.tightGap) {
                 Image(systemName: "books.vertical.fill")
@@ -170,15 +169,14 @@ struct HomeView: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, DSLayout.elementPadding)
-        .padding(.horizontal, DSLayout.adaptiveElementGap)
+        .padding(DSLayout.elementPadding)
         .background(.ultraThinMaterial)
         .clipShape(RoundedRectangle(cornerRadius: DSCorners.element))
-        .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
+        .shadow(color: .black.opacity(0.05), radius: DSCorners.element, x: 0, y: 4)
     }
 }
 
-// MARK: - Personalized Section View with iPad Support
+// MARK: - Personalized Section View
 struct PersonalizedSectionView: View {
     let section: PersonalizedSection
     @ObservedObject var player: AudioPlayer
@@ -191,7 +189,7 @@ struct PersonalizedSectionView: View {
     @EnvironmentObject var theme: ThemeManager
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: DSLayout.elementGap) {
             sectionHeader
             
             switch section.type {
@@ -215,10 +213,8 @@ struct PersonalizedSectionView: View {
             
             Text(section.label)
                 .font(DSText.itemTitle)
-                .fontWeight(.semibold)
                 .foregroundColor(theme.textColor)
             
-            Spacer()
         }
     }
     
@@ -240,15 +236,14 @@ struct PersonalizedSectionView: View {
         }
 
         return ScrollView(.horizontal, showsIndicators: false) {
-            LazyHStack(spacing: DSLayout.contentGap) {
+            LazyHStack(spacing: DSLayout.elementGap) {
                 ForEach(books) { book in
                     BookCardView(
                         viewModel: BookCardStateViewModel(book: book),
                         api: api,
                         onTap: { onBookSelected(book) },
                         onDownload: { Task { await downloadManager.downloadBook(book, api: api) } },
-                        onDelete: { downloadManager.deleteBook(book.id) },
-                        style: .series
+                        onDelete: { downloadManager.deleteBook(book.id) }
                     )
                 }
             }
@@ -257,7 +252,7 @@ struct PersonalizedSectionView: View {
 
     private var seriesSection: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            LazyHStack(spacing: DSLayout.adaptiveContentGap) {
+            LazyHStack(spacing: DSLayout.elementGap) {
                 ForEach(section.entities.indices, id: \.self) { index in
                     let entity = section.entities[index]
                     
@@ -278,7 +273,7 @@ struct PersonalizedSectionView: View {
     
     private var authorsSection: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: DSLayout.adaptiveContentGap) {
+            HStack(spacing: DSLayout.elementGap) {
                 ForEach(section.entities.compactMap { $0.asAuthor }, id: \.id) { author in
                     AuthorCardView(
                         author: author,
@@ -293,20 +288,15 @@ struct PersonalizedSectionView: View {
 
 }
 
-// MARK: - Series Card View with iPad Support
+// MARK: - Series Card View
 struct SeriesCardView: View {
     let entity: PersonalizedEntity
     let api: AudiobookshelfClient
     let downloadManager: DownloadManager
     let onTap: () -> Void
     
-    private let cardStyle: BookCardStyle = .series
     @EnvironmentObject var theme: ThemeManager
-    
-    private var cardWidth: CGFloat {
-        DeviceType.current == .iPad ? 200 : BookCardStyle.library.dimensions().width
-    }
-    
+        
     var body: some View {
         Button(action: onTap) {
             VStack(alignment: .leading, spacing: 0) {
@@ -317,26 +307,25 @@ struct SeriesCardView: View {
                         
                         BookCoverView.square(
                             book: coverBook,
-                            size: cardWidth,
+                            size: DSLayout.cardCoverNoPadding,
                             api: api,
                             downloadManager: downloadManager
                         )
-                        .clipShape(RoundedRectangle(cornerRadius: DSCorners.content))
+                        .clipShape(RoundedRectangle(cornerRadius: DSCorners.element))
                     }
                 }
-                .padding(.horizontal, DSLayout.elementGap)
-
-                Text(displayName)
-                    .font(DSText.metadata)
-                    .foregroundColor(theme.textColor)
-                    .lineLimit(1)
-                    .frame(maxWidth: cardWidth, alignment: .leading)
-                    .fixedSize(horizontal: true, vertical: true)
-                    .padding(.horizontal, DSLayout.contentPadding)
-                    .padding(.vertical, DSLayout.elementPadding)
+                
+                VStack(alignment: .leading, spacing: DSLayout.tightGap) {
+                    
+                    Text(displayName)
+                        .font(DSText.detail)
+                        .foregroundColor(theme.textColor)
+                        .lineLimit(1)
+                        .frame(maxWidth: DSLayout.cardCoverNoPadding - 2 * DSLayout.elementPadding, alignment: .leading)
+                        .fixedSize(horizontal: true, vertical: true)
+                }
             }
-            .frame(width: cardWidth, height: cardWidth * 1.30)
-            .scaleEffect(1.0)
+            .frame(width: DSLayout.cardCoverNoPadding, height: DSLayout.cardCoverNoPadding * 1.30)
             .transition(.opacity)
         }
         .buttonStyle(.plain)
@@ -347,20 +336,16 @@ struct SeriesCardView: View {
     }
 }
 
-// MARK: - Author Card View with iPad Support
+// MARK: - Author Card View
 struct AuthorCardView: View {
     let author: Author
     let onTap: () -> Void
     
     @EnvironmentObject var theme: ThemeManager
     
-    private var avatarSize: CGFloat {
-        DeviceType.current == .iPad ? 100 : 80
-    }
-
     var body: some View {
         Button(action: onTap) {
-            VStack(spacing: DSLayout.adaptiveContentGap) {
+            VStack(spacing: DSLayout.contentGap) {
                 /*
                  Circle()
                     .fill(Color.accentColor.opacity(0.2))
@@ -380,11 +365,11 @@ struct AuthorCardView: View {
 
                 
                 Text(author.name)
-                    .font(.system(size: DeviceType.current == .iPad ? 16 : 14, weight: .medium))
+                    .font(DSText.detail)
                     .foregroundColor(theme.textColor)
                     .lineLimit(2)
                     .multilineTextAlignment(.center)
-                    .frame(width: avatarSize)
+                    .frame(width: DSLayout.avatar)
             }
             .padding(.vertical, DSLayout.elementPadding)
             .transition(.opacity)

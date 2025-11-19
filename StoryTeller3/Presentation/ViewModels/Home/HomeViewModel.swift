@@ -82,7 +82,6 @@ class HomeViewModel: ObservableObject {
         
         do {
             guard let selectedLibrary = try await libraryRepository.getSelectedLibrary() else {
-                libraryName = "Personalized"
                 personalizedSections = []
                 totalBooksInLibrary = 0
                 isLoading = false

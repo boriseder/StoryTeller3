@@ -1,53 +1,56 @@
 import SwiftUI
 
 struct LibraryView: View {
+    
     @StateObject private var viewModel: LibraryViewModel = DependencyContainer.shared.libraryViewModel
     @EnvironmentObject var appState: AppStateManager
     @EnvironmentObject var theme: ThemeManager
     
     @State private var selectedSeries: Book?
     @State private var bookCardVMs: [BookCardStateViewModel] = []
-    @State private var showEmptyState = false
-    
-    @AppStorage("open_fullscreen_player") private var playerMode = false
-    @AppStorage("auto_play_on_book_tap") private var autoPlay = false
+   
+    @Binding var columnVisibility: NavigationSplitViewVisibility
 
+    // Workaround to hide nodata at start of app
+    @State private var showEmptyState = false
+
+    @AppStorage("open_fullscreen_player") private var playerMode: Bool = false
+    @AppStorage("auto_play_on_book_tap") private var autoPlay: Bool = false
+    
+    private var isSidebarVisible: Bool {
+        columnVisibility == .all || columnVisibility == .doubleColumn
+    }
     
     var body: some View {
         ZStack {
+            
             if theme.backgroundStyle == .dynamic {
                 Color.accent.ignoresSafeArea()
             }
             
-            GeometryReader { geometry in
-                contentView(geometry: geometry)
-                    .transition(.opacity)
-            }
+            contentView
+                .transition(.opacity)
         }
         .navigationTitle(viewModel.libraryName)
         .navigationBarTitleDisplayMode(.large)
         .toolbarBackground(.visible, for: .navigationBar)
         .toolbarBackground(.clear, for: .navigationBar)
         .toolbarColorScheme(theme.colorScheme, for: .navigationBar)
-        .if(DeviceType.current == .iPhone) { view in
-            view.searchable(
-                text: $viewModel.filterState.searchText,
-                placement: .automatic,
-                prompt: "Search books..."
-            )
-        }
+        .searchable(
+            text: $viewModel.filterState.searchText,
+            placement: .automatic,
+            prompt: "Search books..."
+        )
         .refreshable {
             await viewModel.loadBooks()
         }
-        .if(DeviceType.current == .iPhone) { view in
-            view.toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    HStack(spacing: 12) {
-                        if !viewModel.books.isEmpty {
-                            filterAndSortMenu
-                        }
-                        SettingsButton()
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                HStack(spacing: DSLayout.contentGap) {
+                    if !viewModel.books.isEmpty {
+                        filterAndSortMenu
                     }
+                    SettingsButton()
                 }
             }
         }
@@ -56,10 +59,13 @@ struct LibraryView: View {
             updateBookCardViewModels()
         }
         .sheet(item: $selectedSeries) { series in
-            SeriesDetailView(seriesBook: series, onBookSelected: {})
-                .environmentObject(appState)
-                .presentationDetents(presentationDetents)
-                .presentationDragIndicator(.visible)
+            SeriesDetailView(
+                seriesBook: series,
+                onBookSelected: viewModel.onBookSelected
+            )
+            .environmentObject(appState)
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
         }
         .onChange(of: viewModel.filteredAndSortedBooks.count) {
             updateBookCardViewModels()
@@ -71,17 +77,11 @@ struct LibraryView: View {
             updateDownloadingBooksOnly()
         }
     }
-    
-    private var presentationDetents: Set<PresentationDetent> {
-        DeviceType.current == .iPad ? [.large] : [.medium, .large]
-    }
-    
-    private func contentView(geometry: GeometryProxy) -> some View {
-        // On iPad with sidebar, we need to account for reduced space
-        let hasSidebar = DeviceType.current == .iPad
-        let columns = ResponsiveLayout.columns(for: geometry.size, hasSidebar: hasSidebar)
+
         
-        return ZStack {
+    private var contentView: some View {
+
+        ZStack {
             if theme.backgroundStyle == .dynamic {
                 DynamicBackground()
             }
@@ -104,31 +104,27 @@ struct LibraryView: View {
                     )
                 }
                 
-                LazyVGrid(columns: columns, spacing: 0) {
-                    ForEach(bookCardVMs) { bookVM in
+                LazyVGrid(
+                    columns: isSidebarVisible ? DSGridColumns.two : DSGridColumns.four,
+                    spacing: 0
+                ) {
+                ForEach(bookCardVMs) { bookVM in
                         BookCardView(
                             viewModel: bookVM,
                             api: viewModel.api,
                             onTap: { handleBookTap(bookVM.book) },
                             onDownload: { startDownload(bookVM.book) },
-                            onDelete: { deleteDownload(bookVM.book) },
-                            style: .library,
-                            containerSize: geometry.size,
-                            hasSidebar: hasSidebar
+                            onDelete: { deleteDownload(bookVM.book) }
                         )
                     }
-                    .padding(.vertical, DSLayout.contentPadding)
                 }
 
                 Spacer()
-                    .frame(height: DSLayout.adaptiveMiniPlayerHeight)
+                    .frame(height: DSLayout.miniPlayerHeight)
             }
             .scrollIndicators(.hidden)
-            .padding(.horizontal, DSLayout.adaptiveScreenPadding)
+            .padding(.horizontal, DSLayout.screenPadding)
         }
-        .opacity(viewModel.contentLoaded ? 1 : 0)
-        .animation(.easeInOut(duration: 0.5), value: viewModel.contentLoaded)
-        .onAppear { viewModel.contentLoaded = true }
     }
     
     // MARK: - Update Logic (unchanged)
@@ -334,7 +330,7 @@ struct SeriesStatusBannerView: View {
     }
     
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: DSLayout.contentGap) {
             Image(systemName: "rectangle.stack.fill")
                 .font(.system(size: 16))
                 .foregroundColor(.blue)
@@ -361,7 +357,7 @@ struct SeriesStatusBannerView: View {
                     .foregroundColor(.secondary)
             }
         }
-        .padding(.horizontal, DSLayout.adaptiveScreenPadding)
+        .padding(.horizontal, DSLayout.screenPadding)
         .padding(.vertical, 8)
         .background(.regularMaterial)
         .overlay(

@@ -30,21 +30,13 @@ struct SeriesView: View {
         }
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
-                HStack(spacing: 12) {
+                HStack(spacing: DSLayout.contentGap) {
                     if !viewModel.series.isEmpty {
                         sortMenu
                     }
                     SettingsButton()
                 }
             }
-        }
-        .alert("Fehler", isPresented: $viewModel.showingErrorAlert) {
-            Button("OK") { }
-            Button("Erneut versuchen") {
-                Task { await viewModel.loadSeries() }
-            }
-        } message: {
-            Text(viewModel.errorMessage ?? "Unbekannter Fehler")
         }
         .task {
             await viewModel.loadSeriesIfNeeded()
@@ -58,7 +50,7 @@ struct SeriesView: View {
             }
 
             ScrollView {
-                LazyVStack(spacing: DSLayout.adaptiveContentGap) {
+                LazyVStack(spacing: DSLayout.contentGap) {
                     ForEach(viewModel.filteredAndSortedSeries) { series in
                         SeriesSectionView(
                             series: series,
@@ -69,14 +61,11 @@ struct SeriesView: View {
                     }
                 }
                 Spacer()
-                    .frame(height: DSLayout.adaptiveMiniPlayerHeight)
+                    .frame(height: DSLayout.miniPlayerHeight)
             }
             .scrollIndicators(.hidden)
-            .padding(.horizontal, DSLayout.adaptiveScreenPadding)
+            .padding(.horizontal, DSLayout.screenPadding)
         }
-        .opacity(viewModel.contentLoaded ? 1 : 0)
-        .animation(.easeInOut(duration: 0.5), value: viewModel.contentLoaded)
-        .onAppear { viewModel.contentLoaded = true }
     }
     
     private var sortMenu: some View {

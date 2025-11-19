@@ -17,11 +17,11 @@ struct ChaptersListView: View {
                         if let book = player.book {
                             VStack(spacing: 0) {
                                 headerSection(book: book)
-                                    .padding(.horizontal, DSLayout.adaptiveScreenPadding)
+                                    .padding(.horizontal, DSLayout.screenPadding)
                                     .padding(.top, 8)
-                                    .padding(.bottom, DeviceType.current == .iPad ? 24 : 16)
+                                    .padding(.bottom, DSLayout.comfortPadding)
                                 
-                                LazyVStack(spacing: DeviceType.current == .iPad ? 16 : 12) {
+                                LazyVStack(spacing: DSLayout.contentGap) {
                                     ForEach(chapterVMs) { chapterVM in
                                         ChapterCardView(
                                             viewModel: chapterVM,
@@ -32,8 +32,8 @@ struct ChaptersListView: View {
                                         .id(chapterVM.id)
                                     }
                                 }
-                                .padding(.horizontal, DSLayout.adaptiveScreenPadding)
-                                .padding(.bottom, 20)
+                                .padding(.horizontal, DSLayout.screenPadding)
+                                .padding(.bottom, DSLayout.screenPadding)
                             }
                         }
                     }
@@ -43,13 +43,13 @@ struct ChaptersListView: View {
                 .toolbar {
                     ToolbarItem(placement: .principal) {
                         Text("Chapters")
-                            .font(DeviceType.current == .iPad ? .title3 : .headline)
+                            .font(DSText.emphasized)
                             .foregroundColor(.primary)
                     }
                     ToolbarItem(placement: .navigationBarTrailing) {
                         Button(action: { dismiss() }) {
                             Image(systemName: "xmark.circle.fill")
-                                .font(.system(size: DeviceType.current == .iPad ? 24 : 20))
+                                .font(.system(size: DSLayout.icon))
                         }
                     }
                 }
@@ -71,13 +71,12 @@ struct ChaptersListView: View {
     }
     
     private func headerSection(book: Book) -> some View {
-        let coverSize: CGFloat = DeviceType.current == .iPad ? 80 : 60
         
-        return VStack(spacing: DeviceType.current == .iPad ? 16 : 12) {
-            HStack(spacing: DeviceType.current == .iPad ? 20 : 16) {
+        VStack(spacing: DSLayout.contentGap) {
+            HStack(spacing: DSLayout.contentGap) {
                 BookCoverView.square(
                     book: book,
-                    size: coverSize,
+                    size: DSLayout.avatar,
                     api: nil,
                     downloadManager: player.downloadManagerReference
                 )
@@ -86,13 +85,13 @@ struct ChaptersListView: View {
                 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(book.title)
-                        .font(DeviceType.current == .iPad ? .body : .subheadline)
+                        .font(DSText.emphasized)
                         .fontWeight(.semibold)
                         .lineLimit(2)
                     
                     if let author = book.author {
                         Text(author)
-                            .font(DeviceType.current == .iPad ? .body : .caption)
+                            .font(DSText.detail)
                             .foregroundColor(.secondary)
                             .lineLimit(1)
                     }
@@ -101,7 +100,7 @@ struct ChaptersListView: View {
                 Spacer()
             }
             
-            HStack(spacing: DeviceType.current == .iPad ? 24 : 16) {
+            HStack(spacing: DSLayout.contentGap) {
                 statsItem(
                     icon: "list.number",
                     text: "\(book.chapters.count) chapters"
@@ -117,10 +116,10 @@ struct ChaptersListView: View {
                 
                 Spacer()
             }
-            .font(DeviceType.current == .iPad ? .body : .caption)
+            .font(DSText.detail)
             .foregroundColor(.secondary)
         }
-        .padding(DeviceType.current == .iPad ? 20 : 16)
+        .padding(DSLayout.contentPadding)
         .background(
             RoundedRectangle(cornerRadius: 12)
                 .fill(.ultraThinMaterial)
@@ -129,9 +128,9 @@ struct ChaptersListView: View {
     }
     
     private func statsItem(icon: String, text: String) -> some View {
-        HStack(spacing: 6) {
+        HStack(spacing: DSLayout.tightGap) {
             Image(systemName: icon)
-                .font(DeviceType.current == .iPad ? .body : .caption2)
+                .font(DSText.button)
             Text(text)
         }
     }
@@ -187,11 +186,7 @@ struct ChapterCardView: View {
     let onTap: () -> Void
     
     @State private var isPressed = false
-    
-    private var avatarSize: CGFloat {
-        DeviceType.current == .iPad ? 56 : 48
-    }
-    
+        
     private var chapterProgress: Double {
         guard viewModel.isCurrent,
               let start = viewModel.chapter.start,
@@ -220,7 +215,7 @@ struct ChapterCardView: View {
     
     var body: some View {
         Button(action: onTap) {
-            HStack(spacing: DeviceType.current == .iPad ? 20 : 16) {
+            HStack(spacing: DSLayout.contentGap) {
                 ZStack {
                     Circle()
                         .fill(
@@ -236,46 +231,46 @@ struct ChapterCardView: View {
                                 endPoint: .bottomTrailing
                             )
                         )
-                        .frame(width: avatarSize, height: avatarSize)
+                        .frame(width: DSLayout.avatar, height: DSLayout.avatar)
                     
                     if viewModel.isCurrent && viewModel.isPlaying {
                         Image(systemName: "waveform")
-                            .font(.system(size: avatarSize * 0.375, weight: .semibold))
+                            .font(.system(size: DSLayout.avatar * 0.375, weight: .semibold))
                             .foregroundColor(.white)
                             .symbolEffect(.variableColor.iterative, options: .repeating, value: viewModel.isPlaying)
                     } else {
                         Text("\(viewModel.id + 1)")
-                            .font(.system(size: avatarSize * 0.333, weight: .bold, design: .rounded))
+                            .font(.system(size: DSLayout.avatar * 0.333, weight: .bold, design: .rounded))
                             .foregroundColor(viewModel.isCurrent ? .white : .secondary)
                     }
                 }
                 
-                VStack(alignment: .leading, spacing: DeviceType.current == .iPad ? 8 : 6) {
+                VStack(alignment: .leading, spacing: DSLayout.elementGap) {
                     Text(truncateChapterTitle(viewModel.chapter.title))
-                        .font(DeviceType.current == .iPad ? .body : .subheadline)
+                        .font(DSText.emphasized)
                         .fontWeight(viewModel.isCurrent ? .semibold : .regular)
                         .foregroundColor(viewModel.isCurrent ? .primary : .primary)
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
                     
-                    HStack(spacing: 12) {
+                    HStack(spacing: DSLayout.contentGap) {
                         if let start = viewModel.chapter.start {
-                            HStack(spacing: 4) {
+                            HStack(spacing: DSLayout.tightGap) {
                                 Image(systemName: "clock")
-                                    .font(DeviceType.current == .iPad ? .body : .caption2)
+                                    .font(DSText.metadata)
                                 Text(TimeFormatter.formatTime(start))
-                                    .font(DeviceType.current == .iPad ? .body : .caption)
+                                    .font(DSText.metadata)
                                     .monospacedDigit()
                             }
                             .foregroundColor(.secondary)
                         }
                         
                         if let start = viewModel.chapter.start, let end = viewModel.chapter.end {
-                            HStack(spacing: 4) {
+                            HStack(spacing: DSLayout.tightGap) {
                                 Image(systemName: "timer")
-                                    .font(DeviceType.current == .iPad ? .body : .caption2)
+                                    .font(DSText.metadata)
                                 Text(TimeFormatter.formatTime(end - start))
-                                    .font(DeviceType.current == .iPad ? .body : .caption)
+                                    .font(DSText.metadata)
                                     .monospacedDigit()
                             }
                             .foregroundColor(.secondary)
@@ -296,22 +291,22 @@ struct ChapterCardView: View {
                         ZStack {
                             Circle()
                                 .fill(Color.accentColor.opacity(0.15))
-                                .frame(width: DeviceType.current == .iPad ? 40 : 32,
-                                       height: DeviceType.current == .iPad ? 40 : 32)
+                                .frame(width: DSLayout.largeIcon,
+                                       height: DSLayout.largeIcon)
                             
                             Image(systemName: viewModel.isPlaying ? "speaker.wave.2.fill" : "pause.fill")
-                                .font(.system(size: DeviceType.current == .iPad ? 16 : 14))
+                                .font(DSText.button)
                                 .foregroundColor(.accentColor)
                                 .symbolEffect(.pulse, options: .repeating, value: viewModel.isPlaying)
                         }
                     } else {
                         Image(systemName: "chevron.right")
-                            .font(.system(size: DeviceType.current == .iPad ? 16 : 14))
+                            .font(DSText.button)
                             .foregroundColor(.secondary.opacity(0.5))
                     }
                 }
             }
-            .padding(DeviceType.current == .iPad ? 20 : 16)
+            .padding(DSLayout.contentPadding)
             .background(
                 RoundedRectangle(cornerRadius: 12)
                     .fill(viewModel.isCurrent ? Color.accentColor.opacity(0.08) : Color(.secondarySystemGroupedBackground))

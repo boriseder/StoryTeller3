@@ -19,10 +19,9 @@ struct DownloadsView: View {
             if viewModel.downloadedBooks.isEmpty {
                 NoDownloadsView()
             } else {
-                GeometryReader { geometry in
-                    contentView(geometry: geometry)
+                contentView()
+                    .transition(.opacity)
                 }
-            }
         }
         .navigationTitle("Downloaded")
         .navigationBarTitleDisplayMode(.large)
@@ -30,11 +29,8 @@ struct DownloadsView: View {
         .toolbarBackground(.clear, for: .navigationBar)
         .toolbarColorScheme(theme.colorScheme, for: .navigationBar)
         .toolbar {
-            // Only show toolbar buttons on iPhone
-            if DeviceType.current == .iPhone {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    toolbarButtons
-                }
+            ToolbarItem(placement: .navigationBarTrailing) {
+                toolbarButtons
             }
         }
         .alert("Delete book", isPresented: $viewModel.showingDeleteConfirmation) {
@@ -59,11 +55,9 @@ struct DownloadsView: View {
         }
     }
     
-    private func contentView(geometry: GeometryProxy) -> some View {
-        let hasSidebar = DeviceType.current == .iPad
-        let columns = ResponsiveLayout.columns(for: geometry.size, hasSidebar: hasSidebar)
+    private func contentView() -> some View {
         
-        return ZStack {
+        ZStack {
             if theme.backgroundStyle == .dynamic {
                 DynamicBackground()
             }
@@ -71,22 +65,21 @@ struct DownloadsView: View {
             if viewModel.showStorageWarning {
                 VStack {
                     storageWarningBanner
-                        .padding(.horizontal, DSLayout.adaptiveScreenPadding)
+                        .padding(.horizontal, DSLayout.screenPadding)
                     Spacer()
                 }
             }
             
             ScrollView {
-                LazyVStack(spacing: DSLayout.adaptiveContentGap) {
+                LazyVStack(spacing: DSLayout.contentGap) {
                     downloadStatsCard
                         .padding(.bottom, DSLayout.contentPadding)
 
-                    LazyVGrid(columns: columns) {
+                    LazyVGrid(columns: DSGridColumns.two) {
                         ForEach(viewModel.downloadedBooks) { book in
-                            let bookVM = BookCardStateViewModel(book: book)
                             
                             BookCardView(
-                                viewModel: bookVM,
+                                viewModel: BookCardStateViewModel(book: book),
                                 api: viewModel.api,
                                 onTap: {
                                     Task {
@@ -103,32 +96,27 @@ struct DownloadsView: View {
                                 },
                                 onDelete: {
                                     viewModel.requestDeleteBook(book)
-                                },
-                                style: .library,
-                                containerSize: geometry.size
+                                }
                             )
                         }
                     }
                     
                     Spacer()
-                        .frame(height: DSLayout.adaptiveMiniPlayerHeight)
+                        .frame(height: DSLayout.miniPlayerHeight)
                 }
             }
             .scrollIndicators(.hidden)
-            .padding(.horizontal, DSLayout.adaptiveScreenPadding)
+            .padding(.horizontal, DSLayout.screenPadding)
         }
-        .opacity(viewModel.contentLoaded ? 1 : 0)
-        .animation(.easeInOut(duration: 0.5), value: viewModel.contentLoaded)
-        .onAppear { viewModel.contentLoaded = true }
     }
     
     private var storageWarningBanner: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: DSLayout.contentGap) {
             Image(systemName: "exclamationmark.triangle.fill")
                 .font(.system(size: 16))
                 .foregroundColor(.orange)
             
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: DSLayout.tightGap) {
                 Text("Low Storage")
                     .font(.subheadline)
                     .fontWeight(.semibold)
@@ -149,8 +137,8 @@ struct DownloadsView: View {
                     .foregroundColor(.blue)
             }
         }
-        .padding(.horizontal, DSLayout.adaptiveScreenPadding)
-        .padding(.vertical, 12)
+        .padding(.horizontal, DSLayout.screenPadding)
+        .padding(.vertical, DSLayout.comfortPadding)
         .background(Color.orange.opacity(0.1))
         .overlay(
             Rectangle()
@@ -161,7 +149,7 @@ struct DownloadsView: View {
     }
     
     private var downloadStatsCard: some View {
-        VStack(spacing: DSLayout.adaptiveElementGap) {
+        VStack(spacing: DSLayout.elementGap) {
             
             HStack(spacing: DSLayout.tightGap) {
                 VStack(spacing: 0) {
@@ -207,14 +195,14 @@ struct DownloadsView: View {
             }
         }
         .padding(.vertical, DSLayout.elementPadding)
-        .padding(.horizontal, DSLayout.adaptiveElementGap)
+        .padding(.horizontal, DSLayout.elementPadding)
         .background(.ultraThinMaterial)
         .clipShape(RoundedRectangle(cornerRadius: DSCorners.element))
         .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
     }
     
     private var toolbarButtons: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: DSLayout.contentGap) {
             Button(action: {
                 NotificationCenter.default.post(name: .init("ShowSettings"), object: nil)
             }) {
@@ -257,7 +245,7 @@ struct DownloadsView: View {
                     Section {
                         ForEach(viewModel.downloadedBooks) { book in
                             HStack {
-                                VStack(alignment: .leading, spacing: 4) {
+                                VStack(alignment: .leading, spacing: DSLayout.tightGap) {
                                     Text(book.title)
                                         .font(.subheadline)
                                         .lineLimit(1)
@@ -272,7 +260,7 @@ struct DownloadsView: View {
                                 
                                 Spacer()
                                 
-                                VStack(alignment: .trailing, spacing: 4) {
+                                VStack(alignment: .trailing, spacing: DSLayout.tightGap) {
                                     Text(viewModel.getBookStorageSize(book))
                                         .font(.caption)
                                         .fontWeight(.medium)

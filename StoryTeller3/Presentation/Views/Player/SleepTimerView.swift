@@ -137,7 +137,7 @@ struct SleepTimerView: View {
     }
     
     private func instructionRow(icon: String, text: String) -> some View {
-        HStack(spacing: 12) {
+        HStack(spacing: DSLayout.contentGap) {
             Image(systemName: icon)
                 .font(.caption)
                 .foregroundColor(.blue)

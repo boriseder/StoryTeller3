@@ -47,16 +47,16 @@ struct AuthorDetailView: View {
     private func contentView(geometry: GeometryProxy) -> some View {
         ZStack {
                         
-            VStack(alignment: .leading, spacing: DSLayout.adaptiveContentGap) {
-                authorHeaderView                
+            VStack(alignment: .leading, spacing: DSLayout.contentGap) {
+                authorHeaderView
                 
                 ScrollView {
-                    LazyVGrid(columns: ResponsiveLayout.columns(for: geometry.size), spacing: DSLayout.adaptiveContentGap) {
+                    LazyVGrid(columns: DSGridColumns.two, spacing: DSLayout.contentGap) {
                         ForEach(viewModel.authorBooks, id: \.id) { book in
                             let cardViewModel = BookCardStateViewModel(book: book)
                             BookCardView(
                                 viewModel: cardViewModel,
-                                api: viewModel.api,  // ← Muss public sein!
+                                api: viewModel.api,
                                 onTap: {
                                     Task {
                                         await viewModel.playBook(book, appState: appState)
@@ -69,14 +69,12 @@ struct AuthorDetailView: View {
                                 },
                                 onDelete: {
                                     viewModel.deleteBook(book.id)
-                                },
-                                style: .library,
-                                containerSize: geometry.size
+                                }
                             )
                         }
                     }
                     .padding(.horizontal, DSLayout.contentPadding)
-                    .padding(.top, DSLayout.adaptiveContentGap)
+                    .padding(.top, DSLayout.contentPadding)
                 }
             }
         }
@@ -122,12 +120,12 @@ struct AuthorDetailView: View {
                 dismiss()
             } label: {
                 Image(systemName: "xmark.circle.fill")
-                    .font(DeviceType.current == .iPad ? .largeTitle : .title2)
+                    .font(DSText.itemTitle)
                     .foregroundColor(.secondary)
             }
             .buttonStyle(.plain)
         }
-        .padding(.horizontal, DSLayout.adaptiveScreenPadding)
-        .padding(.top, DSLayout.adaptiveContentGap)
+        .padding(.horizontal, DSLayout.screenPadding)
+        .padding(.top, DSLayout.contentGap)
     }
 }
