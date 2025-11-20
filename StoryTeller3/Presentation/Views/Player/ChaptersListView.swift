@@ -5,6 +5,7 @@ struct ChaptersListView: View {
     let player: AudioPlayer
     @Environment(\.dismiss) private var dismiss
     
+
     @State private var chapterVMs: [ChapterStateViewModel] = []
     @State private var updateTimer: Timer?
     @State private var scrollTarget: Int?
@@ -12,30 +13,30 @@ struct ChaptersListView: View {
     var body: some View {
         NavigationView {
             ScrollViewReader { proxy in
-                ZStack {
+                VStack(spacing: 0) {
+                    // Header outside of scrollview - always visible
+                    if let book = player.book {
+                        headerSection(book: book)
+                            .padding(.horizontal, DSLayout.screenPadding)
+                            .padding(.top, DSLayout.elementPadding)
+                            .padding(.bottom, DSLayout.contentGap)
+                    }
+                    
+                    // Scrollview for chapterlist
                     ScrollView {
-                        if let book = player.book {
-                            VStack(spacing: 0) {
-                                headerSection(book: book)
-                                    .padding(.horizontal, DSLayout.screenPadding)
-                                    .padding(.top, 8)
-                                    .padding(.bottom, DSLayout.comfortPadding)
-                                
-                                LazyVStack(spacing: DSLayout.contentGap) {
-                                    ForEach(chapterVMs) { chapterVM in
-                                        ChapterCardView(
-                                            viewModel: chapterVM,
-                                            onTap: {
-                                                handleChapterTap(index: chapterVM.id)
-                                            }
-                                        )
-                                        .id(chapterVM.id)
-                                    }
+                            LazyVStack(spacing: DSLayout.tightGap) {
+                                ForEach(chapterVMs) { chapterVM in
+                                    ChapterCardView(
+                                        viewModel: chapterVM,
+                                        onTap: {
+                                            handleChapterTap(index: chapterVM.id)
+                                        }
+                                    )
+                                    .id(chapterVM.id)
                                 }
-                                .padding(.horizontal, DSLayout.screenPadding)
-                                .padding(.bottom, DSLayout.screenPadding)
                             }
-                        }
+                            .padding(.horizontal, DSLayout.screenPadding)
+                            .padding(.bottom, DSLayout.screenPadding)
                     }
                 }
                 .navigationTitle("")
@@ -69,7 +70,6 @@ struct ChaptersListView: View {
             }
         }
     }
-    
     private func headerSection(book: Book) -> some View {
         
         VStack(spacing: DSLayout.contentGap) {
@@ -83,7 +83,7 @@ struct ChaptersListView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 8))
                 .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
                 
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: DSLayout.elementGap) {
                     Text(book.title)
                         .font(DSText.emphasized)
                         .fontWeight(.semibold)
@@ -95,44 +95,31 @@ struct ChaptersListView: View {
                             .foregroundColor(.secondary)
                             .lineLimit(1)
                     }
+                    HStack{
+                        Image(systemName: "list.number")
+                            .font(DSText.button)
+                            .foregroundColor(.secondary)
+
+                        Text("\(book.chapters.count) chapters")
+                            .font(DSText.detail)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    HStack {
+                        Image(systemName: "waveform")
+                            .font(DSText.button)
+                            .foregroundColor(.secondary)
+
+                        Text("Current chapter \(player.currentChapterIndex + 1)")
+                            .font(DSText.detail)
+                            .foregroundColor(.secondary)
+                    }
                 }
                 
-                Spacer()
             }
             
-            HStack(spacing: DSLayout.contentGap) {
-                statsItem(
-                    icon: "list.number",
-                    text: "\(book.chapters.count) chapters"
-                )
-                
-                Divider()
-                    .frame(height: 12)
-                
-                statsItem(
-                    icon: "waveform",
-                    text: "Chapter \(player.currentChapterIndex + 1)"
-                )
-                
-                Spacer()
-            }
-            .font(DSText.detail)
-            .foregroundColor(.secondary)
         }
         .padding(DSLayout.contentPadding)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(.ultraThinMaterial)
-                .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 2)
-        )
-    }
-    
-    private func statsItem(icon: String, text: String) -> some View {
-        HStack(spacing: DSLayout.tightGap) {
-            Image(systemName: icon)
-                .font(DSText.button)
-            Text(text)
-        }
     }
     
     private func updateChapterViewModels() {
@@ -186,7 +173,129 @@ struct ChapterCardView: View {
     let onTap: () -> Void
     
     @State private var isPressed = false
-        
+            
+    var body: some View {
+        HStack(spacing: DSLayout.contentGap) {
+            ZStack {
+                // Chapter number icon
+                Circle()
+                    .fill(
+                        viewModel.isCurrent ?
+                        LinearGradient(
+                            colors: [Color.accentColor, Color.accentColor.opacity(0.7)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ) :
+                        LinearGradient(
+                            colors: [Color.secondary.opacity(0.2), Color.secondary.opacity(0.1)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: DSLayout.largeIcon, height: DSLayout.largeIcon)
+                
+                if viewModel.isCurrent && viewModel.isPlaying {
+                    Image(systemName: "waveform")
+                        .font(DSText.button)
+                        .foregroundColor(.white)
+                        .symbolEffect(.variableColor.iterative, options: .repeating, value: viewModel.isPlaying)
+                } else {
+                    Text("\(viewModel.id + 1)")
+                        .font(DSText.button)
+                        .foregroundColor(viewModel.isCurrent ? .white : .secondary)
+                }
+            }
+            .padding(.leading, DSLayout.elementPadding)
+            
+            VStack(alignment: .leading, spacing: DSLayout.elementGap) {
+                // Chapter title
+                Text(truncateChapterTitle(viewModel.chapter.title))
+                    .font(DSText.emphasized)
+                    .fontWeight(viewModel.isCurrent ? .semibold : .regular)
+                    .foregroundColor(viewModel.isCurrent ? .primary : .primary)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+                
+                // Time chapter start
+                HStack(spacing: DSLayout.contentGap) {
+                    if let start = viewModel.chapter.start {
+                        HStack(spacing: DSLayout.tightGap) {
+                            Image(systemName: "clock")
+                                .font(DSText.metadata)
+                            Text(TimeFormatter.formatTime(start))
+                                .font(DSText.metadata)
+                                .monospacedDigit()
+                        }
+                        .foregroundColor(.secondary)
+                    }
+                    
+                    // Chapter duration
+                    if let start = viewModel.chapter.start, let end = viewModel.chapter.end {
+                        HStack(spacing: DSLayout.tightGap) {
+                            Image(systemName: "timer")
+                                .font(DSText.metadata)
+                            Text(TimeFormatter.formatTime(end - start))
+                                .font(DSText.metadata)
+                                .monospacedDigit()
+                        }
+                        .foregroundColor(.secondary)
+                    }
+                }
+                
+                if viewModel.isCurrent && chapterProgress > 0 {
+                    ProgressView(value: chapterProgress)
+                        .progressViewStyle(LinearProgressViewStyle(tint: .accentColor))
+                        .scaleEffect(x: 1, y: 0.6)
+                }
+            }
+            
+            Spacer()
+            
+            // current chapter indicator - play/pause
+            VStack {
+                if viewModel.isCurrent {
+                    ZStack {
+                        Circle()
+                            .fill(Color.accentColor.opacity(0.15))
+                            .frame(width: DSLayout.largeIcon,
+                                   height: DSLayout.largeIcon)
+                        
+                        Image(systemName: viewModel.isPlaying ? "speaker.wave.2.fill" : "pause.fill")
+                            .font(DSText.button)
+                            .foregroundColor(.accentColor)
+                            .symbolEffect(.pulse, options: .repeating, value: viewModel.isPlaying)
+                    }
+                }
+            }
+            .padding(.trailing, DSLayout.elementPadding)
+
+        }
+        .padding(DSLayout.elementPadding)
+        .background(
+            RoundedRectangle(cornerRadius: DSCorners.element)
+                .fill(viewModel.isCurrent ? Color.accentColor.opacity(0.08) : Color(.secondarySystemGroupedBackground))
+                .overlay(
+                    RoundedRectangle(cornerRadius: DSCorners.element)
+                        .stroke(
+                            viewModel.isCurrent ? Color.accentColor.opacity(0.3) : Color.clear,
+                            lineWidth: 1.5
+                        )
+                )
+                .shadow(
+                    color: viewModel.isCurrent ? Color.accentColor.opacity(0.1) : Color.black.opacity(0.05),
+                    radius: isPressed ? 4 : 8,
+                    x: 0,
+                    y: isPressed ? 2 : 4
+                )
+        )
+        .scaleEffect(isPressed ? 0.98 : 1.0)
+        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isPressed)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            onTap()
+        }
+    }
+    
     private var chapterProgress: Double {
         guard viewModel.isCurrent,
               let start = viewModel.chapter.start,
@@ -212,131 +321,5 @@ struct ChapterCardView: View {
         
         return "\(head)...\(tail)"
     }
-    
-    var body: some View {
-        Button(action: onTap) {
-            HStack(spacing: DSLayout.contentGap) {
-                ZStack {
-                    Circle()
-                        .fill(
-                            viewModel.isCurrent ?
-                            LinearGradient(
-                                colors: [Color.accentColor, Color.accentColor.opacity(0.7)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ) :
-                            LinearGradient(
-                                colors: [Color.secondary.opacity(0.2), Color.secondary.opacity(0.1)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .frame(width: DSLayout.avatar, height: DSLayout.avatar)
-                    
-                    if viewModel.isCurrent && viewModel.isPlaying {
-                        Image(systemName: "waveform")
-                            .font(.system(size: DSLayout.avatar * 0.375, weight: .semibold))
-                            .foregroundColor(.white)
-                            .symbolEffect(.variableColor.iterative, options: .repeating, value: viewModel.isPlaying)
-                    } else {
-                        Text("\(viewModel.id + 1)")
-                            .font(.system(size: DSLayout.avatar * 0.333, weight: .bold, design: .rounded))
-                            .foregroundColor(viewModel.isCurrent ? .white : .secondary)
-                    }
-                }
-                
-                VStack(alignment: .leading, spacing: DSLayout.elementGap) {
-                    Text(truncateChapterTitle(viewModel.chapter.title))
-                        .font(DSText.emphasized)
-                        .fontWeight(viewModel.isCurrent ? .semibold : .regular)
-                        .foregroundColor(viewModel.isCurrent ? .primary : .primary)
-                        .lineLimit(2)
-                        .multilineTextAlignment(.leading)
-                    
-                    HStack(spacing: DSLayout.contentGap) {
-                        if let start = viewModel.chapter.start {
-                            HStack(spacing: DSLayout.tightGap) {
-                                Image(systemName: "clock")
-                                    .font(DSText.metadata)
-                                Text(TimeFormatter.formatTime(start))
-                                    .font(DSText.metadata)
-                                    .monospacedDigit()
-                            }
-                            .foregroundColor(.secondary)
-                        }
-                        
-                        if let start = viewModel.chapter.start, let end = viewModel.chapter.end {
-                            HStack(spacing: DSLayout.tightGap) {
-                                Image(systemName: "timer")
-                                    .font(DSText.metadata)
-                                Text(TimeFormatter.formatTime(end - start))
-                                    .font(DSText.metadata)
-                                    .monospacedDigit()
-                            }
-                            .foregroundColor(.secondary)
-                        }
-                    }
-                    
-                    if viewModel.isCurrent && chapterProgress > 0 {
-                        ProgressView(value: chapterProgress)
-                            .progressViewStyle(LinearProgressViewStyle(tint: .accentColor))
-                            .scaleEffect(x: 1, y: 0.6)
-                    }
-                }
-                
-                Spacer()
-                
-                VStack {
-                    if viewModel.isCurrent {
-                        ZStack {
-                            Circle()
-                                .fill(Color.accentColor.opacity(0.15))
-                                .frame(width: DSLayout.largeIcon,
-                                       height: DSLayout.largeIcon)
-                            
-                            Image(systemName: viewModel.isPlaying ? "speaker.wave.2.fill" : "pause.fill")
-                                .font(DSText.button)
-                                .foregroundColor(.accentColor)
-                                .symbolEffect(.pulse, options: .repeating, value: viewModel.isPlaying)
-                        }
-                    } else {
-                        Image(systemName: "chevron.right")
-                            .font(DSText.button)
-                            .foregroundColor(.secondary.opacity(0.5))
-                    }
-                }
-            }
-            .padding(DSLayout.contentPadding)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(viewModel.isCurrent ? Color.accentColor.opacity(0.08) : Color(.secondarySystemGroupedBackground))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(
-                                viewModel.isCurrent ? Color.accentColor.opacity(0.3) : Color.clear,
-                                lineWidth: 1.5
-                            )
-                    )
-                    .shadow(
-                        color: viewModel.isCurrent ? Color.accentColor.opacity(0.1) : Color.black.opacity(0.05),
-                        radius: isPressed ? 4 : 8,
-                        x: 0,
-                        y: isPressed ? 2 : 4
-                    )
-            )
-            .scaleEffect(isPressed ? 0.98 : 1.0)
-            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isPressed)
-        }
-        .buttonStyle(.plain)
-        .onLongPressGesture(
-            minimumDuration: 0,
-            maximumDistance: .infinity,
-            pressing: { pressing in
-                withAnimation(.easeInOut(duration: 0.1)) {
-                    isPressed = pressing
-                }
-            },
-            perform: {}
-        )
-    }
+
 }

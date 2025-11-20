@@ -33,14 +33,22 @@ struct PlayerView: View {
             }
             .sheet(isPresented: $viewModel.showingChaptersList) {
                 ChaptersListView(player: viewModel.player)
+                    .presentationDragIndicator(.visible)
             }
             .sheet(isPresented: $viewModel.showingSleepTimer) {
                 SleepTimerView()
                     .environmentObject(sleepTimer)
+                    .presentationDetents([.medium])
+                    .presentationDragIndicator(.visible)
+
             }
             .sheet(isPresented: $viewModel.showingPlaybackSettings) {
                 PlaybackSettingsView(player: viewModel.player)
+                    .presentationDetents([.medium])
+                    .presentationDragIndicator(.visible)
+
             }
+
         }
         .onAppear {
             viewModel.sliderValue = viewModel.player.currentTime
@@ -58,7 +66,7 @@ struct PlayerView: View {
             VStack {
                 Spacer()
                 coverArtView
-                    .frame(maxWidth: geometry.size.width * 0.4)
+                    .frame(maxWidth: geometry.size.width * 0.3)
                 Spacer()
             }
             
@@ -83,7 +91,7 @@ struct PlayerView: View {
         VStack(spacing: DSLayout.contentGap) {
             // Cover Art Section
             coverArtSection
-                .frame(height: geometry.size.height * 0.5)
+                .frame(height: DSLayout.fullCover)
             
             // Controls Section
             controlsSection

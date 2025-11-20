@@ -39,13 +39,16 @@ class BookCoverLoader: ObservableObject {
     }
     
     func load() {
-        // Guard: Skip if already loaded or currently loading
-        if image != nil || isLoading {
+        
+        if image != nil {
             return
         }
         
-        // Rest of existing code...
-        loadTask?.cancel()
+        if isLoading {
+            return
+        }
+        
+        // Start fresh
         hasError = false
         isLoading = true
         downloadProgress = 0.0
@@ -54,7 +57,7 @@ class BookCoverLoader: ObservableObject {
             await self?.loadCoverImage()
         }
     }
-
+    
     private func loadCoverImage() async {
         
         let memoryCacheKey = generateCacheKey()
@@ -62,24 +65,26 @@ class BookCoverLoader: ObservableObject {
         // Priority 1: Memory cache
         if let cachedImage = cacheManager.getCachedImage(for: memoryCacheKey) {
             await MainActor.run { [weak self] in
-                guard let self else { return }
+                guard let self else {
+                    return
+                }
                 self.image = cachedImage
                 self.isLoading = false
             }
             AppLogger.cache.debug("Loaded book cover from memory cache")
-
             return
         }
         
         // Priority 2: Disk cache
         if let diskCachedImage = cacheManager.getDiskCachedImage(for: memoryCacheKey) {
             await MainActor.run { [weak self] in
-                guard let self else { return }
+                guard let self else {
+                    return
+                }
                 self.image = diskCachedImage
                 self.isLoading = false
             }
             AppLogger.cache.debug("Loaded book cover from disc cache")
-
             return
         }
 
@@ -94,7 +99,7 @@ class BookCoverLoader: ObservableObject {
             AppLogger.cache.debug("Loaded book cover from local storage")
             return
         }
-        
+
         // Priority 4: Embedded cover from audio files
         if let embeddedImage = await loadEmbeddedCover() {
             await MainActor.run { [weak self] in
@@ -127,7 +132,7 @@ class BookCoverLoader: ObservableObject {
     private func generateCacheKey() -> String {
         // Use consistent key regardless of download status
         // This ensures cache hits whether book is online or offline
-        return book.id
+        return "online_\(book.id)"
     }
     
     // MARK: - Local Cover Loading

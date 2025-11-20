@@ -105,8 +105,6 @@ class CoverCacheManager: ObservableObject {
         try? data.write(to: url)
         setCachedImage(image, for: key)
         
-        AppLogger.cache.debug("### Disk cached image for key: \(key), url: \(url)")
-
     }
     
     // MARK: - Cache Management

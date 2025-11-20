@@ -7,7 +7,7 @@ struct SleepTimerView: View {
     var body: some View {
         NavigationView {
             ScrollView {
-                VStack(spacing: 24) {
+                VStack(spacing: DSLayout.contentGap) {
                     if sleepTimer.isTimerActive {
                         activeSleepTimerView
                     } else {
@@ -25,23 +25,20 @@ struct SleepTimerView: View {
                     }
                 }
             }
-            .onDisappear {
-                AppLogger.general.debug("[SleepTimerView] View dismissed, timer state: \(sleepTimer.isTimerActive)")
-            }
         }
     }
     
     // MARK: - Active Timer View
     
     private var activeSleepTimerView: some View {
-        VStack(spacing: 32) {
-            timerStatusIcon
+        VStack(spacing: DSLayout.contentGap) {
+            // timerStatusIcon
             
             timerCountdown
             
             timerModeInfo
             
-            timerInstructions
+            // timerInstructions
             
             cancelButton
             
@@ -76,7 +73,7 @@ struct SleepTimerView: View {
     }
     
     private var timerCountdown: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: DSLayout.contentGap) {
             Text("Sleep Timer Active")
                 .font(.headline)
                 .foregroundColor(.primary)
@@ -97,8 +94,8 @@ struct SleepTimerView: View {
     private var timerModeInfo: some View {
         Group {
             if let mode = sleepTimer.currentMode {
-                VStack(spacing: 8) {
-                    HStack(spacing: 6) {
+                VStack(spacing: DSLayout.contentGap) {
+                    VStack(spacing: DSLayout.elementGap) {
                         Image(systemName: modeIcon(for: mode))
                             .font(.caption)
                             .foregroundColor(.blue)
@@ -107,8 +104,8 @@ struct SleepTimerView: View {
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
+                    .padding(.horizontal, DSLayout.screenPadding)
+                    .padding(.vertical, DSLayout.contentPadding)
                     .background(Color.blue.opacity(0.1))
                     .clipShape(Capsule())
                 }
@@ -164,9 +161,9 @@ struct SleepTimerView: View {
             .font(.headline)
             .foregroundColor(.white)
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 16)
+            .padding(.vertical, DSLayout.contentPadding)
             .background(Color.red)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .clipShape(RoundedRectangle(cornerRadius: DSCorners.element))
         }
         .buttonStyle(.plain)
     }
@@ -174,16 +171,16 @@ struct SleepTimerView: View {
     // MARK: - Timer Options View
     
     private var sleepTimerOptionsView: some View {
-        VStack(spacing: 32) {
-            headerSection
-            
-            durationOptionsSection
+        VStack(spacing: DSLayout.contentGap) {
+            // headerSection
             
             smartOptionsSection
+
+            durationOptionsSection
             
-            infoSection
             
-            Spacer()
+            // infoSection
+            
         }
     }
     
@@ -223,17 +220,18 @@ struct SleepTimerView: View {
     }
     
     private var durationOptionsSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: DSLayout.contentGap) {
             Text("Time Duration")
                 .font(.headline)
                 .foregroundColor(.primary)
-                .padding(.horizontal, 4)
+                .padding(.horizontal, DSLayout.tightPadding)
             
             LazyVGrid(columns: [
                 GridItem(.flexible()),
                 GridItem(.flexible()),
+                GridItem(.flexible()),
                 GridItem(.flexible())
-            ], spacing: 12) {
+            ], spacing: DSLayout.tightGap) {
                 ForEach(sleepTimer.timerOptionsArray, id: \.self) { minutes in
                     durationOptionButton(minutes: minutes)
                 }
@@ -246,10 +244,9 @@ struct SleepTimerView: View {
             AppLogger.general.debug("[SleepTimerView] Timer option selected: \(minutes) minutes")
             sleepTimer.startTimer(mode: .duration(minutes: minutes))
         }) {
-            VStack(spacing: 8) {
+            VStack(spacing: DSLayout.tightGap) {
                 Text("\(minutes)")
-                    .font(.title2)
-                    .fontWeight(.semibold)
+                    .font(.headline)
                     .foregroundColor(.primary)
                 
                 Text(minutes == 1 ? "minute" : "minutes")
@@ -257,12 +254,12 @@ struct SleepTimerView: View {
                     .foregroundColor(.secondary)
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 20)
+            .padding(.vertical, DSLayout.elementPadding)
             .background(
-                RoundedRectangle(cornerRadius: 12)
+                RoundedRectangle(cornerRadius: DSCorners.element)
                     .fill(Color.blue.opacity(0.08))
                     .overlay(
-                        RoundedRectangle(cornerRadius: 12)
+                        RoundedRectangle(cornerRadius: DSCorners.element)
                             .stroke(Color.blue.opacity(0.2), lineWidth: 1)
                     )
             )
@@ -271,13 +268,13 @@ struct SleepTimerView: View {
     }
     
     private var smartOptionsSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: DSLayout.contentGap) {
             Text("Smart Options")
                 .font(.headline)
                 .foregroundColor(.primary)
-                .padding(.horizontal, 4)
+                .padding(.horizontal, DSLayout.tightPadding)
             
-            VStack(spacing: 12) {
+            VStack(spacing: DSLayout.contentGap) {
                 if sleepTimer.player.currentChapter != nil {
                     smartOptionButton(
                         icon: "book.pages.fill",
@@ -310,11 +307,11 @@ struct SleepTimerView: View {
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
-            HStack(spacing: 16) {
+            HStack(spacing: DSLayout.contentGap) {
                 ZStack {
                     Circle()
                         .fill(Color.blue.opacity(0.1))
-                        .frame(width: 48, height: 48)
+                        .frame(width: 32, height: 32)
                     
                     Image(systemName: icon)
                         .font(.system(size: 20))
@@ -338,12 +335,12 @@ struct SleepTimerView: View {
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
-            .padding(16)
+            .padding(8)
             .background(
-                RoundedRectangle(cornerRadius: 12)
+                RoundedRectangle(cornerRadius: 4)
                     .fill(Color.blue.opacity(0.05))
                     .overlay(
-                        RoundedRectangle(cornerRadius: 12)
+                        RoundedRectangle(cornerRadius: 4)
                             .stroke(Color.blue.opacity(0.15), lineWidth: 1)
                     )
             )
@@ -352,7 +349,7 @@ struct SleepTimerView: View {
     }
     
     private var infoSection: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: DSLayout.contentGap) {
             infoRow(
                 icon: "arrow.clockwise.circle.fill",
                 text: "Timer continues running in the background",
@@ -371,11 +368,11 @@ struct SleepTimerView: View {
                 color: .green
             )
         }
-        .padding(.top, 8)
+        .padding(.top, DSLayout.contentPadding)
     }
     
     private func infoRow(icon: String, text: String, color: Color) -> some View {
-        HStack(alignment: .top, spacing: 12) {
+        HStack(alignment: .top, spacing: DSLayout.contentGap) {
             Image(systemName: icon)
                 .font(.caption)
                 .foregroundColor(color)
@@ -388,7 +385,7 @@ struct SleepTimerView: View {
             
             Spacer()
         }
-        .padding(.horizontal, 8)
+        .padding(.horizontal, DSLayout.contentPadding)
     }
     
     // MARK: - Helper Methods
