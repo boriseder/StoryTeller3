@@ -560,6 +560,7 @@ class AudioPlayer: NSObject, ObservableObject {
             isFinished: isBookFinished()
         )
         
+        AppLogger.audio.debug("###############  savePlaybackState: \(state)")
         PlaybackPersistenceManager.shared.savePlaybackState(state)
     }
     

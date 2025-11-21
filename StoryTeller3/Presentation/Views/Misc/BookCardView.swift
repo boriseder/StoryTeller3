@@ -13,8 +13,6 @@ struct BookCardView: View {
     @EnvironmentObject var theme: ThemeManager
 
     var cardWidth: CGFloat
-    var cardHeight: CGFloat
-    var infoHeight: CGFloat
     
     init(
         viewModel: BookCardStateViewModel,
@@ -30,20 +28,16 @@ struct BookCardView: View {
         self.onDelete = onDelete
         
         cardWidth = DSLayout.cardCoverNoPadding
-        cardHeight = cardWidth * 1.30
-        infoHeight = cardHeight - DSLayout.cardCoverNoPadding - 3 * DSLayout.elementPadding
 
     }
 
     var body: some View {
         ZStack {
-            VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: DSLayout.elementGap) {
                 bookCoverSection
                 bookInfoSection
                     .padding(.top, DSLayout.tightPadding)
-                
             }
-            .frame(width: cardWidth, height: cardHeight)
         }
         .contentShape(Rectangle())
         .onTapGesture { onTap() }
@@ -117,8 +111,6 @@ struct BookCardView: View {
                 .font(DSText.detail)
                 .foregroundColor(theme.textColor)
                 .lineLimit(1)
-                .frame(maxWidth: cardWidth - 2 * DSLayout.elementPadding, alignment: .leading)
-                .fixedSize(horizontal: true, vertical: true)
 
                 VStack(alignment: .leading, spacing: 0) {
                     Text(viewModel.book.author ?? "Unknown Author")
@@ -132,6 +124,7 @@ struct BookCardView: View {
                     Spacer()
                 }
         }
+        .frame(maxWidth: cardWidth - 2 * DSLayout.elementPadding, alignment: .leading)
         .padding(.horizontal, DSLayout.elementPadding)
     }
 

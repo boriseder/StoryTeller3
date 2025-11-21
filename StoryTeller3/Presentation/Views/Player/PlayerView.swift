@@ -159,7 +159,6 @@ struct PlayerView: View {
             
             Text(viewModel.player.book?.author ?? "")
                 .font(DeviceType.current == .iPad ? .body : .subheadline)
-                .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
                 .lineLimit(1)
             

@@ -189,7 +189,7 @@ struct PersonalizedSectionView: View {
     @EnvironmentObject var theme: ThemeManager
     
     var body: some View {
-        VStack(alignment: .leading, spacing: DSLayout.elementGap) {
+        VStack(alignment: .leading, spacing: DSLayout.contentGap) {
             sectionHeader
             
             switch section.type {
@@ -236,7 +236,7 @@ struct PersonalizedSectionView: View {
         }
 
         return ScrollView(.horizontal, showsIndicators: false) {
-            LazyHStack(spacing: DSLayout.elementGap) {
+            LazyHStack(spacing: DSLayout.contentGap) {
                 ForEach(books) { book in
                     BookCardView(
                         viewModel: BookCardStateViewModel(book: book),
@@ -252,7 +252,7 @@ struct PersonalizedSectionView: View {
 
     private var seriesSection: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            LazyHStack(spacing: DSLayout.elementGap) {
+            LazyHStack(spacing: DSLayout.contentGap) {
                 ForEach(section.entities.indices, id: \.self) { index in
                     let entity = section.entities[index]
                     
@@ -273,7 +273,7 @@ struct PersonalizedSectionView: View {
     
     private var authorsSection: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: DSLayout.elementGap) {
+            HStack(spacing: DSLayout.contentGap) {
                 ForEach(section.entities.compactMap { $0.asAuthor }, id: \.id) { author in
                     AuthorCardView(
                         author: author,
@@ -299,7 +299,7 @@ struct SeriesCardView: View {
         
     var body: some View {
         Button(action: onTap) {
-            VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: DSLayout.contentGap) {
                 Group {
                     if let series = entity.asSeries,
                        let firstBook = series.books.first,
@@ -322,10 +322,9 @@ struct SeriesCardView: View {
                         .foregroundColor(theme.textColor)
                         .lineLimit(1)
                         .frame(maxWidth: DSLayout.cardCoverNoPadding - 2 * DSLayout.elementPadding, alignment: .leading)
-                        .fixedSize(horizontal: true, vertical: true)
                 }
             }
-            .frame(width: DSLayout.cardCoverNoPadding, height: DSLayout.cardCoverNoPadding * 1.30)
+            //.frame(width: DSLayout.cardCoverNoPadding, height: DSLayout.cardCoverNoPadding * 1.30)
             .transition(.opacity)
         }
         .buttonStyle(.plain)

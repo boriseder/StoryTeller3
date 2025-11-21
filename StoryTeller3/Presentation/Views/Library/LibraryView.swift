@@ -105,8 +105,9 @@ struct LibraryView: View {
                 }
                 
                 LazyVGrid(
-                    columns: isSidebarVisible ? DSGridColumns.two : DSGridColumns.four,
-                    spacing: 0
+                    columns: DSGridColumns.two,
+                    alignment: .center,
+                    spacing: DSLayout.contentGap
                 ) {
                 ForEach(bookCardVMs) { bookVM in
                         BookCardView(

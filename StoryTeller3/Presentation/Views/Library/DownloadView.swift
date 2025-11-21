@@ -71,39 +71,37 @@ struct DownloadsView: View {
             }
             
             ScrollView {
-                LazyVStack(spacing: DSLayout.contentGap) {
-                    downloadStatsCard
-                        .padding(.bottom, DSLayout.contentPadding)
+                downloadStatsCard
+                    .padding(.bottom, DSLayout.contentPadding)
 
-                    LazyVGrid(columns: DSGridColumns.two) {
-                        ForEach(viewModel.downloadedBooks) { book in
-                            
-                            BookCardView(
-                                viewModel: BookCardStateViewModel(book: book),
-                                api: viewModel.api,
-                                onTap: {
-                                    Task {
-                                        await viewModel.playBook(
-                                            book,
-                                            autoPlay: autoPlay
-                                        )
-                                    }
-                                },
-                                onDownload: {
-                                    Task {
-                                        await viewModel.downloadManager.downloadBook(book, api: viewModel.api)
-                                    }
-                                },
-                                onDelete: {
-                                    viewModel.requestDeleteBook(book)
+                LazyVGrid(columns: DSGridColumns.two, alignment: .center, spacing: DSLayout.contentGap) {
+                    ForEach(viewModel.downloadedBooks) { book in
+                        
+                        BookCardView(
+                            viewModel: BookCardStateViewModel(book: book),
+                            api: viewModel.api,
+                            onTap: {
+                                Task {
+                                    await viewModel.playBook(
+                                        book,
+                                        autoPlay: autoPlay
+                                    )
                                 }
-                            )
-                        }
+                            },
+                            onDownload: {
+                                Task {
+                                    await viewModel.downloadManager.downloadBook(book, api: viewModel.api)
+                                }
+                            },
+                            onDelete: {
+                                viewModel.requestDeleteBook(book)
+                            }
+                        )
                     }
-                    
-                    Spacer()
-                        .frame(height: DSLayout.miniPlayerHeight)
                 }
+                
+                Spacer()
+                    .frame(height: DSLayout.miniPlayerHeight)
             }
             .scrollIndicators(.hidden)
             .padding(.horizontal, DSLayout.screenPadding)

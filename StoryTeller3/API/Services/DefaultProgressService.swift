@@ -9,14 +9,14 @@ class DefaultProgressService: ProgressServiceProtocol {
         self.networkService = networkService
     }
     
-    func syncSessionProgress(
-        sessionId: String,
+    func updatePlaybackProgress(
+        libraryItemId: String,
         currentTime: Double,
         timeListened: Double,
         duration: Double
     ) async throws {
-        guard let url = URL(string: "\(config.baseURL)/api/session/\(sessionId)/sync") else {
-            throw AudiobookshelfError.invalidURL("\(config.baseURL)/api/session/\(sessionId)/sync")
+        guard let url = URL(string: "\(config.baseURL)/api/me/progress/\(libraryItemId)/") else {
+            throw AudiobookshelfError.invalidURL("\(config.baseURL)/api/session/\(libraryItemId)/")
         }
         
         let body: [String: Any] = [
@@ -35,12 +35,12 @@ class DefaultProgressService: ProgressServiceProtocol {
             throw AudiobookshelfError.invalidRequest(error.localizedDescription)
         }
         
-        AppLogger.general.debug("[ProgressService] Syncing session progress: \(sessionId), time: \(currentTime)s")
+        AppLogger.general.debug("[ProgressService] Updating playback progress: \(libraryItemId), time: \(currentTime)s")
         
         let _: [String: String]? = try? await networkService.performRequest(request, responseType: [String: String].self)
     }
     
-    func fetchProgress(libraryItemId: String) async throws -> MediaProgress? {
+    func fetchPlaybackProgress(libraryItemId: String) async throws -> MediaProgress? {
         guard let url = URL(string: "\(config.baseURL)/api/me/progress/\(libraryItemId)") else {
             throw AudiobookshelfError.invalidURL("\(config.baseURL)/api/me/progress/\(libraryItemId)")
         }
