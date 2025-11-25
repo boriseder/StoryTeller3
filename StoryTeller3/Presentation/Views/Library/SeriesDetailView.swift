@@ -4,7 +4,8 @@ struct SeriesDetailView: View {
     @StateObject private var viewModel: SeriesDetailViewModel
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var appState: AppStateManager
-    
+    @EnvironmentObject private var dependencies: DependencyContainer
+
     init(series: Series, onBookSelected: @escaping () -> Void) {
         _viewModel = StateObject(wrappedValue: SeriesDetailViewModel(
             series: series,
@@ -84,7 +85,10 @@ struct SeriesDetailView: View {
         ScrollView {
             LazyVGrid(columns: DSGridColumns.two, spacing: 0) {
                 ForEach(viewModel.seriesBooks, id: \.id) { book in
-                    let cardViewModel = BookCardStateViewModel(book: book)
+                    let cardViewModel = BookCardStateViewModel(
+                        book: book,
+                        container: dependencies
+                    )
                     BookCardView(
                         viewModel: cardViewModel,
                         api: viewModel.api,

@@ -10,7 +10,7 @@ protocol LibraryRepositoryProtocol {
 
 // MARK: - Library Repository Implementation
 class LibraryRepository: LibraryRepositoryProtocol {
-    
+
     private let api: AudiobookshelfClient
     private let settingsRepository: SettingsRepositoryProtocol
     private var cachedLibraries: [Library]?
@@ -111,7 +111,7 @@ extension LibraryRepository {
         if let savedId = settingsRepository.getSelectedLibraryId(),
            let restoredLibrary = libraries.first(where: { $0.id == savedId }) {
             
-            AppLogger.general.debug("[LibraryRepository] ✓ Restored library: \(restoredLibrary.name)")
+            AppLogger.general.debug("[LibraryRepository] Restored library: \(restoredLibrary.name)")
             return restoredLibrary
         }
         

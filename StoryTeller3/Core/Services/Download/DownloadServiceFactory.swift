@@ -1,4 +1,4 @@
-
+/*
 import Foundation
 
 /// Factory for creating download services with proper dependency injection
@@ -113,33 +113,4 @@ final class DownloadServiceFactory {
         )
     }
 }
-
-// MARK: - Usage Examples
-
-/*
- 
-// Production usage (default)
-let downloadManager = DownloadServiceFactory.createDownloadManager()
-
-// Testing usage with fast retries
-let testDownloadManager = DownloadServiceFactory.createDownloadManager(configuration: .testing)
-
-// Debug usage with more verbose retry policy
-let debugDownloadManager = DownloadServiceFactory.createDownloadManager(configuration: .debug)
-
-// Custom configuration with specific services
-let customNetworkService = CustomNetworkService() // Your custom implementation
-let customStorageService = CustomStorageService() // Your custom implementation
-let customRetryPolicy = CustomRetryPolicy() // Your custom implementation
-let customValidationService = CustomValidationService() // Your custom implementation
-
-let customOrchestration = DownloadServiceFactory.createOrchestrationService(
-    networkService: customNetworkService,
-    storageService: customStorageService,
-    retryPolicy: customRetryPolicy,
-    validationService: customValidationService
-)
-
-// Use custom orchestration in repository...
-
 */

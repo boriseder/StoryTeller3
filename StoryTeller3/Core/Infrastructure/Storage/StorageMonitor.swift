@@ -126,6 +126,7 @@ class StorageMonitor: StorageMonitoring {
         formatter.countStyle = .file
         formatter.includesUnit = true
         formatter.includesCount = true
+        formatter.allowsNonnumericFormatting = false
         return formatter.string(fromByteCount: bytes)
     }
 }

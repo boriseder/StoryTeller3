@@ -1,5 +1,19 @@
 import Foundation
 
+protocol BookServiceProtocol {
+    func fetchBooks(libraryId: String, limit: Int, collapseSeries: Bool) async throws -> [Book]
+    func fetchBookDetails(bookId: String, retryCount: Int) async throws -> Book
+}
+
+// this allows a default value for an optional parameter without changing the protocol
+
+extension BookServiceProtocol {
+    func fetchBookDetails(bookId: String, retryCount: Int = 3) async throws -> Book {
+        try await fetchBookDetails(bookId: bookId, retryCount: retryCount)
+    }
+}
+
+
 class DefaultBookService: BookServiceProtocol {
     private let config: APIConfig
     private let networkService: NetworkService
@@ -53,15 +67,10 @@ class DefaultBookService: BookServiceProtocol {
                 let request = networkService.createAuthenticatedRequest(url: url, authToken: config.authToken)
                 let item: LibraryItem = try await networkService.performRequest(request, responseType: LibraryItem.self)
                 
-                // DEBUG: Dekodiertes Objekt prüfen
-                AppLogger.network.debug("########### Decoded coverPath: \(item.media.coverPath ?? "NIL")")
-
                 guard let book = converter.convertLibraryItemToBook(item) else {
                     AppLogger.general.debug("[BookService] bookNotFound ##############")
                     throw AudiobookshelfError.bookNotFound(bookId)
                 }
-                
-                
                 
                 return book
                 
@@ -75,7 +84,7 @@ class DefaultBookService: BookServiceProtocol {
                     continue
                 }
             } catch {
-                AppLogger.general.debug("[BookService] error ########### \(error)")
+                AppLogger.general.error("[BookService] error: \(error)")
                 throw error
             }
         }

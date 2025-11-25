@@ -8,8 +8,9 @@ class AudiobookshelfClient {
     let authors: AuthorsServiceProtocol
     let personalized: PersonalizedServiceProtocol
     let progress: ProgressServiceProtocol
+    let bookmarks: BookmarkServiceProtocol
     let converter: BookConverterProtocol
-    
+
     private let apiConfig: APIConfig    // Dirty hack #1
 
     init(
@@ -17,22 +18,22 @@ class AudiobookshelfClient {
         authToken: String,
         networkService: NetworkService = DefaultNetworkService()
     ) {
-        let baseConfig = APIConfig(baseURL: baseURL, authToken: authToken)
+        let config = APIConfig(baseURL: baseURL, authToken: authToken)
         let converter = DefaultBookConverter()
         let rateLimiter = RateLimiter(minimumInterval: 0.1)
         
-        self.connection = DefaultConnectionService(config: baseConfig, networkService: networkService)
-        self.libraries = DefaultLibraryService(config: baseConfig, networkService: networkService)
-        self.books = DefaultBookService(config: baseConfig, networkService: networkService, converter: converter, rateLimiter: rateLimiter)
-        self.series = DefaultSeriesService(config: baseConfig, networkService: networkService, converter: converter)
-        self.authors = DefaultAuthorsService(config: baseConfig, networkService: networkService, rateLimiter: rateLimiter)
-        self.personalized = DefaultPersonalizedService(config: baseConfig, networkService: networkService)
-        self.progress = DefaultProgressService(config: baseConfig, networkService: networkService)
+        self.connection = DefaultConnectionService(config: config, networkService: networkService)
+        self.libraries = DefaultLibraryService(config: config, networkService: networkService)
+        self.books = DefaultBookService(config: config, networkService: networkService, converter: converter, rateLimiter: rateLimiter)
+        self.series = DefaultSeriesService(config: config, networkService: networkService, converter: converter)
+        self.authors = DefaultAuthorsService(config: config, networkService: networkService, rateLimiter: rateLimiter)
+        self.personalized = DefaultPersonalizedService(config: config, networkService: networkService)
+        self.progress = DefaultProgressService(config: config, networkService: networkService)
+        self.bookmarks = DefaultBookmarkService(config: config, networkService: networkService)
         self.converter = converter
         
         
-        //Quick & Dirty hack
-        self.apiConfig = baseConfig  // speichern
+        self.apiConfig = config  // speichern
         
     }
     

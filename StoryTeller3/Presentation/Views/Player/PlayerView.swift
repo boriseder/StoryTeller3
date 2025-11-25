@@ -5,6 +5,8 @@ struct PlayerView: View {
     @StateObject private var viewModel: PlayerViewModel
     @EnvironmentObject private var sleepTimer: SleepTimerService
 
+    @State private var showBookmarks = false
+
     init(player: AudioPlayer, api: AudiobookshelfClient) {
         self._viewModel = StateObject(wrappedValue: PlayerViewModel(
             player: player,
@@ -48,7 +50,14 @@ struct PlayerView: View {
                     .presentationDragIndicator(.visible)
 
             }
-
+            .sheet(isPresented: $showBookmarks) {
+                BookmarkListView(
+                    book: viewModel.player.book!,
+                    onBookmarkTap: { bookmark in
+                        AppLogger.ui.debug("onBookmarkTap")
+                    }
+                )
+            }
         }
         .onAppear {
             viewModel.sliderValue = viewModel.player.currentTime
@@ -283,6 +292,7 @@ struct PlayerView: View {
             sleepTimerButton
             audioRouteButton
             chaptersButton
+            
         }
         .foregroundColor(.primary)
     }
@@ -378,6 +388,12 @@ struct PlayerView: View {
                 viewModel.player.pause()
             }) {
                 Label("Stop Playback", systemImage: "stop")
+            }
+            
+            Button {
+                showBookmarks = true
+            } label: {
+                Label("Bookmarks", systemImage: "bookmark")
             }
         } label: {
             Image(systemName: "ellipsis")

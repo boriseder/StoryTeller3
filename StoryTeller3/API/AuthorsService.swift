@@ -1,5 +1,10 @@
 import Foundation
 
+protocol AuthorsServiceProtocol {
+    func fetchAuthors(libraryId: String) async throws -> [Author]
+    func fetchAuthor(authorId: String, libraryId: String, includeBooks: Bool, includeSeries: Bool) async throws -> Author
+}
+
 class DefaultAuthorsService: AuthorsServiceProtocol {
     private let config: APIConfig
     private let networkService: NetworkService

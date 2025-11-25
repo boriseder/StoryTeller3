@@ -8,6 +8,7 @@ struct AuthorDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var appState: AppStateManager
     @EnvironmentObject var theme: ThemeManager
+    @EnvironmentObject private var dependencies: DependencyContainer
 
     @AppStorage("open_fullscreen_player") private var playerMode = false
     @AppStorage("auto_play_on_book_tap") private var autoPlay = false
@@ -19,14 +20,15 @@ struct AuthorDetailView: View {
         // Dependencies vom Container holen
         let container = DependencyContainer.shared
         _viewModel = StateObject(wrappedValue: AuthorDetailViewModel(
-            bookRepository: container.bookRepository,     // ← BookRepositoryProtocol
-            api: container.apiClient!,                    // ← AudiobookshelfClient
+            bookRepository: container.bookRepository,
+            libraryRepository: container.libraryRepository,
+            api: container.apiClient!,
             downloadManager: container.downloadManager,
             player: container.player,
-            appState: container.appState,                 // ← Wird später in task gesetzt
-            playBookUseCase: PlayBookUseCase(),           // ← PlayBookUseCase Instance
-            author: author,                               // ← Author Object
-            onBookSelected: onBookSelected                // ← Closure
+            appState: container.appState,
+            playBookUseCase: PlayBookUseCase(),
+            author: author,
+            onBookSelected: onBookSelected
         ))
     }
 
@@ -53,7 +55,10 @@ struct AuthorDetailView: View {
                 ScrollView {
                     LazyVGrid(columns: DSGridColumns.two, spacing: DSLayout.contentGap) {
                         ForEach(viewModel.authorBooks, id: \.id) { book in
-                            let cardViewModel = BookCardStateViewModel(book: book)
+                            let cardViewModel = BookCardStateViewModel(
+                                book: book,
+                                container: dependencies
+                            )
                             BookCardView(
                                 viewModel: cardViewModel,
                                 api: viewModel.api,

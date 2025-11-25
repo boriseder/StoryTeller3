@@ -1,5 +1,9 @@
 import Foundation
 
+protocol BookConverterProtocol {
+    func convertLibraryItemToBook(_ item: LibraryItem) -> Book?
+}
+
 class DefaultBookConverter: BookConverterProtocol {
     
     func convertLibraryItemToBook(_ item: LibraryItem) -> Book? {

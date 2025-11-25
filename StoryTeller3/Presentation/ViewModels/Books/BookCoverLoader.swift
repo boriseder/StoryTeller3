@@ -84,7 +84,7 @@ class BookCoverLoader: ObservableObject {
                 self.image = diskCachedImage
                 self.isLoading = false
             }
-            AppLogger.cache.debug("Loaded book cover from disc cache")
+            
             return
         }
 

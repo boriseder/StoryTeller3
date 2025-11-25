@@ -103,13 +103,10 @@ struct FullscreenPlayerContainer<Content: View>: View {
                         .padding()
                     }
                     
-                    // Player Content
-                    if let api = api {
-                        if isLandscape {
-                            iPadLandscapePlayerContent(availableSize: CGSize(width: cardWidth, height: cardHeight - 60))
-                        } else {
-                            iPadPortraitPlayerContent(availableSize: CGSize(width: cardWidth, height: cardHeight - 60))
-                        }
+                    if isLandscape {
+                        iPadLandscapePlayerContent(availableSize: CGSize(width: cardWidth, height: cardHeight - 60))
+                    } else {
+                        iPadPortraitPlayerContent(availableSize: CGSize(width: cardWidth, height: cardHeight - 60))
                     }
                 }
                 .frame(width: cardWidth, height: cardHeight)

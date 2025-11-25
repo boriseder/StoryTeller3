@@ -1,5 +1,10 @@
 import Foundation
 
+protocol LibraryServiceProtocol {
+    func fetchLibraries() async throws -> [Library]
+    func fetchLibraryStats(libraryId: String) async throws -> Int
+}
+
 class DefaultLibraryService: LibraryServiceProtocol {
     private let config: APIConfig
     private let networkService: NetworkService

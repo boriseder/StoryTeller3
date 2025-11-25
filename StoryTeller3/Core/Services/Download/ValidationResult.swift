@@ -102,7 +102,6 @@ final class DefaultDownloadValidationService: DownloadValidationService {
                 AppLogger.cache.debug("[DefaultDownloadValidationService] No cover image (book has no cover)")
             }
         }
-        AppLogger.cache.debug("[DefaultDownloadValidationService] Download validated")
 
         return .valid
     }

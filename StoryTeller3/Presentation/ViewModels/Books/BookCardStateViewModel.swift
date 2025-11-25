@@ -5,7 +5,7 @@ import Foundation
 import SwiftUI
 
 @MainActor
-class BookCardStateViewModel: ObservableObject, Identifiable {
+class BookCardStateViewModel: ObservableObject {
     let book: Book
     private let container: DependencyContainer
     
@@ -13,9 +13,10 @@ class BookCardStateViewModel: ObservableObject, Identifiable {
     private var player: AudioPlayer { container.player }
     private var downloadManager: DownloadManager { container.downloadManager }
     
-    var id: String { book.id }
+    // Identifiable conformance - nonisolated for Swift 6 compatibility
+    nonisolated var id: String { book.id }
     
-    init(book: Book, container: DependencyContainer = .shared) {
+    init(book: Book, container: DependencyContainer) {
         self.book = book
         self.container = container
     }
@@ -50,3 +51,6 @@ class BookCardStateViewModel: ObservableObject, Identifiable {
         return player.currentTime / player.duration
     }
 }
+
+// Separate Identifiable conformance
+extension BookCardStateViewModel: Identifiable {}

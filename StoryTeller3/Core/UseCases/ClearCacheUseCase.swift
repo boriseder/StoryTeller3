@@ -7,7 +7,7 @@ protocol ClearCacheUseCaseProtocol {
 class ClearCacheUseCase: ClearCacheUseCaseProtocol {
     private let coverCacheManager: CoverCacheManager
     
-    init(coverCacheManager: CoverCacheManager = CoverCacheManager.shared) {
+    init(coverCacheManager: CoverCacheManager) {
         self.coverCacheManager = coverCacheManager
     }
     

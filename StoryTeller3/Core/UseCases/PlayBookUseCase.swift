@@ -90,16 +90,16 @@ class PlayBookUseCase: PlayBookUseCaseProtocol {
         )
         
         // 5. Load player with appropriate mode
-        await MainActor.run {
-            let isOffline = playbackMode == .offline
-            player.load(
-                book: fullBook,
-                isOffline: isOffline,
-                restoreState: restoreState,
-                autoPlay: autoPlay 
-            )
-            AppLogger.general.debug("[PlayBookUseCase] Loaded: \(fullBook.title) (\(playbackMode))")
-        }
+        let isOffline = playbackMode == .offline
+        await player.load(
+            book: fullBook,
+            isOffline: isOffline,
+            restoreState: restoreState,
+            autoPlay: autoPlay
+        )
+
+        AppLogger.general.debug("[PlayBookUseCase] Loaded: \(fullBook.title) (\(playbackMode))")
+        
     }
     
     // REFACTOR: Separated concerns - metadata loading

@@ -28,37 +28,6 @@ struct NetworkErrorView: View {
                         .font(DSText.footnote)
                         .multilineTextAlignment(.center)
                 }
-                /*
-                if downloadedBooksCount > 0 {
-                    VStack(spacing: 12) {
-                        Divider()
-                            .padding(.vertical, 8)
-                        
-                        HStack {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundColor(.green)
-                            Text("You have \(downloadedBooksCount) book\(downloadedBooksCount == 1 ? "" : "s") downloaded")
-                                .foregroundColor(.secondary)
-                        }
-                        
-                        Button(action: onViewDownloads) {
-                            HStack {
-                                Image(systemName: "arrow.down.circle.fill")
-                                Text("View Downloaded Books")
-                            }
-                            .font(DSText.detail)
-                            .foregroundColor(.white)
-                            .padding(.horizontal, DSLayout.elementPadding)
-                            .padding(.vertical, DSLayout.elementPadding)
-                            .background(Color.green)
-                            .clipShape(Capsule())
-                        }
-                        
-                        Text("or")
-                            .padding(.vertical, DSLayout.elementPadding)
-                    }
-                }
-               */
                 VStack(spacing: 12) {
                    // if issueType.canRetry {
                         Button(action: onRetry) {
@@ -84,6 +53,7 @@ struct NetworkErrorView: View {
             }
             .padding(.horizontal, 40)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(.red)
         }
     }
 }

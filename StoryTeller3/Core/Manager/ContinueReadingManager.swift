@@ -5,13 +5,12 @@ import SwiftUI
 class ContinueReadingManager: ObservableObject {
     @Published var recentBooks: [PlaybackState] = []
     
-    private let persistenceManager = PlaybackPersistenceManager.shared
+    private let repository = PlaybackRepository.shared
     
     func loadRecentBooks() {
-        recentBooks = persistenceManager.getRecentlyPlayed(limit: 10)
-            .filter { !$0.isFinished } // Only unfinished books
+        recentBooks = repository.getRecentlyPlayed(limit: 10)
     }
-    
+
     func getProgressText(for state: PlaybackState) -> String {
         let progressPercent = Int(state.progress * 100)
         return "\(progressPercent)% • Chapter \(state.chapterIndex + 1)"

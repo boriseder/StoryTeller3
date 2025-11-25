@@ -1,16 +1,13 @@
-
+import UIKit
 import SwiftUI
 
 @main
 struct StoryTeller3App: App {
-    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
-    
-    @StateObject private var appState = AppStateManager()
+    @Environment(\.scenePhase) private var scenePhase
+    @StateObject private var appState = AppStateManager.shared
     @StateObject private var theme = ThemeManager()
+    @StateObject private var dependencies = DependencyContainer.shared
 
-    // Inject DependencyContainer
-    private let dependencies = DependencyContainer.shared
-    
     var body: some Scene {
         WindowGroup {
             ContentView()
@@ -18,21 +15,77 @@ struct StoryTeller3App: App {
                 .environmentObject(theme)
                 .environmentObject(dependencies)
                 .preferredColorScheme(theme.colorScheme)
-                .onAppear {
-                    setupCacheManager()
+                .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in
+                    handleMemoryWarning()
                 }
+        }
+        .onChange(of: scenePhase) { oldPhase, newPhase in
+            handleScenePhaseChange(from: oldPhase, to: newPhase)
         }
     }
 
-    private func setupCacheManager() {
-        Task { @MainActor in
-            CoverCacheManager.shared.updateCacheLimits()
+    
+    // MARK: - Scene Phase Handling
+    
+    private func handleScenePhaseChange(from oldPhase: ScenePhase, to newPhase: ScenePhase) {
+        switch newPhase {
+        case .active:
+            handleBecameActive()
             
-            if UserDefaults.standard.bool(forKey: "cache_optimization_enabled") {
-                await CoverCacheManager.shared.optimizeCache()
-            }
+        case .inactive:
+            handleWillResignActive()
             
-            AppLogger.general.info("[App] Cache manager initialized")
+        case .background:
+            handleEnteredBackground()
+            
+        @unknown default:
+            break
         }
     }
+    
+    private func handleBecameActive() {
+        AppLogger.general.info("[App] App became active")
+        
+        // Post notification for other parts of the app
+        NotificationCenter.default.post(name: .init("AppWillEnterForeground"), object: nil)
+        
+
+    }
+    
+    private func handleWillResignActive() {
+        AppLogger.general.info("[App] App will resign active")
+        
+    }
+    
+    private func handleEnteredBackground() {
+        
+        UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: "lastBackgroundTime")
+
+        AppLogger.general.info("[App] App entered background")
+                        
+        // Cache cleanup in background
+        Task.detached(priority: .background) {
+            if UserDefaults.standard.bool(forKey: "auto_cache_cleanup") {
+                await CoverCacheManager.shared.optimizeCache()
+            }
+        }
+    }
+   
+    
+    // MARK: - Memory Warning
+    
+    private func handleMemoryWarning() {
+        AppLogger.general.warn("[App] Memory warning received - triggering cleanup")
+        
+        Task { @MainActor in
+            CoverCacheManager.shared.triggerCriticalCleanup()
+        }
+        
+        Task {
+            await CoverDownloadManager.shared.cancelAllDownloads()
+        }
+        
+        AppLogger.general.info("[App] Memory cleanup completed")
+    }
+
 }

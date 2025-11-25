@@ -4,6 +4,7 @@ struct DownloadsView: View {
     @StateObject private var viewModel: DownloadsViewModel = DependencyContainer.shared.downloadsViewModel
     @EnvironmentObject private var appState: AppStateManager
     @EnvironmentObject private var theme: ThemeManager
+    @EnvironmentObject private var dependencies: DependencyContainer
 
     @State private var showingStorageInfo = false
     
@@ -16,12 +17,9 @@ struct DownloadsView: View {
                 Color.accent.ignoresSafeArea()
             }
 
-            if viewModel.downloadedBooks.isEmpty {
-                NoDownloadsView()
-            } else {
-                contentView()
-                    .transition(.opacity)
-                }
+            contentView()
+                .transition(.opacity)
+
         }
         .navigationTitle("Downloaded")
         .navigationBarTitleDisplayMode(.large)
@@ -78,7 +76,7 @@ struct DownloadsView: View {
                     ForEach(viewModel.downloadedBooks) { book in
                         
                         BookCardView(
-                            viewModel: BookCardStateViewModel(book: book),
+                            viewModel: BookCardStateViewModel(book: book, container: dependencies),
                             api: viewModel.api,
                             onTap: {
                                 Task {

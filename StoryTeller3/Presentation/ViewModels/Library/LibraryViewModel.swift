@@ -92,14 +92,11 @@ class LibraryViewModel: ObservableObject {
         
         do {
             guard let library = try await libraryRepository.getSelectedLibrary() else {
-                libraryName = "Library"
                 books = []
                 isLoading = false
                 return
             }
             
-            libraryName = "Library"
-
             // Try network fetch
             let fetchedBooks = try await fetchBooksUseCase.execute(
                 libraryId: library.id,

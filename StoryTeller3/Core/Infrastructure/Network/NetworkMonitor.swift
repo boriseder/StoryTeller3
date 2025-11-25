@@ -18,6 +18,7 @@ enum NetworkStatus: Equatable, CustomStringConvertible {
 protocol NetworkMonitoring {
     var isOnline: Bool { get }
     var currentStatus: NetworkStatus { get }
+
     func startMonitoring()
     func stopMonitoring()
     func forceRefresh()
@@ -30,7 +31,8 @@ final class NetworkMonitor: NetworkMonitoring {
     private var statusHandler: ((NetworkStatus) -> Void)?
     private var watchdogTimer: DispatchSourceTimer?
     private var offlineSince: Date?
-    
+    private var isRunning = false
+
     private(set) var currentStatus: NetworkStatus = .unknown {
         didSet {
             if currentStatus != oldValue {
@@ -44,9 +46,11 @@ final class NetworkMonitor: NetworkMonitoring {
     
     var isOnline: Bool { currentStatus == .online }
     
-    init() {}
-    
     func startMonitoring() {
+        
+        guard !isRunning else { return }
+        isRunning = true
+
         monitor.pathUpdateHandler = { [weak self] path in
             guard let self else { return }
             let newStatus: NetworkStatus = path.status == .satisfied ? .online : .offline

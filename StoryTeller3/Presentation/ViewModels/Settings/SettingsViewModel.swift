@@ -41,6 +41,7 @@ class SettingsViewModel: ObservableObject {
     
     let downloadManager: DownloadManager
     
+    private var settingsRepository: SettingsRepositoryProtocol
     private var apiClient: AudiobookshelfClient?
    
     init(
@@ -55,7 +56,8 @@ class SettingsViewModel: ObservableObject {
         serverValidator: ServerConfigValidating,
         diagnosticsService: DiagnosticsCollecting,
         coverCacheManager: CoverCacheManager,
-        downloadManager: DownloadManager
+        downloadManager: DownloadManager,
+        settingsRepository: SettingsRepositoryProtocol
     ) {
         self.testConnectionUseCase = testConnectionUseCase
         self.authenticationUseCase = authenticationUseCase
@@ -69,6 +71,7 @@ class SettingsViewModel: ObservableObject {
         self.diagnosticsService = diagnosticsService
         self.coverCacheManager = coverCacheManager
         self.downloadManager = downloadManager
+        self.settingsRepository = settingsRepository
         
         Task { @MainActor in
             await loadSavedCredentials()
@@ -267,9 +270,10 @@ class SettingsViewModel: ObservableObject {
     // MARK: - Library Management
     func saveSelectedLibrary(_ libraryId: String?) {
         if let id = libraryId {
-            LibraryHelpers.saveLibrarySelection(id)
+            settingsRepository.saveSelectedLibraryId(libraryId)
+            AppLogger.general.debug("[LibraryRepository] Selected library: \(id)")
         } else {
-            LibraryHelpers.saveLibrarySelection(nil)
+            settingsRepository.saveSelectedLibraryId(nil)
         }
     }
     

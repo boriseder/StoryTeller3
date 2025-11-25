@@ -19,7 +19,7 @@ struct SeriesView: View {
                     .transition(.opacity)
             }
         }
-        .navigationTitle(viewModel.libraryName)
+        .navigationTitle("Series")
         .navigationBarTitleDisplayMode(.large)
         .toolbarBackground(.visible, for: .navigationBar)
         .toolbarBackground(.clear, for: .navigationBar)

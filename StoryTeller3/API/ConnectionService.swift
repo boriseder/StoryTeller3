@@ -1,5 +1,10 @@
 import Foundation
 
+protocol ConnectionServiceProtocol {
+    func testConnection() async throws -> ConnectionTestResult
+    func checkHealth() async -> Bool
+}
+
 class DefaultConnectionService: ConnectionServiceProtocol {
     private let config: APIConfig
     private let networkService: NetworkService

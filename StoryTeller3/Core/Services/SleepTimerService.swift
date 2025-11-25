@@ -200,8 +200,12 @@ class SleepTimerService: ObservableObject {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            if self?.isTimerActive == true {
-                self?.saveCurrentTimerState()
+            // Run on MainActor since we're accessing @MainActor properties
+            Task { @MainActor [weak self] in
+                guard let self = self else { return }
+                if self.isTimerActive {
+                    self.saveCurrentTimerState()
+                }
             }
         }
         observers.append(backgroundObserver)
@@ -272,26 +276,30 @@ class SleepTimerService: ObservableObject {
 
 // MARK: - Timer Delegate
 extension SleepTimerService: TimerDelegate {
-    func timerDidTick(remainingTime: TimeInterval) {
-        self.remainingTime = remainingTime
+    nonisolated func timerDidTick(remainingTime: TimeInterval) {
+        Task { @MainActor in
+            self.remainingTime = remainingTime
+        }
     }
     
-    func timerDidComplete() {
-        AppLogger.general.debug("[SleepTimer] Timer finished - pausing playback")
-        
-        player.pause()
-        
-        isTimerActive = false
-        remainingTime = 0
-        currentMode = nil
-        
-        clearTimerState()
-        
-        #if !targetEnvironment(simulator)
-        let impactFeedback = UIImpactFeedbackGenerator(style: .light)
-        impactFeedback.impactOccurred()
-        #endif
-        
-        AppLogger.general.debug("[SleepTimer] Sleep timer completed successfully")
+    nonisolated func timerDidComplete() {
+        Task { @MainActor in
+            AppLogger.general.debug("[SleepTimer] Timer finished - pausing playback")
+            
+            player.pause()
+            
+            isTimerActive = false
+            remainingTime = 0
+            currentMode = nil
+            
+            clearTimerState()
+            
+            #if !targetEnvironment(simulator)
+            let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+            impactFeedback.impactOccurred()
+            #endif
+            
+            AppLogger.general.debug("[SleepTimer] Sleep timer completed successfully")
+        }
     }
 }

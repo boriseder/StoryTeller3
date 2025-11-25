@@ -89,7 +89,8 @@ final class DefaultDownloadRepository: DownloadRepository {
         loadDownloadedBooks()
         
         // Start background healing
-        healingService.start()
+        // not necessary to trigger healingService.start as validation is triggered when loadDownloadedBooks called
+        // healingService.start()
     }
     
     // MARK: - DownloadRepository
@@ -239,7 +240,7 @@ final class DefaultDownloadRepository: DownloadRepository {
     func preloadDownloadedBooks() async -> [Book] {
         let books = storageService.loadDownloadedBooks()
             .filter { validationService.validateBookIntegrity(bookId: $0.id, storageService: storageService).isValid }
-
+        
         await MainActor.run {
             downloadManager?.downloadedBooks = books
         }

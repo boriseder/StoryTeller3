@@ -19,7 +19,8 @@ class SeriesDetailViewModel: ObservableObject {
     var player: AudioPlayer { container.player }
     var api: AudiobookshelfClient { container.apiClient! }
     var downloadManager: DownloadManager { container.downloadManager }
-    
+    var libraryRepository: LibraryRepositoryProtocol { container.libraryRepository }
+
     var downloadedCount: Int {
         seriesBooks.filter { downloadManager.isBookDownloaded($0.id) }.count
     }
@@ -29,7 +30,7 @@ class SeriesDetailViewModel: ObservableObject {
     
     init(
         series: Series,
-        container: DependencyContainer = .shared,
+        container: DependencyContainer,
         onBookSelected: @escaping () -> Void
     ) {
         self.seriesId = series.id
@@ -44,7 +45,7 @@ class SeriesDetailViewModel: ObservableObject {
     
     init(
         seriesBook: Book,
-        container: DependencyContainer = .shared,
+        container: DependencyContainer,
         onBookSelected: @escaping () -> Void
     ) {
         guard let collapsedSeries = seriesBook.collapsedSeries else {
@@ -62,37 +63,39 @@ class SeriesDetailViewModel: ObservableObject {
     }
     
     func loadSeriesBooks() async {
-        guard let libraryId = LibraryHelpers.getCurrentLibraryId() else {
-            errorMessage = "Serie oder Bibliothek nicht gefunden"
-            showingErrorAlert = true
-            return
-        }
-        
-        isLoading = true
-        errorMessage = nil
-        showingErrorAlert = false
-        
         do {
+            // Try to get the selected library
+            guard let library = try await libraryRepository.getSelectedLibrary() else {
+                errorMessage = "Library not found"
+                showingErrorAlert = true
+                return
+            }
+
+            isLoading = true
+            errorMessage = nil
+            showingErrorAlert = false
+
+            // Fetch books using library.id
             let books = try await fetchSeriesBooksUseCase.execute(
-                libraryId: libraryId,
+                libraryId: library.id,
                 seriesId: seriesId
             )
-            
+
             withAnimation(.easeInOut(duration: 0.3)) {
                 seriesBooks = books
             }
-            
+
             CoverPreloadHelpers.preloadIfNeeded(
                 books: books,
                 api: api,
                 downloadManager: downloadManager
             )
-            
         } catch {
+            // Handle any errors thrown by getSelectedLibrary() or execute()
             errorMessage = error.localizedDescription
             showingErrorAlert = true
         }
-        
+
         isLoading = false
     }
     

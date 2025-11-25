@@ -10,7 +10,7 @@ protocol BookRepositoryProtocol {
     func fetchPersonalizedSections(libraryId: String) async throws -> [PersonalizedSection]
     func fetchAuthors(libraryId: String) async throws -> [Author]
     func fetchAuthorDetails(authorId: String, libraryId: String) async throws -> Author
-
+    
 }
 
 // MARK: - Repository Errors

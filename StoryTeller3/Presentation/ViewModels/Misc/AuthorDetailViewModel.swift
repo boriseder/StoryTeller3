@@ -14,6 +14,7 @@ class AuthorDetailViewModel: ObservableObject {
     
     let onBookSelected: () -> Void
     var onDismiss: (() -> Void)?
+
     
     // MARK: - Dependencies
     let api: AudiobookshelfClient
@@ -22,9 +23,11 @@ class AuthorDetailViewModel: ObservableObject {
     private let appState: AppStateManager
     private let bookRepository: BookRepositoryProtocol
     private let playBookUseCase: PlayBookUseCase
-
+    private let libraryRepository: LibraryRepositoryProtocol
+    
     init(
         bookRepository: BookRepositoryProtocol,
+        libraryRepository: LibraryRepositoryProtocol,
         api: AudiobookshelfClient,
         downloadManager: DownloadManager,
         player: AudioPlayer,
@@ -34,6 +37,7 @@ class AuthorDetailViewModel: ObservableObject {
         onBookSelected: @escaping () -> Void
     ) {
         self.bookRepository = bookRepository
+        self.libraryRepository = libraryRepository
         self.api = api
         self.downloadManager = downloadManager
         self.player = player
@@ -57,24 +61,25 @@ class AuthorDetailViewModel: ObservableObject {
 
 
     
-    
-    
     func loadAuthorDetails() async {
-        guard let libraryId = LibraryHelpers.getCurrentLibraryId() else {
-            errorMessage = "No library selected"
-            showingErrorAlert = true
-            return
-        }
-
         isLoading = true
-        defer { isLoading = false }  // Stellt sicher, dass isLoading am Ende zurückgesetzt wird
-
+        errorMessage = nil
+        
         do {
+
+            guard let selectedLibrary = try await libraryRepository.getSelectedLibrary() else {
+                errorMessage = "No library selected"
+                showingErrorAlert = true
+                return
+            }
+
+            defer { isLoading = false }
+
             
             // Fetch author details from the repository
             let author = try await bookRepository.fetchAuthorDetails(
                 authorId: author.id,
-                libraryId: libraryId
+                libraryId: selectedLibrary.id
             )
 
             // Safely unwrap optional libraryItems, fallback to empty array
@@ -107,18 +112,26 @@ class AuthorDetailViewModel: ObservableObject {
     }
 
     func loadAuthorBooks() async {
-        guard let libraryId = LibraryHelpers.getCurrentLibraryId() else {
-            errorMessage = "No library selected"
-            showingErrorAlert = true
-            return
-        }
-        
         isLoading = true
         errorMessage = nil
-        showingErrorAlert = false
         
         do {
-            let allBooks = try await api.books.fetchBooks(libraryId: libraryId, limit: 0, collapseSeries: false)
+        
+            guard let selectedLibrary = try await libraryRepository.getSelectedLibrary() else {
+                errorMessage = "No library selected"
+                showingErrorAlert = true
+                return
+            }
+        
+            defer { isLoading = false }
+            showingErrorAlert = false
+        
+            let allBooks = try await api.books.fetchBooks(
+                libraryId: selectedLibrary.id,
+                limit: 0,
+                collapseSeries: false
+            )
+            
             let filteredBooks = allBooks.filter { book in
                 book.author?.localizedCaseInsensitiveContains(author.name) == true
             }

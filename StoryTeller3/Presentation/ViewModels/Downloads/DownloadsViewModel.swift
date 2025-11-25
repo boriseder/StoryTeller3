@@ -98,7 +98,9 @@ class DownloadsViewModel: ObservableObject {
     
     private func setupStorageMonitoring() {
         storageUpdateTimer = Timer.scheduledTimer(withTimeInterval: 300.0, repeats: true) { [weak self] _ in
-            self?.updateStorageInfo()
+            Task { @MainActor [weak self] in
+                self?.updateStorageInfo()
+            }
         }
     }
     
@@ -153,7 +155,8 @@ class DownloadsViewModel: ObservableObject {
         
         progressState.confirmDelete()
         
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
             self?.updateStorageInfo()
         }
     }
@@ -172,7 +175,8 @@ class DownloadsViewModel: ObservableObject {
         
         progressState.confirmDeleteAll()
         
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
             self?.updateStorageInfo()
         }
     }

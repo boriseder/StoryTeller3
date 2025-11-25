@@ -5,7 +5,8 @@ struct LibraryView: View {
     @StateObject private var viewModel: LibraryViewModel = DependencyContainer.shared.libraryViewModel
     @EnvironmentObject var appState: AppStateManager
     @EnvironmentObject var theme: ThemeManager
-    
+    @EnvironmentObject var dependencies: DependencyContainer
+
     @State private var selectedSeries: Book?
     @State private var bookCardVMs: [BookCardStateViewModel] = []
    
@@ -134,7 +135,7 @@ struct LibraryView: View {
         let books = viewModel.filteredAndSortedBooks
         Task { @MainActor in
             let newVMs = books.map { book in
-                BookCardStateViewModel(book: book)
+                BookCardStateViewModel(book: book, container: dependencies)
             }
             self.bookCardVMs = newVMs
         }
@@ -145,14 +146,14 @@ struct LibraryView: View {
               let index = bookCardVMs.firstIndex(where: { $0.id == currentBookId }) else {
             return
         }
-        bookCardVMs[index] = BookCardStateViewModel(book: bookCardVMs[index].book)
+        bookCardVMs[index] = BookCardStateViewModel(book: bookCardVMs[index].book, container: dependencies )
     }
     
     private func updateDownloadingBooksOnly() {
         let downloadingIds = Set(viewModel.downloadManager.downloadProgress.keys)
         for (index, vm) in bookCardVMs.enumerated() {
             if downloadingIds.contains(vm.id) {
-                bookCardVMs[index] = BookCardStateViewModel(book: vm.book)
+                bookCardVMs[index] = BookCardStateViewModel(book: vm.book, container: dependencies)
             }
         }
     }

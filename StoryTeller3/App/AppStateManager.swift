@@ -70,28 +70,6 @@ enum ConnectionIssueType: Equatable {
 }
 
 
-// MARK: - Network Availability Helpers
-// Indicates high-level network availability.
-/*
-enum NetworkAvailability: Equatable {
-    case available
-    case noInternet
-    case serverUnreachable
-
-    var isAvailable: Bool {
-        self == .available
-    }
-
-    var userMessage: String {
-        switch self {
-        case .available: return ""
-        case .noInternet: return "No internet connection"
-        case .serverUnreachable: return "Server unreachable"
-        }
-    }
-}
-*/
-
 // MARK: - App State Manager
 // Central observable manager for app lifecycle, networking state, and UI flags.
 class AppStateManager: ObservableObject {
@@ -107,10 +85,12 @@ class AppStateManager: ObservableObject {
 
     @Published var selectedTab: TabIndex = .home
 
+    private var lastStatus: NetworkStatus?
+
     private let networkMonitor: NetworkMonitor
     private let connectionHealthChecker: ConnectionHealthChecking
 
-    init(
+    private init(
         networkMonitor: NetworkMonitor = NetworkMonitor(),
         connectionHealthChecker: ConnectionHealthChecking = ConnectionHealthChecker()
     ) {
@@ -119,6 +99,7 @@ class AppStateManager: ObservableObject {
 
         checkFirstLaunch()
         setupNetworkMonitoring()
+        
     }
 
     // MARK: - Network Monitoring
@@ -127,16 +108,20 @@ class AppStateManager: ObservableObject {
             Task { @MainActor in
                 guard let self = self else { return }
 
+                // Ignore duplicates
+                if status == self.lastStatus { return }
+                self.lastStatus = status
+
                 switch status {
                 case .offline:
                     self.isDeviceOnline = false
                     self.isServerReachable = false
-                    AppLogger.general.info("[AppState] Device went offline")
+
                 case .online:
-                    AppLogger.general.info("[AppState] Device online – verifying server...")
                     self.networkMonitor.forceRefresh()
                     await self.checkServerReachability()
                     self.verifyConnectionHealth()
+
                 case .unknown:
                     self.isDeviceOnline = false
                     self.isServerReachable = false
@@ -150,10 +135,11 @@ class AppStateManager: ObservableObject {
     // MARK: - Self-Healing NWPathMonitor
     private func verifyConnectionHealth() {
         Task { @MainActor in
+                        
             guard networkMonitor.currentStatus == .online else { return }
 
-            // Kurze Verzögerung, um NWPathMonitor-Bug abzufangen
-            try? await Task.sleep(nanoseconds: 5_000_000_000) // 5 Sekunden
+            // Short delay to fetch NWPathMonitor-Bug
+            try? await Task.sleep(nanoseconds: 5_000_000_000) //  Sekunden
 
             // Force Refresh
             networkMonitor.forceRefresh()
@@ -161,8 +147,7 @@ class AppStateManager: ObservableObject {
             // Prüfe Server erneut
             await checkServerReachability()
             
-            AppLogger.general.debug("[AppState] Connection health verified after self-heal")
-        }
+            AppLogger.general.debug("[AppState] Connection health verified after self-heal")        }
     }
 
     // MARK: - Server Reachability
@@ -181,13 +166,6 @@ class AppStateManager: ObservableObject {
             self.isServerReachable = health != .unavailable
         }
     }
-/*
-    func getNetworkAvailability() -> NetworkAvailability {
-        if !isDeviceOnline { return .noInternet }
-        if !isServerReachable { return .serverUnreachable }
-        return .available
-    }
-*/
     
     func clearConnectionIssue() {
         if case .networkError = loadingState {
@@ -205,3 +183,12 @@ class AppStateManager: ObservableObject {
     }
 }
 
+#if DEBUG
+extension AppStateManager {
+    @MainActor
+    func debugToggleDeviceOnline() {
+        isDeviceOnline.toggle()
+        if !isDeviceOnline { isServerReachable = false }
+    }
+}
+#endif

@@ -57,12 +57,13 @@ struct MediaProgress: Codable, Identifiable {
         let chapterIdx = chapterIndex(for: book)
         
         return PlaybackState(
-            bookId: libraryItemId,
-            chapterIndex: chapterIdx,
+            libraryItemId: libraryItemId,
             currentTime: currentTime,
             duration: duration,
-            lastPlayed: Date(timeIntervalSince1970: lastUpdate / 1000), // Server uses milliseconds
-            isFinished: isFinished
+            isFinished: isFinished,
+            lastUpdate: Date(timeIntervalSince1970: lastUpdate / 1000), // Server uses milliseconds
+            chapterIndex: chapterIdx,
+            needsSync: false  // Vom Server geladen, also bereits synced
         )
     }
 }

@@ -1,5 +1,6 @@
 import SwiftUI
 import Combine
+import AVFoundation
 
 struct ContentView: View {
     @EnvironmentObject private var appState: AppStateManager
@@ -23,9 +24,10 @@ struct ContentView: View {
             Color.accent.ignoresSafeArea()
             
             switch appState.loadingState {
+            
             case .initial, .loadingCredentials, .credentialsFoundValidating, .loadingData:
                 LoadingView(message: "Loading data...")
-                    .padding(.bottom, 120)
+                    .padding(.bottom, 80)
 
             case .noCredentialsSaved, .authenticationError:
                 Color.clear
@@ -47,6 +49,10 @@ struct ContentView: View {
                             appState.loadingState = .ready
                         }
                 } else {
+                    NoDownloadsView()
+                }
+/*
+                    } else {
                     NetworkErrorView(
                         issueType: issueType,
                         onRetry: { Task { setupApp() } },
@@ -57,20 +63,26 @@ struct ContentView: View {
                         onSettings: { appState.showingSettings = true }
                     )
                 }
+ */
                     
             case .ready:
                 mainContent
+                    .ignoresSafeArea()
             }
         }
         .onAppear(perform: setupApp)
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)) { _ in
+            
             if UserDefaults.standard.bool(forKey: "auto_cache_cleanup") {
                 Task { await CoverCacheManager.shared.optimizeCache() }
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .init("ServerSettingsChanged"))) { _ in
+            
             appState.clearConnectionIssue()
-            Task { setupApp() }
+            Task {
+                setupApp()
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: .init("ShowSettings"))) { _ in
             appState.showingSettings = true
@@ -367,7 +379,7 @@ struct ContentView: View {
             }
 
             self.bookCount = await downloadManager.preloadDownloadedBooksCount()
-            
+
             appState.loadingState = .credentialsFoundValidating
                        
             do {
@@ -387,25 +399,43 @@ struct ContentView: View {
                     appState.loadingState = .ready
                     appState.isServerReachable = true
                     
+                    configureAudioSession()
+                    setupCacheManager()
+
+                    //
+                    // PlaybackRepository
+                    PlaybackRepository.shared.configure(api: client)
+                    PlaybackRepository.shared.setOnlineStatus(true)
+                    await PlaybackRepository.shared.syncFromServer()
+
+                    // BookmarkRepository
+                    BookmarkRepository.shared.configure(api: client)
+                    await BookmarkRepository.shared.syncFromServer()
+                    
                 case .networkError(let issueType):
                     appState.isServerReachable = false
                     appState.loadingState = .networkError(issueType)
+                    
+                    // Config for offline also, but set status to offline
+                    PlaybackRepository.shared.setOnlineStatus(false)
                 
                 case .failed:
                     appState.isServerReachable = false
                     appState.loadingState = .networkError(ConnectionIssueType.serverError)
+                    PlaybackRepository.shared.setOnlineStatus(false)
                 
                 case .authenticationError:
                     appState.loadingState = .authenticationError
+                    PlaybackRepository.shared.setOnlineStatus(false)
                 }
                 
             } catch {
                 AppLogger.general.error("[ContentView] Keychain error: \(error)")
                 appState.loadingState = .authenticationError
+                PlaybackRepository.shared.setOnlineStatus(false)
             }
         }
     }
-    
     private func loadInitialData(client: AudiobookshelfClient) async {
         let libraryRepository = dependencies.libraryRepository
         
@@ -447,6 +477,31 @@ struct ContentView: View {
         }
     }
     
+    private func setupCacheManager() {
+        Task { @MainActor in
+            CoverCacheManager.shared.updateCacheLimits()
+            
+            if UserDefaults.standard.bool(forKey: "cache_optimization_enabled") {
+                await CoverCacheManager.shared.optimizeCache()
+            }
+            
+            AppLogger.general.info("[App] Cache manager initialized")
+        }
+    }
+
+    private func configureAudioSession() {
+        do {
+            let audioSession = AVAudioSession.sharedInstance()
+            try audioSession.setCategory(.playback, mode: .spokenAudio)
+            try audioSession.setActive(true)
+            
+            AppLogger.general.info("[App] Audio session configured")
+            
+        } catch {
+            AppLogger.general.error("[App] ❌ Failed to configure audio session: \(error)")
+        }
+    }
+
     private func testConnection(client: AudiobookshelfClient) async -> ConnectionTestResult {
         guard appState.isDeviceOnline else {
             return .networkError(.noInternet)

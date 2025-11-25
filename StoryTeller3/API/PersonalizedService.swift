@@ -1,5 +1,9 @@
 import Foundation
 
+protocol PersonalizedServiceProtocol {
+    func fetchPersonalizedSections(libraryId: String, limit: Int) async throws -> [PersonalizedSection]
+}
+
 class DefaultPersonalizedService: PersonalizedServiceProtocol {
     private let config: APIConfig
     private let networkService: NetworkService
@@ -19,8 +23,6 @@ class DefaultPersonalizedService: PersonalizedServiceProtocol {
             throw AudiobookshelfError.invalidURL("\(config.baseURL)/api/libraries/\(libraryId)/personalized")
         }
         
-        AppLogger.general.debug("[PersonalizedService] Fetching personalized sections from: \(url)")
-        
         let request = networkService.createAuthenticatedRequest(url: url, authToken: config.authToken)
         
         do {
@@ -28,8 +30,6 @@ class DefaultPersonalizedService: PersonalizedServiceProtocol {
                 request,
                 responseType: PersonalizedResponse.self
             )
-            
-            AppLogger.general.debug("[PersonalizedService] Received \(personalizedSections.count) personalized sections")
             
             for section in personalizedSections {
                 AppLogger.general.debug("[PersonalizedService] Section: \(section.id) (\(section.type)) - \(section.entities.count) items")

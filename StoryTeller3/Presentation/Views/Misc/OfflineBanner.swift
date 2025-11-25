@@ -19,11 +19,10 @@ struct OfflineBanner: View {
                         .font(DSText.prominent)
                         .foregroundColor(.white)
                     
-                    Text("isDeviceOnline: \(appState.isDeviceOnline)")
+                    Text("isDeviceOnline: \(String(describing: appState.isDeviceOnline))")
                         .font(DSText.metadata)
                         .foregroundColor(.white)
-                    Text("serverReachable: \(appState.isServerReachable)")
-                        .font(DSText.metadata)
+                    Text("serverReachable: \(String(describing: appState.isServerReachable))")                        .font(DSText.metadata)
                         .foregroundColor(.white)
                 }
                 

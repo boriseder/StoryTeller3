@@ -98,32 +98,41 @@ class AudioPlayer: NSObject, ObservableObject {
     // MARK: - Book Loading
 
     @MainActor
+    // In AudioPlayer.swift
+
     func load(
         book: Book,
         isOffline: Bool = false,
         restoreState: Bool = true,
         autoPlay: Bool = false
-    ) {
+    ) async {
         self.book = book
         self.isOfflineMode = isOffline
         
         preloader.clearAll()
         
         if restoreState {
-            if let savedState = PlaybackPersistenceManager.shared.loadPlaybackState(for: book.id) {
-                self.currentChapterIndex = min(savedState.chapterIndex, book.chapters.count - 1)
-                self.targetSeekTime = savedState.currentTime
-                AppLogger.general.debug("[AudioPlayer] Restored state: Chapter \(savedState.chapterIndex), Time: \(savedState.currentTime)s")
+            // Load states with improved merge logic
+            if let state = await PlaybackRepository.shared.loadStateForBook(book.id, book: book) {
+                self.currentChapterIndex = min(state.chapterIndex, book.chapters.count - 1)
+                self.targetSeekTime = state.currentTime
+                AppLogger.general.debug("[AudioPlayer] Restored state: Chapter \(state.chapterIndex), Time: \(state.currentTime)s, isFinished: \(state.isFinished)")
+            } else {
+                // Kein State gefunden - starte von vorne
+                self.currentChapterIndex = 0
+                self.targetSeekTime = nil
+                AppLogger.general.debug("[AudioPlayer] ℹ️ No saved state - starting fresh")
             }
         } else {
+            // State wird ignoriert (z.B. bei manuellem Neustart)
             self.currentChapterIndex = 0
             self.targetSeekTime = nil
+            AppLogger.general.debug("[AudioPlayer] ⏮️ Starting from beginning (restoreState=false)")
         }
         
         loadChapter(shouldResumePlayback: autoPlay)
         updateNowPlaying()
     }
-
 
     // MARK: - Chapter Loading
     func loadChapter(shouldResumePlayback: Bool = false) {
@@ -548,26 +557,40 @@ class AudioPlayer: NSObject, ObservableObject {
         observers.append(backgroundObserver)
     }
     
+    // In AudioPlayer.swift
+
     private func saveCurrentPlaybackState() {
         guard let book = book else { return }
-        
+              
         let state = PlaybackState(
-            bookId: book.id,
-            chapterIndex: currentChapterIndex,
+            libraryItemId: book.id,
             currentTime: currentTime,
             duration: duration,
-            lastPlayed: Date(),
-            isFinished: isBookFinished()
+            isFinished: isBookFinished(),
+            lastUpdate: Date(), // Aktueller Timestamp
+            chapterIndex: currentChapterIndex,
+            needsSync: false // PlaybackRepository setzt dies basierend auf Online-Status
         )
         
-        AppLogger.audio.debug("###############  savePlaybackState: \(state)")
-        PlaybackPersistenceManager.shared.savePlaybackState(state)
+        AppLogger.audio.debug("[AudioPlayer] Saving playback state: time=\(currentTime)s, chapter=\(currentChapterIndex), finished=\(state.isFinished)")
+        
+        // PlaybackRepository kümmert sich um:
+        // - Lokales Speichern
+        // - Online/Offline Detection
+        // - Sofortiges Server-Sync wenn online
+        // - Queuing für später wenn offline
+        PlaybackRepository.shared.saveState(state)
     }
-    
+
     private func isBookFinished() -> Bool {
         guard let book = book else { return false }
+        
+        // Buch ist "fertig" wenn:
+        // 1. Wir im letzten Kapitel sind UND
+        // 2. Wir > 95% durch sind (um Credits/Outro zu überspringen)
         let isLastChapter = currentChapterIndex >= book.chapters.count - 1
         let nearEnd = duration > 0 && (currentTime / duration) > 0.95
+        
         return isLastChapter && nearEnd
     }
     

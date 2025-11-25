@@ -6,9 +6,8 @@ class SeriesSectionViewModel: ObservableObject {
     let series: Series
     let api: AudiobookshelfClient
     let onBookSelected: () -> Void
-    private let container: DependencyContainer
+    var container: DependencyContainer
     
-    // Computed properties for shared services
     var player: AudioPlayer { container.player }
     var downloadManager: DownloadManager { container.downloadManager }
     
@@ -20,28 +19,13 @@ class SeriesSectionViewModel: ObservableObject {
         series: Series,
         api: AudiobookshelfClient,
         onBookSelected: @escaping () -> Void,
-        container: DependencyContainer = .shared
+        container: DependencyContainer
     ) {
         self.series = series
         self.api = api
         self.onBookSelected = onBookSelected
         self.container = container
         
-        // Convert LibraryItems to Books
-        self.books = series.books.compactMap { libraryItem in
-            api.converter.convertLibraryItemToBook(libraryItem)
-        }
-    }
-    
-    func isBookDownloaded(_ bookId: String) -> Bool {
-        downloadManager.isBookDownloaded(bookId)
-    }
-    
-    func isCurrentBook(_ bookId: String) -> Bool {
-        player.book?.id == bookId
-    }
-    
-    func isPlaying(for bookId: String) -> Bool {
-        isCurrentBook(bookId) && player.isPlaying
+        self.books = series.books.compactMap { api.converter.convertLibraryItemToBook($0) }
     }
 }

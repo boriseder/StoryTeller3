@@ -131,12 +131,14 @@ extension CoverDownloadManager {
     
     private func performAuthorDownload(for author: Author, api: AudiobookshelfClient) async throws -> UIImage? {
         
-        guard let imagePath = author.imagePath else {
+        /*
+         guard let imagePath = author.imagePath else {
             AppLogger.network.error("[AuthorImage] No image")
             // throw CoverLoadingError.invalidURL
             return nil
         }
-            
+        */
+        
         // Use the standard Audiobookshelf author image endpoint
         let coverURLString = "\(api.baseURLString)/api/authors/\(author.id)/image"
         guard let url = URL(string: coverURLString) else {

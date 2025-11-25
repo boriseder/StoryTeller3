@@ -4,12 +4,13 @@ struct HomeView: View {
     @StateObject private var viewModel: HomeViewModel = DependencyContainer.shared.homeViewModel
     @EnvironmentObject var appState: AppStateManager
     @EnvironmentObject var theme: ThemeManager
+    @EnvironmentObject var dependencies: DependencyContainer
 
     @State private var selectedSeries: Series?
     @State private var selectedAuthor: Author?
         
     @State private var showEmptyState = false
-
+    
     @AppStorage("open_fullscreen_player") private var playerMode = false
     @AppStorage("auto_play_on_book_tap") private var autoPlay = false
 
@@ -55,7 +56,6 @@ struct HomeView: View {
             .presentationDragIndicator(.visible)
             .presentationBackground(.black.opacity(0.65))
         }
-
     }
         
     private var contentView: some View {
@@ -72,6 +72,8 @@ struct HomeView: View {
                     
                     homeHeaderView
                         .padding(.vertical, DSLayout.elementGap)
+                    
+                    RecentBookmarksCard()
                     
                     ForEach(Array(viewModel.personalizedSections.enumerated()), id: \.element.id) { index, section in
                         PersonalizedSectionView(
@@ -158,14 +160,17 @@ struct HomeView: View {
 
             Button {
                 Task {
-                    await appState.checkServerReachability()
+                    if !appState.isDeviceOnline {
+                        await appState.checkServerReachability()
+                    } else {
+                        appState.debugToggleDeviceOnline()
+                    }
                 }
             } label: {
                 Image(systemName: appState.isDeviceOnline ? "icloud" : "icloud.slash")
                     .font(.system(size: DSLayout.icon))
-                    .foregroundColor(appState.isDeviceOnline ? Color.green : Color.red)
+                    .foregroundColor(appState.isDeviceOnline ? .green : .red)
                     .frame(width: DSLayout.largeIcon, height: DSLayout.largeIcon)
-
             }
         }
         .frame(maxWidth: .infinity)
@@ -187,7 +192,8 @@ struct PersonalizedSectionView: View {
     let onAuthorSelected: (Author) -> Void
     
     @EnvironmentObject var theme: ThemeManager
-    
+    @EnvironmentObject var dependencies: DependencyContainer
+
     var body: some View {
         VStack(alignment: .leading, spacing: DSLayout.contentGap) {
             sectionHeader
@@ -239,7 +245,10 @@ struct PersonalizedSectionView: View {
             LazyHStack(spacing: DSLayout.contentGap) {
                 ForEach(books) { book in
                     BookCardView(
-                        viewModel: BookCardStateViewModel(book: book),
+                        viewModel: BookCardStateViewModel(
+                            book: book,
+                            container: dependencies
+                        ),
                         api: api,
                         onTap: { onBookSelected(book) },
                         onDownload: { Task { await downloadManager.downloadBook(book, api: api) } },
@@ -345,21 +354,11 @@ struct AuthorCardView: View {
     var body: some View {
         Button(action: onTap) {
             VStack(spacing: DSLayout.contentGap) {
-                /*
-                 Circle()
-                    .fill(Color.accentColor.opacity(0.2))
-                    .frame(width: avatarSize, height: avatarSize)
-                    .overlay(
-                        Text(String(author.name.prefix(2).uppercased()))
-                            .font(.system(size: avatarSize * 0.3, weight: .semibold))
-                            .foregroundColor(.accentColor)
-                    )
-                */
                 
                 AuthorImageView(
                     author: author,
                     api: DependencyContainer.shared.apiClient,
-                    size: 60
+                    size: 100
                 )
 
                 

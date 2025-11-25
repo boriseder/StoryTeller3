@@ -47,10 +47,10 @@ struct AuthorImageView: View {
     private var placeholderView: some View {
         Circle()
            .fill(Color.accentColor.opacity(0.2))
-           .frame(width: DSLayout.smallAvatar, height: DSLayout.smallAvatar)
+           .frame(width: size, height: size)
            .overlay(
                Text(String(author.name.prefix(2).uppercased()))
-                   .font(.system(size: DSLayout.smallAvatar * 0.3, weight: .semibold))
+                   .font(.system(size: size * 0.3, weight: .semibold))
                    .foregroundColor(.accentColor)
            )
     }

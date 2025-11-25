@@ -5,7 +5,6 @@ class SeriesViewModel: ObservableObject {
     // MARK: - Published UI State
     @Published var series: [Series] = []
     @Published var filterState = SeriesFilterState()
-    @Published var libraryName: String = "Serien"
     @Published var isLoading = false
     @Published var errorMessage: String?
     @Published var showingErrorAlert = false
@@ -66,13 +65,10 @@ class SeriesViewModel: ObservableObject {
         
         do {
             guard let selectedLibrary = try await libraryRepository.getSelectedLibrary() else {
-                libraryName = "Series"
                 series = []
                 isLoading = false
                 return
             }
-
-            libraryName = "Series"
 
             // Try network fetch
             let fetchedSeries = try await fetchSeriesUseCase.execute(

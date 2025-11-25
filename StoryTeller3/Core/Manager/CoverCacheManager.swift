@@ -1,4 +1,3 @@
-
 import SwiftUI
 
 enum MemoryPressureLevel {
@@ -39,7 +38,9 @@ class CoverCacheManager: ObservableObject {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            self?.handleMemoryPressure(level: .warning)
+            Task { @MainActor [weak self] in
+                self?.handleMemoryPressure(level: .warning)
+            }
         }
         observers.append(memoryObserver)
         
@@ -49,8 +50,10 @@ class CoverCacheManager: ObservableObject {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            AppLogger.general.debug("App backgrounded - clearing memory cache")
-            self?.cache.removeAllObjects()
+            Task { @MainActor [weak self] in
+                AppLogger.general.debug("App backgrounded - clearing memory cache")
+                self?.cache.removeAllObjects()
+            }
         }
         observers.append(backgroundObserver)
     }
