@@ -8,8 +8,9 @@ struct LibraryView: View {
     @EnvironmentObject var dependencies: DependencyContainer
 
     @State private var selectedSeries: Book?
-    @State private var bookCardVMs: [BookCardStateViewModel] = []
-   
+    @State private var bookCardVMs: [BookCardViewModel] = []
+    @State private var showBookmarks = false
+
     @Binding var columnVisibility: NavigationSplitViewVisibility
 
     // Workaround to hide nodata at start of app
@@ -47,6 +48,16 @@ struct LibraryView: View {
         }
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
+                Button(action: {
+                    showBookmarks.toggle()
+                }){
+                    Image(systemName: "bookmark.fill")
+                        .font(.system(size: 16))
+                        .foregroundColor(.primary)
+                }
+            }
+
+            ToolbarItem(placement: .navigationBarTrailing) {
                 HStack(spacing: DSLayout.contentGap) {
                     if !viewModel.books.isEmpty {
                         filterAndSortMenu
@@ -67,6 +78,12 @@ struct LibraryView: View {
             .environmentObject(appState)
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $showBookmarks) {
+            BookmarksView()
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+                .presentationBackground(.black.opacity(0.65))
         }
         .onChange(of: viewModel.filteredAndSortedBooks.count) {
             updateBookCardViewModels()
@@ -135,7 +152,7 @@ struct LibraryView: View {
         let books = viewModel.filteredAndSortedBooks
         Task { @MainActor in
             let newVMs = books.map { book in
-                BookCardStateViewModel(book: book, container: dependencies)
+                BookCardViewModel(book: book, container: dependencies)
             }
             self.bookCardVMs = newVMs
         }
@@ -146,14 +163,14 @@ struct LibraryView: View {
               let index = bookCardVMs.firstIndex(where: { $0.id == currentBookId }) else {
             return
         }
-        bookCardVMs[index] = BookCardStateViewModel(book: bookCardVMs[index].book, container: dependencies )
+        bookCardVMs[index] = BookCardViewModel(book: bookCardVMs[index].book, container: dependencies )
     }
     
     private func updateDownloadingBooksOnly() {
         let downloadingIds = Set(viewModel.downloadManager.downloadProgress.keys)
         for (index, vm) in bookCardVMs.enumerated() {
             if downloadingIds.contains(vm.id) {
-                bookCardVMs[index] = BookCardStateViewModel(book: vm.book, container: dependencies)
+                bookCardVMs[index] = BookCardViewModel(book: vm.book, container: dependencies)
             }
         }
     }

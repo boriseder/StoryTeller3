@@ -6,7 +6,7 @@ struct ContentView: View {
     @EnvironmentObject private var appState: AppStateManager
     @EnvironmentObject private var theme: ThemeManager
     @EnvironmentObject private var dependencies: DependencyContainer
-
+    
     @State private var selectedTab: TabIndex = .home
     @State private var bookCount = 0
     @State private var cancellables = Set<AnyCancellable>()
@@ -16,7 +16,7 @@ struct ContentView: View {
     private var playerStateManager: PlayerStateManager { dependencies.playerStateManager }
     
     @State var columnVisibility: NavigationSplitViewVisibility = .automatic
-
+    
     let api = DependencyContainer.shared.apiClient
     
     var body: some View {
@@ -24,11 +24,11 @@ struct ContentView: View {
             Color.accent.ignoresSafeArea()
             
             switch appState.loadingState {
-            
+                
             case .initial, .loadingCredentials, .credentialsFoundValidating, .loadingData:
                 LoadingView(message: "Loading data...")
                     .padding(.bottom, 80)
-
+                
             case .noCredentialsSaved, .authenticationError:
                 Color.clear
                     .onAppear {
@@ -40,7 +40,7 @@ struct ContentView: View {
                             appState.showingSettings = true
                         }
                     }
-            
+                
             case .networkError(let issueType):
                 if bookCount > 0 {
                     mainContent
@@ -51,20 +51,20 @@ struct ContentView: View {
                 } else {
                     NoDownloadsView()
                 }
-/*
-                    } else {
-                    NetworkErrorView(
-                        issueType: issueType,
-                        onRetry: { Task { setupApp() } },
-                        onViewDownloads: {
-                            appState.selectedTab = .downloads
-                            appState.loadingState = .ready
-                        },
-                        onSettings: { appState.showingSettings = true }
-                    )
-                }
- */
-                    
+                /*
+                 } else {
+                 NetworkErrorView(
+                 issueType: issueType,
+                 onRetry: { Task { setupApp() } },
+                 onViewDownloads: {
+                 appState.selectedTab = .downloads
+                 appState.loadingState = .ready
+                 },
+                 onSettings: { appState.showingSettings = true }
+                 )
+                 }
+                 */
+                
             case .ready:
                 mainContent
                     .ignoresSafeArea()
@@ -112,7 +112,7 @@ struct ContentView: View {
             .ignoresSafeArea()
         }
     }
-
+    
     private var mainContent: some View {
         FullscreenPlayerContainer(
             player: player,
@@ -127,7 +127,7 @@ struct ContentView: View {
         }
         .environmentObject(dependencies.sleepTimerService)
     }
-
+    
     
     // MARK: - iPad Layout (Sidebar)
     
@@ -269,7 +269,7 @@ struct ContentView: View {
         .accentColor(theme.accent)
         .id(theme.accent)
     }
-   
+    
     
     // MARK: - Selected Tab View (for iPad)
     
@@ -295,7 +295,7 @@ struct ContentView: View {
             NavigationStack {
                 AuthorsView()
             }
-        
+            
         case .downloads:
             NavigationStack {
                 DownloadsView()
@@ -360,9 +360,9 @@ struct ContentView: View {
         .badge(downloadManager.downloadedBooks.count)
         .tag(TabIndex.downloads)
     }
-  
     
-    // MARK: - Setup Methods (unchanged)
+    
+    // MARK: - Setup Methods in ContentView
     
     private func setupApp() {
         Task { @MainActor in
@@ -377,66 +377,73 @@ struct ContentView: View {
             while downloadManager.repository == nil {
                 try? await Task.sleep(nanoseconds: 50_000_000)
             }
-
+            
             self.bookCount = await downloadManager.preloadDownloadedBooksCount()
-
+            
             appState.loadingState = .credentialsFoundValidating
-                       
+            
             do {
                 let token = try KeychainService.shared.getToken(for: username)
-                DependencyContainer.shared.configureAPI(baseURL: baseURL, token: token)
-                let client = DependencyContainer.shared.apiClient!
-
+                
+                // ✅ UNIFIED: Configure everything through DependencyContainer
+                dependencies.configureAPI(baseURL: baseURL, token: token)
+                
+                let client = dependencies.apiClient!
                 let connectionResult = await testConnection(client: client)
                 
                 switch connectionResult {
                 case .success:
-                    dependencies.configureAPI(baseURL: baseURL, token: token)
-                    player.configure(baseURL: baseURL, authToken: token, downloadManager: downloadManager)
-
-                    appState.loadingState = .loadingData
-                    await loadInitialData(client: client)
-                    appState.loadingState = .ready
                     appState.isServerReachable = true
                     
+                    // Configure player
+                    player.configure(baseURL: baseURL, authToken: token, downloadManager: downloadManager)
+                    
+                    appState.loadingState = .loadingData
+                    
+                    // Load library data
+                    await initAppLibrary(client: client)
+                    
+                    // ✅ SIMPLIFIED: All shared repositories through DependencyContainer
+                    await dependencies.initializeSharedRepositories(isOnline: true)
+                    
+                    appState.loadingState = .ready
+                    
+                    // Configure audio session & cache
                     configureAudioSession()
                     setupCacheManager()
-
-                    //
-                    // PlaybackRepository
-                    PlaybackRepository.shared.configure(api: client)
-                    PlaybackRepository.shared.setOnlineStatus(true)
-                    await PlaybackRepository.shared.syncFromServer()
-
-                    // BookmarkRepository
-                    BookmarkRepository.shared.configure(api: client)
-                    await BookmarkRepository.shared.syncFromServer()
                     
                 case .networkError(let issueType):
                     appState.isServerReachable = false
                     appState.loadingState = .networkError(issueType)
                     
-                    // Config for offline also, but set status to offline
-                    PlaybackRepository.shared.setOnlineStatus(false)
-                
+                    // ✅ Set offline mode through DependencyContainer
+                    await dependencies.initializeSharedRepositories(isOnline: false)
+                    
                 case .failed:
                     appState.isServerReachable = false
                     appState.loadingState = .networkError(ConnectionIssueType.serverError)
-                    PlaybackRepository.shared.setOnlineStatus(false)
-                
+                    
+                    // ✅ Set offline mode through DependencyContainer
+                    await dependencies.initializeSharedRepositories(isOnline: false)
+                    
                 case .authenticationError:
                     appState.loadingState = .authenticationError
-                    PlaybackRepository.shared.setOnlineStatus(false)
+                    
+                    // ✅ Set offline mode through DependencyContainer
+                    await dependencies.initializeSharedRepositories(isOnline: false)
                 }
                 
             } catch {
                 AppLogger.general.error("[ContentView] Keychain error: \(error)")
                 appState.loadingState = .authenticationError
-                PlaybackRepository.shared.setOnlineStatus(false)
+                
+                // ✅ Set offline mode through DependencyContainer (auch bei Keychain Error)
+                await dependencies.initializeSharedRepositories(isOnline: false)
             }
         }
     }
-    private func loadInitialData(client: AudiobookshelfClient) async {
+    
+    private func initAppLibrary(client: AudiobookshelfClient) async {
         let libraryRepository = dependencies.libraryRepository
         
         do {
@@ -488,7 +495,7 @@ struct ContentView: View {
             AppLogger.general.info("[App] Cache manager initialized")
         }
     }
-
+    
     private func configureAudioSession() {
         do {
             let audioSession = AVAudioSession.sharedInstance()
@@ -501,7 +508,7 @@ struct ContentView: View {
             AppLogger.general.error("[App] ❌ Failed to configure audio session: \(error)")
         }
     }
-
+    
     private func testConnection(client: AudiobookshelfClient) async -> ConnectionTestResult {
         guard appState.isDeviceOnline else {
             return .networkError(.noInternet)
@@ -523,6 +530,7 @@ struct ContentView: View {
             return .networkError(.serverUnreachable)
         }
     }
+    
 }
 
 enum ConnectionTestResult {

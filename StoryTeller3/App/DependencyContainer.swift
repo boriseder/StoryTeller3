@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import Combine
 
 // MARK: - Configuration Error
 enum DependencyError: Error {
@@ -44,7 +45,10 @@ final class DependencyContainer: ObservableObject {
     private var _bookRepository: BookRepository?
     private var _libraryRepository: LibraryRepository?
     private var _downloadRepository: DownloadRepository?
+    
+    // Shared Repositories (Singletons)
     lazy var playbackRepository: PlaybackRepository = PlaybackRepository.shared
+    lazy var bookmarkRepository: BookmarkRepository = BookmarkRepository.shared
 
     // MARK: - ViewModels (Lazy mit Safety)
     private var _homeViewModel: HomeViewModel?
@@ -63,6 +67,10 @@ final class DependencyContainer: ObservableObject {
     lazy var serverValidator: ServerConfigValidator = ServerConfigValidator()
     lazy var diagnosticsService: DiagnosticsService = DiagnosticsService()
 
+    // MARK: - 🆕 Bookmark Enrichment Cache
+    private var bookLookupCache: [String: Book] = [:]
+    private var cancellables = Set<AnyCancellable>()
+    
     // MARK: - Configure API
     func configureAPI(baseURL: String, token: String) {
         _apiClient = AudiobookshelfClient(baseURL: baseURL, authToken: token)
@@ -71,9 +79,157 @@ final class DependencyContainer: ObservableObject {
         // Reset ViewModels bei neuer Konfiguration
         resetViewModels()
         
+        // 🆕 Configure Shared Repositories
+        if let api = _apiClient {
+            // PlaybackRepository
+            playbackRepository.configure(api: api)
+            AppLogger.general.debug("[Container] ✅ PlaybackRepository configured")
+            
+            // BookmarkRepository
+            bookmarkRepository.configure(api: api)
+            AppLogger.general.debug("[Container] ✅ BookmarkRepository configured")
+        }
+        
+        // 🆕 Setup bookmark enrichment observers
+        setupBookmarkEnrichment()
+        
         AppLogger.general.info("[Container] API configured for \(baseURL)")
     }
-
+    
+    // MARK: - 🆕 Initialize Shared Repositories (call after API config)
+    func initializeSharedRepositories(isOnline: Bool) async {
+        // Set online status
+        playbackRepository.setOnlineStatus(isOnline)
+        
+        if isOnline {
+            // Sync from server only when online
+            await playbackRepository.syncFromServer()
+            AppLogger.general.debug("[Container] ✅ PlaybackRepository synced")
+            
+            await bookmarkRepository.syncFromServer()
+            AppLogger.general.debug("[Container] ✅ BookmarkRepository synced")
+        } else {
+            AppLogger.general.debug("[Container] ⚠️ Offline mode - using cached data")
+        }
+    }
+    
+    // MARK: - 🆕 Bookmark Enrichment Setup
+    private func setupBookmarkEnrichment() {
+        // Clear existing subscriptions
+        cancellables.removeAll()
+        
+        // Observe library books changes
+        libraryViewModel.$books
+            .debounce(for: .milliseconds(300), scheduler: DispatchQueue.main)
+            .sink { [weak self] books in
+                self?.updateBookLookupCache(with: books)
+            }
+            .store(in: &cancellables)
+        
+        // Observe downloaded books changes
+        downloadManager.$downloadedBooks
+            .debounce(for: .milliseconds(300), scheduler: DispatchQueue.main)
+            .sink { [weak self] books in
+                self?.updateBookLookupCache(with: books)
+            }
+            .store(in: &cancellables)
+        
+        AppLogger.general.debug("[Container] 🔖 Bookmark enrichment observers configured")
+    }
+    
+    private func updateBookLookupCache(with books: [Book]) {
+        for book in books {
+            bookLookupCache[book.id] = book
+        }
+        
+        // Trigger UI update by posting notification
+        NotificationCenter.default.post(name: .init("BookmarkEnrichmentUpdated"), object: nil)
+    }
+    
+    // MARK: - 🆕 Enriched Bookmarks API
+    
+    /// Get all enriched bookmarks (flat list)
+    func getAllEnrichedBookmarks(sortedBy sort: BookmarkSortOption = .dateNewest) -> [EnrichedBookmark] {
+        var enriched: [EnrichedBookmark] = []
+        
+        for (libraryItemId, bookmarks) in bookmarkRepository.bookmarks {
+            let book = bookLookupCache[libraryItemId]
+            
+            for bookmark in bookmarks {
+                enriched.append(EnrichedBookmark(bookmark: bookmark, book: book))
+            }
+        }
+        
+        // Sort
+        switch sort {
+        case .dateNewest:
+            return enriched.sorted { $0.bookmark.createdAt > $1.bookmark.createdAt }
+        case .dateOldest:
+            return enriched.sorted { $0.bookmark.createdAt < $1.bookmark.createdAt }
+        case .timeInBook:
+            return enriched.sorted { $0.bookmark.time < $1.bookmark.time }
+        case .bookTitle:
+            return enriched.sorted {
+                guard let b1 = $0.book, let b2 = $1.book else { return false }
+                return b1.title < b2.title
+            }
+        }
+    }
+    
+    /// Get enriched bookmarks for a specific book
+    func getEnrichedBookmarks(for libraryItemId: String) -> [EnrichedBookmark] {
+        let bookmarks = bookmarkRepository.getBookmarks(for: libraryItemId)
+        let book = bookLookupCache[libraryItemId]
+        
+        return bookmarks.map { bookmark in
+            EnrichedBookmark(bookmark: bookmark, book: book)
+        }
+    }
+    
+    /// Get enriched bookmarks grouped by book
+    func getGroupedEnrichedBookmarks() -> [(book: Book?, bookmarks: [EnrichedBookmark])] {
+        var grouped: [String: (Book?, [EnrichedBookmark])] = [:]
+        
+        for (libraryItemId, bookmarks) in bookmarkRepository.bookmarks {
+            let book = bookLookupCache[libraryItemId]
+            let enriched = bookmarks.map { EnrichedBookmark(bookmark: $0, book: book) }
+            grouped[libraryItemId] = (book, enriched)
+        }
+        
+        return grouped.values.map { ($0.0, $0.1) }
+            .sorted { first, second in
+                guard let book1 = first.book, let book2 = second.book else { return false }
+                return book1.title < book2.title
+            }
+    }
+    
+    /// Preload a specific book into cache (useful before showing bookmarks)
+    func preloadBookForBookmarks(_ bookId: String) async {
+        // Already cached?
+        guard bookLookupCache[bookId] == nil else { return }
+        
+        // Try to find in loaded libraries first
+        if let book = libraryViewModel.books.first(where: { $0.id == bookId }) {
+            bookLookupCache[bookId] = book
+            return
+        }
+        
+        // Try downloaded books
+        if let book = downloadManager.downloadedBooks.first(where: { $0.id == bookId }) {
+            bookLookupCache[bookId] = book
+            return
+        }
+        
+        // Fallback: Fetch from API
+        do {
+            let book = try await bookRepository.fetchBookDetails(bookId: bookId)
+            bookLookupCache[bookId] = book
+            AppLogger.general.debug("[Container] 📚 Preloaded book: \(book.title)")
+        } catch {
+            AppLogger.general.debug("[Container] ⚠️ Failed to preload book \(bookId): \(error)")
+        }
+    }
+    
     // MARK: - Repositories (Safe with Fallback)
     var bookRepository: BookRepository {
         if let existing = _bookRepository { return existing }
@@ -321,11 +477,18 @@ final class DependencyContainer: ObservableObject {
     func reset() {
         AppLogger.general.info("[Container] Factory reset initiated")
 
+        // Clear caches
         bookRepository.clearCache()
         libraryRepository.clearCache()
+        // playbackRepository.clearCache() // ❌ Has no clearCache method
+        bookmarkRepository.clearCache()
         
         resetRepositories()
         resetViewModels()
+        
+        // Clear bookmark enrichment cache
+        bookLookupCache.removeAll()
+        cancellables.removeAll()
         
         isConfigured = false
         _apiClient = nil
@@ -348,9 +511,6 @@ extension LibraryRepository {
         return LibraryRepository(api: dummyClient, settingsRepository: SettingsRepository())
     }
 }
-
-// Note: DownloadRepository ist ein Protocol - kein Placeholder möglich
-// Stattdessen wird bei fehlendem Repository direkt ein fatalError geworfen
 
 // MARK: - ViewModel Placeholders
 extension HomeViewModel {

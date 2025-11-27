@@ -79,6 +79,7 @@ class AppStateManager: ObservableObject {
     @Published var isFirstLaunch: Bool = false
     @Published var showingWelcome = false
     @Published var showingSettings = false
+    @Published var showingBookmarks = false
 
     @Published var isDeviceOnline: Bool = true
     @Published var isServerReachable: Bool = true

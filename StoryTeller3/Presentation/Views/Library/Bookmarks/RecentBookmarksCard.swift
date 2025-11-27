@@ -1,55 +1,37 @@
-import SwiftUI
+/*
+ import SwiftUI
 
 // MARK: - Recent Bookmarks Card (für HomeView)
 struct RecentBookmarksCard: View {
     @StateObject private var repository = BookmarkRepository.shared
     @EnvironmentObject var dependencies: DependencyContainer
     @EnvironmentObject var theme: ThemeManager
-    @ObservedObject private var library = DependencyContainer.shared.libraryViewModel
     @State private var showingAllBookmarks = false
-    
+       
     private var player: AudioPlayer { dependencies.player }
-    
+    private var library: LibraryViewModel { dependencies.libraryViewModel }
+
     private var recentBookmarks: [BookmarkWithBook] {
         let recent = repository.getRecentBookmarks(limit: 5)
         
-        // Debug: Zeige Library Status
-        AppLogger.general.debug("[RecentBookmarks] 📊 Status:")
-        AppLogger.general.debug("  Library books: \(dependencies.libraryViewModel.books.count)")
-        AppLogger.general.debug("  Downloaded books: \(dependencies.downloadManager.downloadedBooks.count)")
-        AppLogger.general.debug("  Recent bookmarks: \(recent.count)")
-        
         return recent.compactMap { bookmark in
-            // Debug: Zeige Bookmark Details
-            AppLogger.general.debug("[RecentBookmarks] Processing bookmark '\(bookmark.title)' for book: \(bookmark.libraryItemId)")
-            
-            // Zuerst in Library suchen
+            // Look in library first
             if let book = library.books.first(where: { $0.id == bookmark.libraryItemId }) {
-                AppLogger.general.debug("[RecentBookmarks] ✅ Found in library: \(book.title)")
                 return BookmarkWithBook(bookmark: bookmark, book: book)
             }
             
-            // Dann in Downloads suchen
+            // Then in downloads
             if let book = dependencies.downloadManager.downloadedBooks.first(where: { $0.id == bookmark.libraryItemId }) {
-                AppLogger.general.debug("[RecentBookmarks] ✅ Found in downloads: \(book.title)")
                 return BookmarkWithBook(bookmark: bookmark, book: book)
             }
             
-            // Book nicht gefunden - zeige Bookmark trotzdem an
-            AppLogger.general.debug("[RecentBookmarks] ❌ Book not found for: \(bookmark.libraryItemId)")
-            
-            // Debug: Zeige erste paar Library Book IDs zum Vergleich
-            if dependencies.libraryViewModel.books.count > 0 {
-                let firstThreeIds = dependencies.libraryViewModel.books.prefix(3).map { $0.id }.joined(separator: ", ")
-                AppLogger.general.debug("[RecentBookmarks]    Library sample IDs: \(firstThreeIds)")
-            }
-            
+            // Show bookmark even without book
             return BookmarkWithBook(bookmark: bookmark, book: nil)
         }
     }
-    
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: DSLayout.elementGap) {
             // Header
             HStack(alignment: .firstTextBaseline) {
                 Image(systemName: "bookmark")
@@ -68,7 +50,6 @@ struct RecentBookmarksCard: View {
                     } label: {
                         Text("See All")
                             .font(.subheadline)
-                            .foregroundColor(.accentColor)
                     }
                 }
             }
@@ -93,21 +74,15 @@ struct RecentBookmarksCard: View {
         .padding(.vertical)
         .sheet(isPresented: $showingAllBookmarks) {
             NavigationStack {
-                QuickBookmarkDebugView()
+                BookmarksView()
                     .environmentObject(dependencies)
-
-                //AllBookmarksView()
-                //    .environmentObject(dependencies)
             }
         }
-        .task {
-            if dependencies.libraryViewModel.books.isEmpty {
-                AppLogger.general.debug("➡️ Loading books from DebugView")
-                await dependencies.libraryViewModel.loadBooks()
-                AppLogger.general.debug("➡️ Loaded books: \(dependencies.libraryViewModel.books.count)")
+        .onAppear() {
+            Task {
+                AppLogger.general.debug("recentBookmarks: \(recentBookmarks)")
             }
         }
-
     }
     
     private var emptyState: some View {
@@ -316,8 +291,9 @@ struct BookmarkQuickAccessButton: View {
         }
         .sheet(isPresented: $showingAllBookmarks) {
             NavigationStack {
-                AllBookmarksView()
+                BookmarksView()
             }
         }
     }
 }
+*/

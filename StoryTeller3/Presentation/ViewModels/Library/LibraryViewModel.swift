@@ -12,6 +12,8 @@ class LibraryViewModel: ObservableObject {
     
     // For smooth transistions
     @Published var contentLoaded = false
+   
+    private var hasLoadedOnce = false
 
     // MARK: - Dependencies (Use Cases & Repositories)
     private let fetchBooksUseCase: FetchBooksUseCaseProtocol
@@ -77,13 +79,18 @@ class LibraryViewModel: ObservableObject {
         self.onBookSelected = onBookSelected
         
         filterState.loadFromDefaults()
+        
+        Task {
+            await loadBooksIfNeeded()
+        }
+
     }
     
     // MARK: - Actions (Delegate to Use Cases)
+    /// Load books only if not already loaded
     func loadBooksIfNeeded() async {
-        if books.isEmpty {
-            await loadBooks()
-        }
+        guard !hasLoadedOnce && !isLoading else { return }
+        await loadBooks()
     }
     
     func loadBooks() async {

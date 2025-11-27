@@ -55,7 +55,7 @@ struct AuthorDetailView: View {
                 ScrollView {
                     LazyVGrid(columns: DSGridColumns.two, spacing: DSLayout.contentGap) {
                         ForEach(viewModel.authorBooks, id: \.id) { book in
-                            let cardViewModel = BookCardStateViewModel(
+                            let cardViewModel = BookCardViewModel(
                                 book: book,
                                 container: dependencies
                             )

@@ -37,7 +37,7 @@ struct SeriesSectionView: View {
             LazyHStack(spacing: 16) {
                 ForEach(viewModel.books) { book in
                     BookCardView(
-                        viewModel: BookCardStateViewModel(book: book, container: dependencies),
+                        viewModel: BookCardViewModel(book: book, container: dependencies),
                         api: viewModel.api,
                         onTap: { viewModel.onBookSelected() },
                         onDownload: { Task { await viewModel.downloadManager.downloadBook(book, api: viewModel.api) } },

@@ -61,3 +61,24 @@ struct UserData: Codable {
         mediaProgress.first { $0.libraryItemId == libraryItemId }
     }
 }
+
+// MARK: - Enhanced Bookmark Model
+struct EnrichedBookmark: Identifiable {
+    let bookmark: Bookmark
+    let book: Book?
+    
+    var id: String { bookmark.id }
+    var isBookLoaded: Bool { book != nil }
+    var displayTitle: String { bookmark.title }
+    var bookTitle: String { book?.title ?? "Loading..." }
+}
+
+// MARK: - Bookmark Sort Options
+enum BookmarkSortOption: String, CaseIterable, Identifiable {
+    case dateNewest = "Date (Newest)"
+    case dateOldest = "Date (Oldest)"
+    case timeInBook = "Time in Book"
+    case bookTitle = "Book Title"
+    
+    var id: String { rawValue }
+}

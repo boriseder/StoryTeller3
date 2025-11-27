@@ -76,7 +76,7 @@ struct DownloadsView: View {
                     ForEach(viewModel.downloadedBooks) { book in
                         
                         BookCardView(
-                            viewModel: BookCardStateViewModel(book: book, container: dependencies),
+                            viewModel: BookCardViewModel(book: book, container: dependencies),
                             api: viewModel.api,
                             onTap: {
                                 Task {

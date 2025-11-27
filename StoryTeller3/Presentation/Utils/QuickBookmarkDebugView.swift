@@ -25,11 +25,7 @@ struct QuickBookmarkDebugView: View {
                     .font(.system(.caption, design: .monospaced))
                     .foregroundColor(.red)
             }
-            
-            Section {
-                RecentBookmarksCard()
-            }
-            
+                        
             Section("Library Books") {
                 if dependencies.libraryViewModel.books.isEmpty {
                     Text("❌ Library is EMPTY!")

@@ -8,7 +8,9 @@ struct HomeView: View {
 
     @State private var selectedSeries: Series?
     @State private var selectedAuthor: Author?
-        
+
+    @State private var showBookmarks = false
+
     @State private var showEmptyState = false
     
     @AppStorage("open_fullscreen_player") private var playerMode = false
@@ -31,6 +33,16 @@ struct HomeView: View {
         .toolbarColorScheme(theme.colorScheme, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
+                Button(action: {
+                    showBookmarks.toggle()
+                }){
+                    Image(systemName: "bookmark.fill")
+                        .font(.system(size: 16))
+                        .foregroundColor(.primary)
+                }
+            }
+
+            ToolbarItem(placement: .navigationBarTrailing) {
                 SettingsButton()
             }
         }
@@ -52,9 +64,15 @@ struct HomeView: View {
                 author: author,
                 onBookSelected: { }
             )
-            .presentationDetents([.medium])
-            .presentationDragIndicator(.visible)
-            .presentationBackground(.black.opacity(0.65))
+                .presentationDetents([.medium])
+                .presentationDragIndicator(.visible)
+                .presentationBackground(.black.opacity(0.65))
+        }
+        .sheet(isPresented: $showBookmarks) {
+            BookmarksView()
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+                .presentationBackground(.black.opacity(0.65))
         }
     }
         
@@ -72,8 +90,6 @@ struct HomeView: View {
                     
                     homeHeaderView
                         .padding(.vertical, DSLayout.elementGap)
-                    
-                    RecentBookmarksCard()
                     
                     ForEach(Array(viewModel.personalizedSections.enumerated()), id: \.element.id) { index, section in
                         PersonalizedSectionView(
@@ -245,7 +261,7 @@ struct PersonalizedSectionView: View {
             LazyHStack(spacing: DSLayout.contentGap) {
                 ForEach(books) { book in
                     BookCardView(
-                        viewModel: BookCardStateViewModel(
+                        viewModel: BookCardViewModel(
                             book: book,
                             container: dependencies
                         ),

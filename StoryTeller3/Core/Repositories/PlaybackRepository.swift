@@ -54,10 +54,10 @@ class PlaybackRepository: ObservableObject {
     func loadStateForBook(_ itemId: String, book: Book) async -> PlaybackState? {
         AppLogger.general.debug("[PlaybackRepo] 🔍 Loading state for: \(itemId)")
         
-        // 1. Hole lokalen State
+        // 1. Fetch local state
         var localState = states[itemId]
         
-        // 2. Wenn online: Hole Server-State
+        // 2. If online: Fetch remote state
         var serverProgress: MediaProgress?
         if isOnline, let api = api {
             do {
@@ -111,7 +111,53 @@ class PlaybackRepository: ObservableObject {
         AppLogger.general.debug("[PlaybackRepo] ❌ No state found for: \(itemId)")
         return nil
     }
+    
+    private func loadAllStates() {
+        queue.async { [weak self] in
+            guard let self = self else { return }
+            guard let allIds = self.userDefaults.stringArray(forKey: "all_playback_items") else { return }
+            
+            var loadedStates: [String: PlaybackState] = [:]
+            var pending: Set<String> = []
+            
+            for itemId in allIds {
+                let key = "playback_\(itemId)"
+                guard let data = self.userDefaults.data(forKey: key) else { continue }
+                
+                do {
+                    let state = try JSONDecoder().decode(PlaybackState.self, from: data)
+                    loadedStates[itemId] = state
+                    AppLogger.general.debug("[PlaybackRepo] bookID: \(state.bookId) ⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️")
 
+                    
+                    if state.needsSync {
+                        pending.insert(itemId)
+                    }
+                } catch {
+                    AppLogger.general.debug("[PlaybackRepo] ❌ Failed to decode: \(itemId)")
+                }
+            }
+            
+            DispatchQueue.main.async {
+                self.states = loadedStates
+                self.pendingSyncItems = pending
+                AppLogger.general.debug("[PlaybackRepo] Loaded \(loadedStates.count) states (\(pending.count) pending sync)")
+            }
+        }
+    }
+
+    // MARK: - Synchronous Local Access (for UI)
+
+    /// Get playback state synchronously from local cache (for immediate UI display)
+    func getPlaybackState(for itemId: String) -> PlaybackState? {
+        return states[itemId]
+    }
+
+    /// Get all playback states synchronously
+    func getAllPlaybackStates() -> [String: PlaybackState] {
+        return states
+    }
+    
     // MARK: - Save State
     
     func saveState(_ state: PlaybackState) {
@@ -262,39 +308,6 @@ class PlaybackRepository: ObservableObject {
         isSyncing = false
     }
     
-    // MARK: - Load Local States
-    
-    private func loadAllStates() {
-        queue.async { [weak self] in
-            guard let self = self else { return }
-            guard let allIds = self.userDefaults.stringArray(forKey: "all_playback_items") else { return }
-            
-            var loadedStates: [String: PlaybackState] = [:]
-            var pending: Set<String> = []
-            
-            for itemId in allIds {
-                let key = "playback_\(itemId)"
-                guard let data = self.userDefaults.data(forKey: key) else { continue }
-                
-                do {
-                    let state = try JSONDecoder().decode(PlaybackState.self, from: data)
-                    loadedStates[itemId] = state
-                    
-                    if state.needsSync {
-                        pending.insert(itemId)
-                    }
-                } catch {
-                    AppLogger.general.debug("[PlaybackRepo] ❌ Failed to decode: \(itemId)")
-                }
-            }
-            
-            DispatchQueue.main.async {
-                self.states = loadedStates
-                self.pendingSyncItems = pending
-                AppLogger.general.debug("[PlaybackRepo] Loaded \(loadedStates.count) states (\(pending.count) pending sync)")
-            }
-        }
-    }
     
     // MARK: - Convenience Methods
     
@@ -337,3 +350,4 @@ class PlaybackRepository: ObservableObject {
         return max(0, book.chapters.count - 1)
     }
 }
+

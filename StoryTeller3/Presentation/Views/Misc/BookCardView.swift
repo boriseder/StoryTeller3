@@ -3,7 +3,7 @@ import SwiftUI
 
 // MARK: - Book Card View
 struct BookCardView: View {
-    let viewModel: BookCardStateViewModel
+    let viewModel: BookCardViewModel
     let api: AudiobookshelfClient?
     let onTap: () -> Void
     let onDownload: () -> Void
@@ -15,7 +15,7 @@ struct BookCardView: View {
     var cardWidth: CGFloat
     
     init(
-        viewModel: BookCardStateViewModel,
+        viewModel: BookCardViewModel,
         api: AudiobookshelfClient?,
         onTap: @escaping () -> Void,
         onDownload: @escaping () -> Void,
@@ -70,13 +70,14 @@ struct BookCardView: View {
             )
             .clipShape(RoundedRectangle(cornerRadius: DSCorners.element))
             
-            if viewModel.duration > 0 {
+            if viewModel.duration > 0 && viewModel.currentProgress > 0 {
+                
                 VStack {
                     Spacer()
                     bookProgressIndicator
                 }
             }
-
+                
             VStack {
                 HStack(alignment: .top) {
                     if viewModel.book.isCollapsedSeries && !viewModel.isDownloading {
@@ -118,9 +119,6 @@ struct BookCardView: View {
                         .foregroundColor(theme.textColor.opacity(0.85))
                         .lineLimit(1)
                     
-                    if viewModel.isCurrentBook && viewModel.duration > 0 {
-                        bookProgressIndicator
-                    }
                     Spacer()
                 }
         }
@@ -241,21 +239,21 @@ struct BookCardView: View {
     private var bookProgressIndicator: some View {
         GeometryReader { geometry in
             ZStack(alignment: .leading) {
-                Capsule()
-                    .fill(Color.white.opacity(0.15))
-                    .frame(height: 2)
+                Rectangle()
+                    .fill(Color.white.opacity(0.65))
+                    .frame(height: 4)
                 
-                Capsule()
+                Rectangle()
                     .fill(LinearGradient(colors: [.accentColor, .accentColor.opacity(0.8)],
                                          startPoint: .leading,
                                          endPoint: .trailing))
-                    .frame(width: geometry.size.width * viewModel.currentProgress, height: 2)
+                    .frame(width: geometry.size.width * viewModel.currentProgress, height: 4)
                     .animation(.linear(duration: 0.2), value: viewModel.currentProgress)
             }
         }
-        .frame(height: 2)
-        .padding(.horizontal, 2)
+        .frame(height: 4)
         .padding(.bottom, 2)
+        .padding(.horizontal, 2)
     }
     
     // MARK: - Context Menu

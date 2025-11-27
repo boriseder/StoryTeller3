@@ -85,7 +85,7 @@ struct SeriesDetailView: View {
         ScrollView {
             LazyVGrid(columns: DSGridColumns.two, spacing: 0) {
                 ForEach(viewModel.seriesBooks, id: \.id) { book in
-                    let cardViewModel = BookCardStateViewModel(
+                    let cardViewModel = BookCardViewModel(
                         book: book,
                         container: dependencies
                     )

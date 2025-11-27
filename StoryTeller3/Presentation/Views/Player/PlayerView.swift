@@ -4,8 +4,12 @@ import AVKit
 struct PlayerView: View {
     @StateObject private var viewModel: PlayerViewModel
     @EnvironmentObject private var sleepTimer: SleepTimerService
-
+    
     @State private var showBookmarks = false
+    @State private var showBookProgress = false
+    @State private var showingAddBookmark = false
+    @State private var newBookmarkTitle = ""
+    @State private var isCreatingBookmark = false
 
     init(player: AudioPlayer, api: AudiobookshelfClient) {
         self._viewModel = StateObject(wrappedValue: PlayerViewModel(
@@ -13,7 +17,9 @@ struct PlayerView: View {
             api: api
         ))
     }
-
+  
+    
+    
     var body: some View {
         NavigationStack {
             GeometryReader { geometry in
@@ -42,13 +48,13 @@ struct PlayerView: View {
                     .environmentObject(sleepTimer)
                     .presentationDetents([.medium])
                     .presentationDragIndicator(.visible)
-
+                
             }
             .sheet(isPresented: $viewModel.showingPlaybackSettings) {
                 PlaybackSettingsView(player: viewModel.player)
                     .presentationDetents([.medium])
                     .presentationDragIndicator(.visible)
-
+                
             }
             .sheet(isPresented: $showBookmarks) {
                 BookmarkListView(
@@ -60,9 +66,18 @@ struct PlayerView: View {
             }
         }
         .onAppear {
-            viewModel.sliderValue = viewModel.player.currentTime
+            // Initialisiere Slider mit korrekter Zeit
+            viewModel.sliderValue = showBookProgress
+                ? viewModel.player.absoluteCurrentTime
+                : viewModel.player.relativeCurrentTime
+
         }
         .onReceive(viewModel.player.$currentTime) { time in
+            // Update Slider basierend auf aktuellem Modus
+            let time = showBookProgress
+                ? viewModel.player.absoluteCurrentTime
+                : viewModel.player.relativeCurrentTime
+
             viewModel.updateSliderFromPlayer(time)
         }
     }
@@ -191,26 +206,47 @@ struct PlayerView: View {
     
     private var progressSection: some View {
         VStack(spacing: 8) {
+            // Progress Slider
             Slider(
                 value: Binding(
                     get: { viewModel.sliderValue },
                     set: { viewModel.updateSliderValue($0) }
                 ),
-                in: 0...max(viewModel.player.duration, 1)
+                in: 0...max(progressDuration, 1)
             ) { editing in
                 viewModel.onSliderEditingChanged(editing)
             }
             .accentColor(.primary)
             
+            // Time Labels
             HStack {
-                Text(TimeFormatter.formatTime(viewModel.player.currentTime))
+                Text(TimeFormatter.formatTime(progressCurrentTime))
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .monospacedDigit()
                 
                 Spacer()
                 
-                let remaining = max(0, viewModel.player.duration - viewModel.player.currentTime)
+                // Toggle Button in der Mitte
+                Button(action: {
+                    showBookProgress.toggle()
+                }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: showBookProgress ? "book.fill" : "doc.text.fill")
+                            .font(.caption2)
+                        Text(showBookProgress ? "Book" : "Chapter")
+                            .font(.caption2)
+                    }
+                    .foregroundColor(.secondary)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color.secondary.opacity(0.1))
+                    .clipShape(Capsule())
+                }
+                
+                Spacer()
+                
+                let remaining = max(0, progressDuration - progressCurrentTime)
                 Text("-\(TimeFormatter.formatTime(remaining))")
                     .font(.caption)
                     .foregroundColor(.secondary)
@@ -291,6 +327,7 @@ struct PlayerView: View {
             speedButton
             sleepTimerButton
             audioRouteButton
+            bookmarkButton
             chaptersButton
             
         }
@@ -327,7 +364,7 @@ struct PlayerView: View {
     }
     
     private var audioRouteButton: some View {
-        #if targetEnvironment(simulator)
+#if targetEnvironment(simulator)
         Menu {
             Button("iPhone Speaker") {}
             Button("Bluetooth Headphones (Simulator)") {}
@@ -341,7 +378,7 @@ struct PlayerView: View {
                     .foregroundColor(.secondary)
             }
         }
-        #else
+#else
         VStack(spacing: 4) {
             AVRoutePickerViewWrapper()
                 .frame(
@@ -352,7 +389,7 @@ struct PlayerView: View {
                 .font(DeviceType.current == .iPad ? .caption : .caption2)
                 .foregroundColor(.secondary)
         }
-        #endif
+#endif
     }
     
     private var chaptersButton: some View {
@@ -369,20 +406,89 @@ struct PlayerView: View {
         }
         .disabled(viewModel.player.book == nil)
     }
+
+    // MARK: - Add Bookmark Button (after chaptersButton)
+
+    private var bookmarkButton: some View {
+        Button(action: {
+            // Pre-fill with formatted time
+            let currentTime = viewModel.player.absoluteCurrentTime
+            newBookmarkTitle = "Bookmark at \(TimeFormatter.formatTime(currentTime))"
+            showingAddBookmark = true
+        }) {
+            VStack(spacing: 4) {
+                Image(systemName: "bookmark.fill")
+                    .font(DeviceType.current == .iPad ? .title2 : .title3)
+                Text("Bookmark")
+                    .font(DeviceType.current == .iPad ? .caption : .caption2)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .disabled(viewModel.player.book == nil)
+        .alert("Add Bookmark", isPresented: $showingAddBookmark) {
+            TextField("Bookmark name", text: $newBookmarkTitle)
+                .autocorrectionDisabled()
+            
+            Button("Cancel", role: .cancel) {
+                newBookmarkTitle = ""
+            }
+            
+            Button("Add") {
+                createBookmark()
+            }
+            .disabled(newBookmarkTitle.trimmingCharacters(in: .whitespaces).isEmpty)
+            
+        } message: {
+            Text("Enter a name for this bookmark at \(TimeFormatter.formatTime(viewModel.player.absoluteCurrentTime))")
+        }
+        .overlay {
+            if isCreatingBookmark {
+                ProgressView()
+                    .scaleEffect(0.8)
+            }
+        }
+    }
+
+    private func createBookmark() {
+        guard let book = viewModel.player.book else { return }
+        
+        let title = newBookmarkTitle.trimmingCharacters(in: .whitespaces)
+        guard !title.isEmpty else { return }
+        
+        let currentTime = viewModel.player.absoluteCurrentTime
+        
+        isCreatingBookmark = true
+        
+        Task {
+            do {
+                try await BookmarkRepository.shared.createBookmark(
+                    libraryItemId: book.id,
+                    time: currentTime,
+                    title: title
+                )
+                
+                await MainActor.run {
+                    isCreatingBookmark = false
+                    newBookmarkTitle = ""
+                    
+                    // Optional: Show success feedback
+                    // Could add a toast/banner here
+                    AppLogger.general.debug("[PlayerView] ✅ Bookmark created: '\(title)' at \(currentTime)s")
+                }
+            } catch {
+                await MainActor.run {
+                    isCreatingBookmark = false
+                    AppLogger.general.error("[PlayerView] ❌ Failed to create bookmark: \(error)")
+                    // TODO: Show error to user
+                }
+            }
+        }
+    }
     
     private var moreButton: some View {
         Menu {
-            Button(action: {
-                viewModel.showingPlaybackSettings = true
-            }) {
-                Label("Playback Settings", systemImage: "gearshape")
-            }
             
-            Button(action: {
-                viewModel.showingSleepTimer = true
-            }) {
-                Label("Sleep Timer", systemImage: "moon")
-            }
+
             
             Button(action: {
                 viewModel.player.pause()
@@ -390,13 +496,29 @@ struct PlayerView: View {
                 Label("Stop Playback", systemImage: "stop")
             }
             
-            Button {
-                showBookmarks = true
-            } label: {
-                Label("Bookmarks", systemImage: "bookmark")
-            }
         } label: {
             Image(systemName: "ellipsis")
         }
     }
+    
+    // MARK: HELPER: Computed Properties
+
+    /// Aktuelle Zeit basierend auf showBookProgress
+    private var progressCurrentTime: Double {
+        if showBookProgress {
+            return viewModel.player.absoluteCurrentTime
+        } else {
+            return viewModel.player.relativeCurrentTime
+        }
+    }
+    
+    /// Duration basierend auf showBookProgress
+    private var progressDuration: Double {
+        if showBookProgress {
+            return viewModel.player.totalBookDuration
+        } else {
+            return viewModel.player.chapterDuration
+        }
+    }
+
 }

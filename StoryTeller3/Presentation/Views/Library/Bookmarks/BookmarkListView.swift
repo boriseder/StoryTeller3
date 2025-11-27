@@ -16,7 +16,7 @@ struct BookmarkListView: View {
     @StateObject private var repository = BookmarkRepository.shared
     @State private var showingAddBookmark = false
     @State private var editingBookmark: Bookmark?
-    
+
     private var bookmarks: [Bookmark] {
         repository.getBookmarks(for: book.id)
     }

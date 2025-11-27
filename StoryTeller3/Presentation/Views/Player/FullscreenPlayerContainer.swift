@@ -47,7 +47,7 @@ struct FullscreenPlayerContainer<Content: View>: View {
                                 }
                             }
                         )
-                        .padding(.bottom, DeviceType.current == .iPad ? 0 : 50)
+                        .padding(.bottom, DSLayout.miniPlayerHeight)
                     }
                     .zIndex(1)
                 }
