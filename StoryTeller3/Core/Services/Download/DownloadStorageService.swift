@@ -2,63 +2,34 @@ import Foundation
 
 // MARK: - Protocol
 
-/// Service responsible for file system operations
 protocol DownloadStorageService {
-    /// Creates a directory for a book
     func createBookDirectory(for bookId: String) throws -> URL
-    
-    /// Saves book metadata to disk
     func saveBookMetadata(_ book: Book, to directory: URL) throws
-    
-    /// Saves audio info (technical metadata) to disk
     func saveAudioInfo(_ audioInfo: AudioInfo, to directory: URL) throws
-    
-    /// Loads audio info from disk
     func loadAudioInfo(for bookId: String) -> AudioInfo?
-    
-    /// Saves audio file data to disk
     func saveAudioFile(_ data: Data, to url: URL) throws
-    
-    /// Saves cover image data to disk
     func saveCoverImage(_ data: Data, to url: URL) throws
-    
-    /// Deletes a book directory
     func deleteBookDirectory(at url: URL) throws
-    
-    /// Gets the book directory URL for a given book ID
     func bookDirectory(for bookId: String) -> URL
-    
-    /// Gets the audio directory URL for a given book ID
     func audioDirectory(for bookId: String) -> URL
-    
-    /// Gets the local audio file URL
     func getLocalAudioURL(for bookId: String, chapterIndex: Int) -> URL?
-    
-    /// Gets the local cover image URL
     func getLocalCoverURL(for bookId: String) -> URL?
-    
-    /// Loads all downloaded books from disk
     func loadDownloadedBooks() -> [Book]
-    
-    /// Checks if sufficient storage space is available
     func checkAvailableStorage(requiredSpace: Int64) -> Bool
-    
-    /// Gets the total size of all downloads
     func getTotalDownloadSize() -> Int64
-    
-    /// Gets the storage size of a specific book
     func getBookStorageSize(_ bookId: String) -> Int64
+    
+    // NEW: Explicit sync operation
+    func syncDirectory(at url: URL) throws
 }
 
 // MARK: - Default Implementation
 
 final class DefaultDownloadStorageService: DownloadStorageService {
     
-    // MARK: - Properties
     private let fileManager: FileManager
     private let downloadsURL: URL
     
-    // MARK: - Initialization
     init(fileManager: FileManager = .default) {
         self.fileManager = fileManager
         
@@ -67,8 +38,6 @@ final class DefaultDownloadStorageService: DownloadStorageService {
         
         createDownloadsDirectoryIfNeeded()
     }
-    
-    // MARK: - Private Methods
     
     private func createDownloadsDirectoryIfNeeded() {
         if !fileManager.fileExists(atPath: downloadsURL.path) {
@@ -81,18 +50,95 @@ final class DefaultDownloadStorageService: DownloadStorageService {
         }
     }
     
-    // MARK: - DownloadStorageService
+    // MARK: - Safe Write Operations with fsync
+    
+    /// Writes data atomically and forces sync to disk
+    private func writeDataSafely(_ data: Data, to url: URL) throws {
+        // Step 1: Write atomically (creates temp file, then renames)
+        try data.write(to: url, options: [.atomic])
+        
+        // Step 2: Force sync to disk using fsync
+        try syncFile(at: url)
+        
+        AppLogger.general.debug("[DownloadStorage] Safely wrote \(data.count) bytes to \(url.lastPathComponent)")
+    }
+    
+    /// Forces a file to be synced to disk using fsync()
+    private func syncFile(at url: URL) throws {
+        let path = url.path
+        let fd = open(path, O_RDONLY)
+        
+        guard fd != -1 else {
+            throw NSError(
+                domain: "DownloadStorageService",
+                code: -1,
+                userInfo: [NSLocalizedDescriptionKey: "Failed to open file for sync: \(path)"]
+            )
+        }
+        
+        defer { close(fd) }
+        
+        // fsync() blocks until data is physically written to disk
+        let result = fsync(fd)
+        guard result == 0 else {
+            throw NSError(
+                domain: "DownloadStorageService",
+                code: -2,
+                userInfo: [NSLocalizedDescriptionKey: "Failed to sync file to disk: \(path)"]
+            )
+        }
+    }
+    
+    /// Syncs an entire directory (and its parent) to ensure metadata is persisted
+    func syncDirectory(at url: URL) throws {
+        let path = url.path
+        let fd = open(path, O_RDONLY)
+        
+        guard fd != -1 else {
+            throw NSError(
+                domain: "DownloadStorageService",
+                code: -3,
+                userInfo: [NSLocalizedDescriptionKey: "Failed to open directory for sync: \(path)"]
+            )
+        }
+        
+        defer { close(fd) }
+        
+        // On Darwin/iOS, fsync on directory syncs its metadata
+        let result = fsync(fd)
+        guard result == 0 else {
+            throw NSError(
+                domain: "DownloadStorageService",
+                code: -4,
+                userInfo: [NSLocalizedDescriptionKey: "Failed to sync directory to disk: \(path)"]
+            )
+        }
+        
+        AppLogger.general.debug("[DownloadStorage] Synced directory: \(url.lastPathComponent)")
+    }
+    
+    // MARK: - DownloadStorageService Implementation
     
     func createBookDirectory(for bookId: String) throws -> URL {
         let bookDir = bookDirectory(for: bookId)
         try fileManager.createDirectory(at: bookDir, withIntermediateDirectories: true)
+        
+        // Sync the parent directory to ensure the new directory entry is persisted
+        try syncDirectory(at: downloadsURL)
+        
         return bookDir
     }
     
     func saveBookMetadata(_ book: Book, to directory: URL) throws {
         let metadataURL = directory.appendingPathComponent("metadata.json")
         let metadataData = try JSONEncoder().encode(book)
-        try metadataData.write(to: metadataURL)
+        
+        // Use safe write with fsync
+        try writeDataSafely(metadataData, to: metadataURL)
+        
+        // Sync directory to persist file entry
+        try syncDirectory(at: directory)
+        
         AppLogger.general.debug("[DownloadStorage] Saved metadata for book: \(book.id)")
     }
     
@@ -101,7 +147,13 @@ final class DefaultDownloadStorageService: DownloadStorageService {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         let audioInfoData = try encoder.encode(audioInfo)
-        try audioInfoData.write(to: audioInfoURL)
+        
+        // ✅ FIX: Use safe write with fsync
+        try writeDataSafely(audioInfoData, to: audioInfoURL)
+        
+        // ✅ FIX: Sync directory to persist file entry
+        try syncDirectory(at: directory)
+        
         AppLogger.general.debug("[DownloadStorage] Saved audio info: \(audioInfo.audioTrackCount) tracks")
     }
     
@@ -118,16 +170,28 @@ final class DefaultDownloadStorageService: DownloadStorageService {
     }
     
     func saveAudioFile(_ data: Data, to url: URL) throws {
-        try data.write(to: url)
+        // ✅ FIX: Use safe write with fsync for audio files
+        try writeDataSafely(data, to: url)
+        
+        // ✅ FIX: Sync parent directory to persist file entry
+        try syncDirectory(at: url.deletingLastPathComponent())
     }
     
     func saveCoverImage(_ data: Data, to url: URL) throws {
-        try data.write(to: url)
+        // ✅ FIX: Use safe write with fsync for cover images
+        try writeDataSafely(data, to: url)
+        
+        // ✅ FIX: Sync parent directory to persist file entry
+        try syncDirectory(at: url.deletingLastPathComponent())
     }
     
     func deleteBookDirectory(at url: URL) throws {
         if fileManager.fileExists(atPath: url.path) {
             try fileManager.removeItem(at: url)
+            
+            // Sync parent directory to persist deletion
+            try syncDirectory(at: url.deletingLastPathComponent())
+            
             AppLogger.general.debug("[DownloadStorage] Deleted directory: \(url.lastPathComponent)")
         }
     }

@@ -2,17 +2,12 @@ import Foundation
 
 // MARK: - Progress Callback Type
 
-/// Progress callback type
 typealias DownloadProgressCallback = (String, Double, String, DownloadStage) -> Void
 
 // MARK: - Protocol
 
-/// Service responsible for orchestrating the download process
 protocol DownloadOrchestrationService {
-    /// Downloads a book with all its components
     func downloadBook(_ book: Book, api: AudiobookshelfClient, onProgress: @escaping DownloadProgressCallback) async throws
-    
-    /// Cancels an ongoing download
     func cancelDownload(for bookId: String)
 }
 
@@ -20,14 +15,12 @@ protocol DownloadOrchestrationService {
 
 final class DefaultDownloadOrchestrationService: DownloadOrchestrationService {
     
-    // MARK: - Properties
     private let networkService: DownloadNetworkService
     private let storageService: DownloadStorageService
     private let retryPolicy: RetryPolicyService
     private let validationService: DownloadValidationService
     private var downloadTasks: [String: Task<Void, Never>] = [:]
     
-    // MARK: - Initialization
     init(
         networkService: DownloadNetworkService,
         storageService: DownloadStorageService,
@@ -57,11 +50,10 @@ final class DefaultDownloadOrchestrationService: DownloadOrchestrationService {
         try storageService.saveBookMetadata(fullBook, to: bookDir)
         
         // Stage 4: Download cover
-        
         if let coverPath = fullBook.coverPath {
             onProgress(book.id, 0.20, "Downloading cover...", .downloadingCover)
             try await downloadCoverWithRetry(
-                bookId: book.id, // FIXED: Use book.id consistently
+                bookId: book.id,
                 coverPath: coverPath,
                 api: api,
                 bookDir: bookDir
@@ -84,13 +76,12 @@ final class DefaultDownloadOrchestrationService: DownloadOrchestrationService {
         AppLogger.general.debug("[DownloadOrchestration] Saved audio info: \(audioTrackCount) tracks")
         
         // RACE CONDITION FIX: Ensure all file operations are flushed to disk
-        // This is especially important on iOS where file writes may be buffered
-        try await Task.sleep(nanoseconds: 100_000_000) // 0.1 second buffer
+        try await Task.sleep(nanoseconds: 100_000_000)
         
         // Stage 6: Validate
         onProgress(book.id, 0.95, "Verifying download...", .finalizing)
         let validation = validationService.validateBookIntegrity(
-            bookId: book.id, // FIXED: Use book.id consistently
+            bookId: book.id,
             storageService: storageService
         )
         
@@ -113,9 +104,9 @@ final class DefaultDownloadOrchestrationService: DownloadOrchestrationService {
     
     // MARK: - Private Methods
     
-    // Downloads cover to book directory for offline use
-    // Separate from CoverCacheManager which handles UI caching
-    
+    /// Downloads book cover with retry logic
+    /// Note: coverPath parameter kept for backwards compatibility but not used
+    /// The API's canonical cover endpoint is /api/items/{id}/cover
     private func downloadCoverWithRetry(
         bookId: String,
         coverPath: String,
@@ -123,46 +114,22 @@ final class DefaultDownloadOrchestrationService: DownloadOrchestrationService {
         bookDir: URL
     ) async throws {
         
-        // WRONG ENDPOINT
-        /*
-        guard let coverURL = URL(string: "\(api.baseURLString)\(coverPath)") else {
-            throw DownloadError.invalidCoverURL
-        }
-         */
-        
-        // PATCH
-        //new endpoint as
-        let coverURLString = "\(api.baseURLString)/api/items/\(bookId)/cover"
-        guard let url = URL(string: coverURLString) else {
-            throw DownloadError.invalidCoverURL
-        }
-        
-        AppLogger.general.debug("#### DIRTY HACK - coverURLString: \(coverURLString)")
-                
         var lastError: Error?
         
         for attempt in 0..<retryPolicy.maxRetries {
             do {
-                // PATCH
-                // actual fix - use the correct endpoint
-                // but needs refactoring as redundant!!!
-                // old -1 line
-                // let data = try await networkService.downloadFile(from: coverURL, authToken: api.authToken)
-                // new +1 line
-                let data = try await networkService.downloadFile(from: url, authToken: api.authToken)
-
+                // ✅ CLEAN: Network service handles URL construction and validation
+                let data = try await networkService.downloadCover(bookId: bookId, api: api)
+                
                 let coverFile = bookDir.appendingPathComponent("cover.jpg")
-
                 try storageService.saveCoverImage(data, to: coverFile)
                 
-                
-                AppLogger.general.debug("#### DIRTY HACK - Download of cover.jpg successful")
- 
+                AppLogger.general.debug("[DownloadOrchestration] Cover saved successfully")
                 return
                 
             } catch {
                 lastError = error
-                AppLogger.general.debug("[DownloadOrchestration] Cover download attempt \(attempt + 1) failed: \(error)")
+                AppLogger.general.warn("[DownloadOrchestration] Cover download attempt \(attempt + 1)/\(retryPolicy.maxRetries) failed: \(error.localizedDescription)")
                 
                 if retryPolicy.shouldRetry(attempt: attempt, error: error) {
                     let delay = retryPolicy.delay(for: attempt)
@@ -196,7 +163,19 @@ final class DefaultDownloadOrchestrationService: DownloadOrchestrationService {
         AppLogger.general.debug("[DownloadOrchestration] Downloading \(totalTracks) audio tracks")
         
         for (index, audioTrack) in session.audioTracks.enumerated() {
-            let audioURL = URL(string: "\(api.baseURLString)\(audioTrack.contentUrl)")!
+            // ✅ CRITICAL FIX: Properly unwrap the Optional contentUrl
+            guard let contentUrl = audioTrack.contentUrl else {
+                AppLogger.general.error("[DownloadOrchestration] Audio track \(index) missing contentUrl")
+                throw DownloadError.missingContentUrl(track: index)
+            }
+            
+            // ✅ Build URL safely with proper validation
+            let audioURL = try buildAudioURL(
+                baseURL: api.baseURLString,
+                contentUrl: contentUrl,
+                trackIndex: index
+            )
+            
             let fileName = "chapter_\(index).mp3"
             let localURL = audioDir.appendingPathComponent(fileName)
             
@@ -214,6 +193,54 @@ final class DefaultDownloadOrchestrationService: DownloadOrchestrationService {
         return totalTracks
     }
     
+    /// Safely constructs an audio URL with proper validation and encoding
+    private func buildAudioURL(
+        baseURL: String,
+        contentUrl: String,
+        trackIndex: Int
+    ) throws -> URL {
+        // Strategy 1: Try direct concatenation first (most common case)
+        let urlString = "\(baseURL)\(contentUrl)"
+        
+        AppLogger.general.debug("[DownloadOrchestration] Building URL for track \(trackIndex): \(urlString)")
+        
+        if let url = URL(string: urlString) {
+            return url
+        }
+        
+        // Strategy 2: Try URL encoding the content path
+        AppLogger.general.warn("[DownloadOrchestration] Direct URL creation failed, trying percent encoding")
+        
+        if let encodedPath = contentUrl.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed),
+           let url = URL(string: "\(baseURL)\(encodedPath)") {
+            AppLogger.general.info("[DownloadOrchestration] Successfully created URL with percent encoding")
+            return url
+        }
+        
+        // Strategy 3: Use URLComponents for complex cases
+        AppLogger.general.warn("[DownloadOrchestration] Percent encoding failed, trying URLComponents")
+        
+        if var components = URLComponents(string: baseURL) {
+            let path = contentUrl.hasPrefix("/") ? contentUrl : "/\(contentUrl)"
+            components.path = components.path + path
+            
+            if let url = components.url {
+                AppLogger.general.info("[DownloadOrchestration] Successfully created URL via URLComponents")
+                return url
+            }
+        }
+        
+        // All strategies failed - throw detailed error
+        AppLogger.general.error("""
+            [DownloadOrchestration] Failed to build audio URL for track \(trackIndex)
+            Base URL: \(baseURL)
+            Content URL: \(contentUrl)
+            Combined: \(urlString)
+            """)
+        
+        throw DownloadError.invalidAudioURL(track: trackIndex, path: contentUrl)
+    }
+    
     private func downloadAudioFileWithRetry(
         from url: URL,
         to localURL: URL,
@@ -225,7 +252,6 @@ final class DefaultDownloadOrchestrationService: DownloadOrchestrationService {
     ) async throws {
         var lastError: Error?
         
-        // Calculate progress range for this chapter (0.25 to 0.95 for all audio files)
         let baseProgress = 0.25
         let audioProgressRange = 0.70
         let chapterStartProgress = baseProgress + (audioProgressRange * Double(currentTrack) / Double(totalTracks))
@@ -236,13 +262,11 @@ final class DefaultDownloadOrchestrationService: DownloadOrchestrationService {
                 let chapterNum = currentTrack + 1
                 let attemptInfo = attempt > 0 ? " (retry \(attempt))" : ""
                 
-                // Report start of chapter download with proper incremental progress
                 onProgress(bookId, chapterStartProgress, "Downloading chapter \(chapterNum)/\(totalTracks)\(attemptInfo)...", .downloadingAudio)
                 
                 let data = try await networkService.downloadFile(from: url, authToken: api.authToken)
                 try storageService.saveAudioFile(data, to: localURL)
                 
-                // Report completion of chapter download
                 let percentComplete = Int((Double(chapterNum) / Double(totalTracks)) * 100)
                 onProgress(bookId, chapterEndProgress, "Downloaded chapter \(chapterNum)/\(totalTracks) (\(percentComplete)%)", .downloadingAudio)
                 

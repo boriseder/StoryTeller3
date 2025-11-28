@@ -223,7 +223,10 @@ enum DownloadError: LocalizedError {
     case fileTooSmall
     case verificationFailed
     case insufficientStorage
-    
+    case missingContentUrl(track: Int)
+    case invalidAudioURL(track: Int, path: String)
+    case invalidImageData
+
     var errorDescription: String? {
         switch self {
         case .invalidCoverURL:
@@ -244,6 +247,12 @@ enum DownloadError: LocalizedError {
             return "Download verification failed - some files are missing"
         case .insufficientStorage:
             return "Insufficient storage space. Please free up at least 500MB."
+        case .missingContentUrl(let track):
+            return "Audio track \(track + 1) is missing a content URL"
+        case .invalidAudioURL(let track, let path):
+            return "Failed to construct valid URL for audio track \(track + 1): \(path)"
+        case .invalidImageData:
+            return "Downloaded cover file is not a valid image"
         }
     }
 }
