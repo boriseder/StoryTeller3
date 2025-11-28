@@ -36,10 +36,10 @@ struct Metadata: Codable {
         narrator      = try container.decodeIfPresent(String.self, forKey: .narrator)
         publisher     = try container.decodeIfPresent(String.self, forKey: .publisher)
 
-        // 🔄 Autor flexibel auslesen
-        if let authorName = try? container.decode(String.self, forKey: .authorName) {
+        // Use decodeIfPresent instead of try?
+        if let authorName = try container.decodeIfPresent(String.self, forKey: .authorName) {
             author = authorName
-        } else if let authorObjects = try? container.decode([Author].self, forKey: .authors) {
+        } else if let authorObjects = try container.decodeIfPresent([Author].self, forKey: .authors) {
             author = authorObjects.first?.name
         } else {
             author = nil

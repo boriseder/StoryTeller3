@@ -12,7 +12,7 @@ struct LibraryItemsResponse: Decodable {
     let page: Int?
 }
 
-struct Library: Codable, Identifiable {
+struct Library: Codable, Identifiable, Equatable, Hashable {
     let id: String
     let name: String
     let mediaType: String?

@@ -16,11 +16,21 @@ struct ChaptersListView: View {
     @State private var updateTimer: Timer?
     @State private var scrollTarget: Int?
     
-    // Bookmark states
-    @State private var bookmarks: [Bookmark] = []
-    @State private var editingBookmark: Bookmark?
-    @State private var editedBookmarkTitle = ""
-    @State private var showingDeleteConfirm: Bookmark?
+    @StateObject private var bookmarkViewModel: BookmarkViewModel
+    
+    // Filter bookmarks for current book only
+    private var currentBookBookmarks: [EnrichedBookmark] {
+        guard let bookId = player.book?.id else { return [] }
+        return bookmarkViewModel.allBookmarks
+            .filter { $0.bookmark.libraryItemId == bookId }
+            .sorted { $0.bookmark.time < $1.bookmark.time }
+    }
+    
+    init(player: AudioPlayer) {
+        self.player = player
+        // Initialize with shared dependencies
+        _bookmarkViewModel = StateObject(wrappedValue: BookmarkViewModel())
+    }
     
     var body: some View {
         NavigationView {
@@ -52,6 +62,13 @@ struct ChaptersListView: View {
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "chevron.down")
+                    }
+                }
                 ToolbarItem(placement: .principal) {
                     Text(selectedTab == .chapters ? "Chapters" : "Bookmarks")
                         .font(DSText.emphasized)
@@ -66,40 +83,26 @@ struct ChaptersListView: View {
             }
             .onAppear {
                 updateChapterViewModels()
-                loadBookmarks()
                 startPeriodicUpdates()
             }
             .onDisappear {
                 stopPeriodicUpdates()
             }
-            .alert("Edit Bookmark", isPresented: .constant(editingBookmark != nil)) {
-                TextField("Bookmark name", text: $editedBookmarkTitle)
+            // ✅ USE ViewModel's alert binding
+            .alert("Edit Bookmark", isPresented: .constant(bookmarkViewModel.editingBookmark != nil)) {
+                TextField("Bookmark name", text: $bookmarkViewModel.editedBookmarkTitle)
                     .autocorrectionDisabled()
                 
                 Button("Cancel", role: .cancel) {
-                    editingBookmark = nil
-                    editedBookmarkTitle = ""
+                    bookmarkViewModel.cancelEditing()
                 }
                 
                 Button("Save") {
-                    saveEditedBookmark()
+                    bookmarkViewModel.saveEditedBookmark()
                 }
-                .disabled(editedBookmarkTitle.trimmingCharacters(in: .whitespaces).isEmpty)
+                .disabled(bookmarkViewModel.editedBookmarkTitle.trimmingCharacters(in: .whitespaces).isEmpty)
             } message: {
                 Text("Enter a new name for this bookmark")
-            }
-            .alert("Delete Bookmark?", isPresented: .constant(showingDeleteConfirm != nil)) {
-                Button("Cancel", role: .cancel) {
-                    showingDeleteConfirm = nil
-                }
-                
-                Button("Delete", role: .destructive) {
-                    if let bookmark = showingDeleteConfirm {
-                        deleteBookmark(bookmark)
-                    }
-                }
-            } message: {
-                Text("This action cannot be undone.")
             }
         }
     }
@@ -154,7 +157,7 @@ struct ChaptersListView: View {
                             Image(systemName: "bookmark.fill")
                                 .font(DSText.button)
                                 .foregroundColor(.secondary)
-                            Text("\(bookmarks.count) bookmarks")
+                            Text("\(currentBookBookmarks.count) bookmarks")
                                 .font(DSText.detail)
                                 .foregroundColor(.secondary)
                         }
@@ -199,7 +202,7 @@ struct ChaptersListView: View {
     
     private var bookmarksListView: some View {
         ScrollView {
-            if bookmarks.isEmpty {
+            if currentBookBookmarks.isEmpty {
                 VStack(spacing: DSLayout.contentGap) {
                     Image(systemName: "bookmark.slash")
                         .font(.system(size: 48))
@@ -218,24 +221,33 @@ struct ChaptersListView: View {
                 .padding(.top, 60)
             } else {
                 LazyVStack(spacing: DSLayout.tightGap) {
-                    ForEach(bookmarks) { bookmark in
-                        BookmarkCardView(
-                            bookmark: bookmark,
+                    ForEach(currentBookBookmarks) { enriched in
+                        BookmarkRow(
+                            enriched: enriched,
+                            showBookInfo: false, // Don't show book info - we're already in book context
                             onTap: {
-                                jumpToBookmark(bookmark)
+                                // Jump and dismiss
+                                player.jumpToBookmark(enriched.bookmark)
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                    dismiss()
+                                }
                             },
                             onEdit: {
-                                startEditingBookmark(bookmark)
+                                bookmarkViewModel.startEditingBookmark(enriched)
                             },
                             onDelete: {
-                                showingDeleteConfirm = bookmark
+                                bookmarkViewModel.deleteBookmark(enriched)
                             }
                         )
+                        .environmentObject(bookmarkViewModel)
                     }
                 }
                 .padding(.horizontal, DSLayout.screenPadding)
                 .padding(.bottom, DSLayout.screenPadding)
             }
+        }
+        .refreshable {
+            await bookmarkViewModel.refresh()
         }
     }
     
@@ -285,189 +297,9 @@ struct ChaptersListView: View {
             dismiss()
         }
     }
-    
-    // MARK: - Bookmark Actions
-    
-    private func loadBookmarks() {
-        guard let book = player.book else { return }
-        bookmarks = BookmarkRepository.shared.getBookmarks(for: book.id)
-            .sorted { $0.time < $1.time }
-    }
-    
-    private func jumpToBookmark(_ bookmark: Bookmark) {
-        player.jumpToBookmark(bookmark)
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            dismiss()
-        }
-    }
-    
-    private func startEditingBookmark(_ bookmark: Bookmark) {
-        editingBookmark = bookmark
-        editedBookmarkTitle = bookmark.title
-    }
-    
-    private func saveEditedBookmark() {
-        guard let bookmark = editingBookmark,
-              let book = player.book else { return }
-        
-        let newTitle = editedBookmarkTitle.trimmingCharacters(in: .whitespaces)
-        guard !newTitle.isEmpty else { return }
-        
-        Task {
-            do {
-                try await BookmarkRepository.shared.updateBookmark(
-                    libraryItemId: book.id,
-                    time: bookmark.time,
-                    newTitle: newTitle
-                )
-                
-                await MainActor.run {
-                    loadBookmarks()
-                    editingBookmark = nil
-                    editedBookmarkTitle = ""
-                }
-            } catch {
-                AppLogger.general.error("[ChaptersList] Failed to update bookmark: \(error)")
-            }
-        }
-    }
-    
-    private func deleteBookmark(_ bookmark: Bookmark) {
-        guard let book = player.book else { return }
-        
-        Task {
-            do {
-                try await BookmarkRepository.shared.deleteBookmark(
-                    libraryItemId: book.id,
-                    time: bookmark.time
-                )
-                
-                await MainActor.run {
-                    loadBookmarks()
-                    showingDeleteConfirm = nil
-                }
-            } catch {
-                AppLogger.general.error("[ChaptersList] Failed to delete bookmark: \(error)")
-            }
-        }
-    }
 }
 
-// MARK: - Bookmark Card View
-
-struct BookmarkCardView: View {
-    let bookmark: Bookmark
-    let onTap: () -> Void
-    let onEdit: () -> Void
-    let onDelete: () -> Void
-    
-    @State private var isPressed = false
-    
-    var body: some View {
-        HStack(spacing: DSLayout.contentGap) {
-            // Bookmark icon
-            ZStack {
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [Color.orange, Color.orange.opacity(0.7)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: DSLayout.largeIcon, height: DSLayout.largeIcon)
-                
-                Image(systemName: "bookmark.fill")
-                    .font(DSText.button)
-                    .foregroundColor(.white)
-            }
-            .padding(.leading, DSLayout.elementPadding)
-            
-            // Bookmark info
-            VStack(alignment: .leading, spacing: DSLayout.elementGap) {
-                Text(bookmark.title)
-                    .font(DSText.emphasized)
-                    .fontWeight(.medium)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.leading)
-                
-                HStack(spacing: DSLayout.contentGap) {
-                    HStack(spacing: DSLayout.tightGap) {
-                        Image(systemName: "clock")
-                            .font(DSText.metadata)
-                        Text(bookmark.formattedTime)
-                            .font(DSText.metadata)
-                            .monospacedDigit()
-                    }
-                    .foregroundColor(.secondary)
-                    
-                    HStack(spacing: DSLayout.tightGap) {
-                        Image(systemName: "calendar")
-                            .font(DSText.metadata)
-                        Text(bookmark.createdDate.formatted(date: .abbreviated, time: .omitted))
-                            .font(DSText.metadata)
-                    }
-                    .foregroundColor(.secondary)
-                }
-            }
-            
-            Spacer()
-            
-            // Action buttons
-            HStack(spacing: DSLayout.tightGap) {
-                Button(action: onEdit) {
-                    Image(systemName: "pencil")
-                        .font(.system(size: 16))
-                        .foregroundColor(.accentColor)
-                        .frame(width: 32, height: 32)
-                        .background(Color.accentColor.opacity(0.1))
-                        .clipShape(Circle())
-                }
-                .buttonStyle(.plain)
-                
-                Button(action: onDelete) {
-                    Image(systemName: "trash")
-                        .font(.system(size: 16))
-                        .foregroundColor(.red)
-                        .frame(width: 32, height: 32)
-                        .background(Color.red.opacity(0.1))
-                        .clipShape(Circle())
-                }
-                .buttonStyle(.plain)
-            }
-            .padding(.trailing, DSLayout.elementPadding)
-        }
-        .padding(DSLayout.elementPadding)
-        .background(
-            RoundedRectangle(cornerRadius: DSCorners.element)
-                .fill(Color(.secondarySystemGroupedBackground))
-                .shadow(
-                    color: Color.black.opacity(0.05),
-                    radius: isPressed ? 4 : 8,
-                    x: 0,
-                    y: isPressed ? 2 : 4
-                )
-        )
-        .scaleEffect(isPressed ? 0.98 : 1.0)
-        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isPressed)
-        .contentShape(Rectangle())
-        .onTapGesture {
-            withAnimation(.easeIn(duration: 0.1)) {
-                isPressed = true
-            }
-            
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                withAnimation(.easeOut(duration: 0.1)) {
-                    isPressed = false
-                }
-                onTap()
-            }
-        }
-    }
-}
-
-// MARK: - Chapter Card View (Existing)
+// MARK: - Chapter Card View (Keep existing implementation)
 
 struct ChapterCardView: View {
     let viewModel: ChapterStateViewModel

@@ -2,7 +2,7 @@ import Foundation
 
 // MARK: - Series Models
 
-struct Series: Encodable, Identifiable {
+struct Series: Codable, Identifiable, Equatable, Hashable {  // ✅ Simplified
     let id: String
     let name: String
     let nameIgnorePrefix: String?
@@ -10,40 +10,43 @@ struct Series: Encodable, Identifiable {
     let books: [LibraryItem]
     let addedAt: TimeInterval
     
-    // Computed totalDuration from books
+    // MARK: - Computed Properties
+    
+    /// Total duration of all books in the series
     var totalDuration: Double {
         books.reduce(0) { total, book in
             total + (book.media.duration ?? 0)
         }
     }
-}
-
-// MARK: - Series Decodable Implementation (nur zum Lesen)
-extension Series: Decodable {
-    enum CodingKeys: String, CodingKey {
-        case id, name, nameIgnorePrefix, nameIgnorePrefixSort, books, addedAt
+    
+    var bookCount: Int {
+        books.count
     }
     
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        
-        id = try container.decode(String.self, forKey: .id)
-        name = try container.decode(String.self, forKey: .name)
-        nameIgnorePrefix = try container.decodeIfPresent(String.self, forKey: .nameIgnorePrefix)
-        nameIgnorePrefixSort = try container.decodeIfPresent(String.self, forKey: .nameIgnorePrefixSort)
-        books = try container.decode([LibraryItem].self, forKey: .books)
-        addedAt = try container.decode(TimeInterval.self, forKey: .addedAt)
+    var firstBook: LibraryItem? {
+        books.first
     }
-}
-
-// MARK: - Series Computed Properties
-extension Series {
-    var bookCount: Int { books.count }
-    var firstBook: LibraryItem? { books.first }
-    var coverPath: String? { firstBook?.media.coverPath }
-    var author: String? { firstBook?.media.metadata.author }
+    
+    var coverPath: String? {
+        firstBook?.media.coverPath
+    }
+    
+    var author: String? {
+        firstBook?.media.metadata.author
+    }
+    
     var formattedDuration: String {
         TimeFormatter.formatTimeCompact(totalDuration)
+    }
+    
+    // MARK: - Equatable & Hashable
+    
+    static func == (lhs: Series, rhs: Series) -> Bool {
+        lhs.id == rhs.id
+    }
+    
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
     }
 }
 
@@ -69,9 +72,9 @@ struct SeriesResponseItem: Decodable {
     }
 }
 
-// Update SeriesResponse to use SeriesResponseItem
+// MARK: - SeriesResponse (API wrapper)
 struct SeriesResponse: Decodable {
-    let results: [SeriesResponseItem]  // Use SeriesResponseItem
+    let results: [SeriesResponseItem]
     let total: Int
     let limit: Int
     let page: Int

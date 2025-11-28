@@ -1,5 +1,4 @@
 import Foundation
-import Network
 
 // MARK: - Playback State Model
 struct PlaybackState: Codable {
@@ -37,25 +36,27 @@ struct PlaybackState: Codable {
         self.needsSync = needsSync
     }
     
+    // ✅ FIX: Consistent timestamp conversion (server uses milliseconds)
     init(from mediaProgress: MediaProgress, chapterIndex: Int = 0) {
         self.libraryItemId = mediaProgress.libraryItemId
         self.currentTime = mediaProgress.currentTime
         self.duration = mediaProgress.duration
         self.isFinished = mediaProgress.isFinished
-        self.lastUpdate = Date(timeIntervalSince1970: mediaProgress.lastUpdate)
+        self.lastUpdate = Date(timeIntervalSince1970: mediaProgress.lastUpdate / 1000) // ✅ ms → s
         self.chapterIndex = chapterIndex
         self.needsSync = false
     }
     
+    // ✅ FIX: Consistent timestamp conversion
     mutating func mergeWithServer(_ serverProgress: MediaProgress, book: Book) {
-        let serverDate = Date(timeIntervalSince1970: serverProgress.lastUpdate / 1000)
+        let serverDate = Date(timeIntervalSince1970: serverProgress.lastUpdate / 1000) // ✅ ms → s
         
         if serverDate > self.lastUpdate {
             self.currentTime = serverProgress.currentTime
             self.duration = serverProgress.duration
             self.isFinished = serverProgress.isFinished
             self.lastUpdate = serverDate
-            self.chapterIndex = serverProgress.chapterIndex(for: book)  // Calculate chapter index
+            self.chapterIndex = serverProgress.chapterIndex(for: book)
             self.needsSync = false
         }
     }

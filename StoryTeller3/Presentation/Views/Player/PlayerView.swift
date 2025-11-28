@@ -5,7 +5,6 @@ struct PlayerView: View {
     @StateObject private var viewModel: PlayerViewModel
     @EnvironmentObject private var sleepTimer: SleepTimerService
     
-    @State private var showBookmarks = false
     @State private var showBookProgress = false
     @State private var showingAddBookmark = false
     @State private var newBookmarkTitle = ""
@@ -55,14 +54,6 @@ struct PlayerView: View {
                     .presentationDetents([.medium])
                     .presentationDragIndicator(.visible)
                 
-            }
-            .sheet(isPresented: $showBookmarks) {
-                BookmarkListView(
-                    book: viewModel.player.book!,
-                    onBookmarkTap: { bookmark in
-                        AppLogger.ui.debug("onBookmarkTap")
-                    }
-                )
             }
         }
         .onAppear {
