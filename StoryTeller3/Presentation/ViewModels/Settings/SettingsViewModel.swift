@@ -36,7 +36,6 @@ class SettingsViewModel: ObservableObject {
     private let logoutUseCase: LogoutUseCaseProtocol
     
     private let serverValidator: ServerConfigValidating
-    private let diagnosticsService: DiagnosticsCollecting
     private let coverCacheManager: CoverCacheManager
     
     let downloadManager: DownloadManager
@@ -54,7 +53,6 @@ class SettingsViewModel: ObservableObject {
         loadCredentialsUseCase: LoadCredentialsUseCaseProtocol,
         logoutUseCase: LogoutUseCaseProtocol,
         serverValidator: ServerConfigValidating,
-        diagnosticsService: DiagnosticsCollecting,
         coverCacheManager: CoverCacheManager,
         downloadManager: DownloadManager,
         settingsRepository: SettingsRepositoryProtocol
@@ -68,7 +66,6 @@ class SettingsViewModel: ObservableObject {
         self.loadCredentialsUseCase = loadCredentialsUseCase
         self.logoutUseCase = logoutUseCase
         self.serverValidator = serverValidator
-        self.diagnosticsService = diagnosticsService
         self.coverCacheManager = coverCacheManager
         self.downloadManager = downloadManager
         self.settingsRepository = settingsRepository

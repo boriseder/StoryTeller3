@@ -65,7 +65,6 @@ final class DependencyContainer: ObservableObject {
     lazy var coverCacheManager: CoverCacheManager = CoverCacheManager.shared
     lazy var authService: AuthenticationService = AuthenticationService()
     lazy var serverValidator: ServerConfigValidator = ServerConfigValidator()
-    lazy var diagnosticsService: DiagnosticsService = DiagnosticsService()
 
     // MARK: - 🆕 Bookmark Enrichment Cache
     private var bookLookupCache: [String: Book] = [:]
@@ -398,7 +397,6 @@ final class DependencyContainer: ObservableObject {
             loadCredentialsUseCase: makeLoadCredentialsUseCase(),
             logoutUseCase: makeLogoutUseCase(),
             serverValidator: serverValidator,
-            diagnosticsService: diagnosticsService,
             coverCacheManager: coverCacheManager,
             downloadManager: downloadManager,
             settingsRepository: SettingsRepository()
